@@ -8,20 +8,11 @@ import { Pinecone } from '@pinecone-database/pinecone';
 import { createEmbedding } from './openai';
 import type { VectorSearchResult } from './types';
 
-let _pinecone: Pinecone | null = null;
+const pinecone = new Pinecone({
+  apiKey: process.env.PINECONE_API_KEY!,
+});
 
-function getPinecone(): Pinecone {
-  if (!_pinecone) {
-    _pinecone = new Pinecone({
-      apiKey: process.env.PINECONE_API_KEY!,
-    });
-  }
-  return _pinecone;
-}
-
-function getIndexName(): string {
-  return process.env.PINECONE_INDEX || 'medical-notes';
-}
+const INDEX_NAME = process.env.PINECONE_INDEX || 'medical-notes';
 
 export interface VectorSearchOptions {
   topK?: number;
@@ -32,20 +23,6 @@ export interface VectorSearchOptions {
 
 /**
  * Search clinical notes with semantic search
- *
- * TODO: Implement this function
- *
- * Steps:
- * 1. Get the Pinecone index
- * 2. Create an embedding for the query using createEmbedding()
- * 3. Build a metadata filter if patientIds are provided
- * 4. Query Pinecone with the embedding and filter
- * 5. Map results to VectorSearchResult format
- *
- * Hints:
- * - Use index.query() with vector, topK, includeMetadata, and filter
- * - Filter format for single patient: { patientId: "patient-123" }
- * - Filter format for multiple: { patientId: { $in: ["p1", "p2"] } }
  */
 export async function searchClinicalNotes(
   query: string,
@@ -53,28 +30,7 @@ export async function searchClinicalNotes(
 ): Promise<VectorSearchResult[]> {
   const { topK = 10, patientIds } = options;
 
-  // TODO: Get the Pinecone index
-  // const index = ...
-
-  // TODO: Create embedding for the query
-  // const queryEmbedding = ...
-
-  // TODO: Build metadata filter for patientIds
-  // const filter = ...
-
-  // TODO: Query Pinecone
-  // const results = await index.query({...})
-
-  // TODO: Map results to VectorSearchResult[]
-  // return results.matches.map(match => ({
-  //   id: match.id,
-  //   score: match.score,
-  //   patientId: match.metadata?.patientId,
-  //   patientName: match.metadata?.patientName,
-  //   documentType: match.metadata?.type || 'Clinical Note',
-  //   date: match.metadata?.date,
-  //   contentPreview: truncateContent(match.metadata?.content, 500),
-  // }));
+  // TODO: Implement vector search
 
   throw new Error('Not implemented - your turn!');
 }

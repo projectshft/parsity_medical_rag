@@ -14,33 +14,10 @@ import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { executeQuery, formatResultsForLLM } from "./query-executor";
 
-/**
- * TODO: Write the system prompt for the medical assistant
- *
- * The prompt should:
- * 1. Define the assistant's role
- * 2. Explain what data sources are available
- * 3. List the types of queries it can handle
- * 4. Set guidelines for:
- *    - Accuracy (only use retrieved data)
- *    - Privacy (respect patient confidentiality)
- *    - Formatting (organize information clearly)
- *    - Limitations (what to do if info not found)
- *
- * Discussion points:
- * - What tone is appropriate for healthcare providers?
- * - What safety guardrails should we include?
- * - How should we handle uncertain or missing information?
- */
+// TODO: Write the system prompt for the medical assistant
 const SYSTEM_PROMPT = `You are a helpful medical records assistant.
 
 TODO: Complete this system prompt!
-
-Your capabilities:
-- ...
-
-Guidelines:
-- ...
 `;
 
 export interface Message {
@@ -50,19 +27,6 @@ export interface Message {
 
 /**
  * Run the medical RAG agent
- *
- * TODO: Review and understand this function
- *
- * The flow is:
- * 1. Execute hybrid query to retrieve relevant data
- * 2. Format results as context for the LLM
- * 3. Build the messages array with conversation history
- * 4. Stream the response
- *
- * Consider:
- * - How does the query analysis info help the LLM?
- * - Why do we include conversation history?
- * - What happens if no results are found?
  */
 export async function runAgent(
   query: string,

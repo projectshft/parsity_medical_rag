@@ -29,10 +29,6 @@ const DateRangeSchema = z.object({
 
 /**
  * Schema for extracted entities
- *
- * TODO: Review this schema
- * - What entities might users mention?
- * - What fields do we need for different query types?
  */
 const EntitiesSchema = z.object({
   patientName: z.string().optional().describe('Patient name if searching for specific patient'),
@@ -74,85 +70,24 @@ const QueryAnalysisSchema = z.object({
 export type QueryAnalysis = z.infer<typeof QueryAnalysisSchema>;
 export type QueryIntent = QueryAnalysis['intent'];
 
-/**
- * TODO: Write the system prompt for the query analyzer
- *
- * The prompt should:
- * 1. Explain the role (medical records query analyzer)
- * 2. Define each intent type with examples
- * 3. Give guidelines for entity extraction
- * 4. Explain when requiresSQL vs requiresVector
- *
- * Tips:
- * - Be specific about what each intent means
- * - Include examples of each query type
- * - Guide the LLM on expanding semantic queries
- */
+// TODO: Write the system prompt for the query analyzer
 const SYSTEM_PROMPT = `You are a medical records query analyzer.
 
 TODO: Complete this prompt!
-
-Intent types:
-- "patient_lookup": ...
-- "structured_query": ...
-- "clinical_note_search": ...
-- "hybrid_query": ...
-- ...
-
-Guidelines:
-- ...
 `;
 
-/**
- * TODO: Add few-shot examples
- *
- * Examples help the LLM understand the expected output format.
- * Include 4-5 examples covering different intent types.
- */
+// TODO: Add few-shot examples
 const FEW_SHOT_EXAMPLES = `
-Examples:
-
-User: "What medications is John Smith taking?"
-Output: {"intent": "patient_lookup", "entities": {"patientName": "John Smith"}, "requiresSQL": true, "requiresVector": false}
-
-TODO: Add more examples for other intent types!
+TODO: Add examples!
 `;
 
 /**
  * Analyze a user query to determine intent and extract entities
- *
- * TODO: Implement this function
- *
- * Steps:
- * 1. Get the OpenAI client
- * 2. Call client.responses.parse() with:
- *    - model: 'gpt-4o-mini'
- *    - input: messages array with system + user
- *    - temperature: 0 (for consistent output)
- *    - text: { format: zodTextFormat(QueryAnalysisSchema, 'queryAnalysis') }
- * 3. Get the parsed output from response.output_parsed
- * 4. Validate with Zod and return
  */
 export async function analyzeQuery(userQuery: string): Promise<QueryAnalysis> {
   const client = getOpenAIClient();
 
-  // TODO: Call the OpenAI Responses API
-  //
-  // const response = await client.responses.parse({
-  //   model: 'gpt-4o-mini',
-  //   input: [
-  //     { role: 'system', content: `${SYSTEM_PROMPT}\n\n${FEW_SHOT_EXAMPLES}` },
-  //     { role: 'user', content: userQuery },
-  //   ],
-  //   temperature: 0,
-  //   text: {
-  //     format: zodTextFormat(QueryAnalysisSchema, 'queryAnalysis'),
-  //   },
-  // });
-  //
-  // const parsed = response.output_parsed;
-  // if (!parsed) throw new Error('Failed to parse query');
-  // return QueryAnalysisSchema.parse(parsed);
+  // TODO: Implement query analysis using OpenAI structured outputs
 
   throw new Error('Not implemented - your turn!');
 }

@@ -27,13 +27,6 @@ const server = new McpServer({
 
 /**
  * Tool: Search for patients
- *
- * TODO: Implement this tool
- *
- * This tool should:
- * 1. Take a search query (name or condition)
- * 2. Call your query executor
- * 3. Return formatted results
  */
 server.tool(
   'search_patients',
@@ -44,10 +37,6 @@ server.tool(
   },
   async ({ query, limit }) => {
     // TODO: Implement patient search
-    // const results = await executeQuery(query, { sqlLimit: limit });
-    // return {
-    //   content: [{ type: 'text', text: formatResultsForLLM(results) }],
-    // };
 
     return {
       content: [
@@ -62,14 +51,6 @@ server.tool(
 
 /**
  * Tool: Query clinical notes
- *
- * TODO: Implement this tool
- *
- * This tool should:
- * 1. Take a semantic search query
- * 2. Optionally filter by patient ID
- * 3. Search clinical notes using vector search
- * 4. Return relevant note excerpts
  */
 server.tool(
   'query_notes',
@@ -81,13 +62,6 @@ server.tool(
   },
   async ({ query, patientId, topK }) => {
     // TODO: Implement clinical notes search
-    // const results = await searchClinicalNotes(query, {
-    //   topK,
-    //   patientIds: patientId ? [patientId] : undefined,
-    // });
-    // return {
-    //   content: [{ type: 'text', text: formatVectorResults(results) }],
-    // };
 
     return {
       content: [
@@ -102,14 +76,6 @@ server.tool(
 
 /**
  * Tool: Get patient details
- *
- * TODO: Implement this tool
- *
- * This tool should:
- * 1. Take a patient ID
- * 2. Fetch full patient record from database
- * 3. Include conditions, medications, recent observations
- * 4. Return formatted patient summary
  */
 server.tool(
   'get_patient',
@@ -119,17 +85,6 @@ server.tool(
   },
   async ({ patientId }) => {
     // TODO: Implement patient lookup
-    // const patient = await prisma.patient.findUnique({
-    //   where: { id: patientId },
-    //   include: {
-    //     conditions: { where: { status: 'active' } },
-    //     medications: { where: { status: 'active' } },
-    //     observations: { take: 10, orderBy: { effectiveDate: 'desc' } },
-    //   },
-    // });
-    // return {
-    //   content: [{ type: 'text', text: formatPatientDetails(patient) }],
-    // };
 
     return {
       content: [

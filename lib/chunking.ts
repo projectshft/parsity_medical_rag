@@ -41,63 +41,24 @@ export interface ChunkingOptions {
 
 /**
  * Parse SOAP sections from clinical note content
- *
- * TODO: Implement this function
- *
- * Look for section headers like:
- * - "SUBJECTIVE:", "S:", "Subjective"
- * - "OBJECTIVE:", "O:", "Objective"
- * - "ASSESSMENT:", "A:", "Assessment"
- * - "PLAN:", "P:", "Plan"
- *
- * Return the content of each section, or empty string if not found.
- * If no sections are found, put everything in `raw`.
- *
- * Hint: Use regex to find section headers and extract content between them
  */
 export function parseSOAPSections(content: string): SOAPSections {
-  // TODO: Implement SOAP section parsing
-  //
-  // Example regex pattern: /(?:^|\n)\s*(SUBJECTIVE|S)[\s:]+/i
-  //
-  // Steps:
-  // 1. Find each section header
-  // 2. Extract text between headers
-  // 3. Return { subjective, objective, assessment, plan, raw }
+  // TODO: Parse SOAP sections from clinical note content
 
   throw new Error('Not implemented - your turn!');
 }
 
 /**
  * Estimate token count for a string
- *
- * TODO: Implement this function
- *
- * Simple approximation: ~4 characters per token for English text.
- * For more accuracy, you could use the tiktoken library.
  */
 export function estimateTokens(text: string): number {
   // TODO: Implement token estimation
-  // Hint: Math.ceil(text.length / 4) is a reasonable approximation
 
   throw new Error('Not implemented - your turn!');
 }
 
 /**
  * Split text into chunks respecting sentence boundaries
- *
- * TODO: Implement this function
- *
- * Requirements:
- * - Split on sentence boundaries (. ! ?)
- * - Each chunk should be close to maxTokens but not exceed it
- * - Add overlap between chunks (overlap % of previous chunk)
- * - Don't split in the middle of a sentence
- *
- * Hint:
- * 1. Split text into sentences
- * 2. Accumulate sentences until you hit maxTokens
- * 3. When starting a new chunk, include overlap from previous
  */
 export function chunkText(
   text: string,
@@ -111,14 +72,6 @@ export function chunkText(
 
 /**
  * Chunk a clinical document into vector-ready pieces
- *
- * TODO: Implement this function
- *
- * Pipeline:
- * 1. Parse SOAP sections using parseSOAPSections()
- * 2. For each non-empty section, chunk it using chunkText()
- * 3. Create Chunk objects with proper metadata
- * 4. Generate unique IDs using uuidv4()
  */
 export function chunkDocument(
   content: string,
@@ -130,14 +83,6 @@ export function chunkDocument(
   const { maxTokens = 400, overlap = 0.1 } = options;
 
   // TODO: Implement document chunking
-  //
-  // Steps:
-  // 1. Parse SOAP sections
-  // 2. For each section (subjective, objective, assessment, plan):
-  //    - If section has content, chunk it
-  //    - Create Chunk objects with metadata
-  // 3. If no sections found, chunk the raw content
-  // 4. Return array of chunks
 
   throw new Error('Not implemented - your turn!');
 }
