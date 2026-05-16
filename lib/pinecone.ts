@@ -1,19 +1,19 @@
 import { Pinecone } from "@pinecone-database/pinecone";
 import { createEmbedding, createEmbeddings } from "./openai";
 
-let _pinecone: Pinecone | null = null;
+export const pinecone = new Pinecone({
+  apiKey: process.env.PINECONE_API_KEY!,
+});
 
+export const INDEX_NAME = process.env.PINECONE_INDEX || "medical-records";
+
+// Backwards compatibility
 function getPinecone(): Pinecone {
-  if (!_pinecone) {
-    _pinecone = new Pinecone({
-      apiKey: process.env.PINECONE_API_KEY!,
-    });
-  }
-  return _pinecone;
+  return pinecone;
 }
 
 function getIndexName(): string {
-  return process.env.PINECONE_INDEX || "medical-records";
+  return INDEX_NAME;
 }
 
 export interface MedicalChunk {

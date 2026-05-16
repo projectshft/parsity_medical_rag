@@ -1,19 +1,16 @@
 import OpenAI from "openai";
 
-let _openaiClient: OpenAI | null = null;
+export const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
+// Backwards compatibility
 export function getOpenAIClient(): OpenAI {
-  if (!_openaiClient) {
-    _openaiClient = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return _openaiClient;
+  return openai;
 }
 
 export async function createEmbedding(text: string): Promise<number[]> {
-  const client = getOpenAIClient();
-  const response = await client.embeddings.create({
+  const response = await openai.embeddings.create({
     model: "text-embedding-3-small",
     input: text,
     dimensions: 1536,
@@ -24,8 +21,7 @@ export async function createEmbedding(text: string): Promise<number[]> {
 export async function createEmbeddings(
   texts: string[]
 ): Promise<number[][]> {
-  const client = getOpenAIClient();
-  const response = await client.embeddings.create({
+  const response = await openai.embeddings.create({
     model: "text-embedding-3-small",
     input: texts,
     dimensions: 1536,
