@@ -1,11 +1,12 @@
 /**
  * Pinecone vector search for clinical notes
+ *
+ * Week 3: Implement semantic search over clinical notes
  */
 
 import { Pinecone } from '@pinecone-database/pinecone';
 import { createEmbedding } from './openai';
 import type { VectorSearchResult } from './types';
-import { shouldObscurePII, obscureName, obscureContent } from './pii';
 
 let _pinecone: Pinecone | null = null;
 
@@ -27,65 +28,61 @@ export interface VectorSearchOptions {
   patientIds?: string[];  // Filter to specific patients (for hybrid queries)
   dateFrom?: string;
   dateTo?: string;
-  obscurePII?: boolean;   // Apply PII obscuring to results
 }
 
 /**
  * Search clinical notes with semantic search
+ *
+ * TODO: Implement this function
+ *
+ * Steps:
+ * 1. Get the Pinecone index
+ * 2. Create an embedding for the query using createEmbedding()
+ * 3. Build a metadata filter if patientIds are provided
+ * 4. Query Pinecone with the embedding and filter
+ * 5. Map results to VectorSearchResult format
+ *
+ * Hints:
+ * - Use index.query() with vector, topK, includeMetadata, and filter
+ * - Filter format for single patient: { patientId: "patient-123" }
+ * - Filter format for multiple: { patientId: { $in: ["p1", "p2"] } }
  */
 export async function searchClinicalNotes(
   query: string,
   options: VectorSearchOptions = {}
 ): Promise<VectorSearchResult[]> {
-  const { topK = 10, patientIds, dateFrom, dateTo, obscurePII } = options;
-  const obscure = shouldObscurePII(obscurePII);
+  const { topK = 10, patientIds } = options;
 
-  const index = getPinecone().Index(getIndexName());
-  const queryEmbedding = await createEmbedding(query);
+  // TODO: Get the Pinecone index
+  // const index = ...
 
-  // Build metadata filter
-  const filter: Record<string, any> = {};
+  // TODO: Create embedding for the query
+  // const queryEmbedding = ...
 
-  if (patientIds && patientIds.length > 0) {
-    // Filter to specific patient IDs
-    if (patientIds.length === 1) {
-      filter.patientId = patientIds[0];
-    } else {
-      filter.patientId = { $in: patientIds };
-    }
-  }
+  // TODO: Build metadata filter for patientIds
+  // const filter = ...
 
-  // Date filtering (if supported by your Pinecone index)
-  // Note: Date filtering requires dates stored as strings in YYYY-MM-DD format
-  // and may need index configuration
+  // TODO: Query Pinecone
+  // const results = await index.query({...})
 
-  const results = await index.query({
-    vector: queryEmbedding,
-    topK,
-    includeMetadata: true,
-    filter: Object.keys(filter).length > 0 ? filter : undefined,
-  });
+  // TODO: Map results to VectorSearchResult[]
+  // return results.matches.map(match => ({
+  //   id: match.id,
+  //   score: match.score,
+  //   patientId: match.metadata?.patientId,
+  //   patientName: match.metadata?.patientName,
+  //   documentType: match.metadata?.type || 'Clinical Note',
+  //   date: match.metadata?.date,
+  //   contentPreview: truncateContent(match.metadata?.content, 500),
+  // }));
 
-  return (results.matches || []).map(match => {
-    const rawContent = (match.metadata?.content as string) || '';
-    const rawPatientName = (match.metadata?.patientName as string) || undefined;
-
-    return {
-      id: match.id,
-      score: match.score || 0,
-      patientId: (match.metadata?.patientId as string) || '',
-      patientName: obscure ? obscureName(rawPatientName) : rawPatientName,
-      documentType: (match.metadata?.type as string) || 'Clinical Note',
-      date: (match.metadata?.date as string) || undefined,
-      contentPreview: obscure
-        ? obscureContent(truncateContent(rawContent, 500))
-        : truncateContent(rawContent, 500),
-    };
-  });
+  throw new Error('Not implemented - your turn!');
 }
 
 /**
  * Search clinical notes for a specific patient
+ *
+ * This helper is provided for you.
  */
 export async function searchPatientNotes(
   patientId: string,
@@ -96,24 +93,12 @@ export async function searchPatientNotes(
 }
 
 /**
- * Get most recent clinical notes for a patient (no semantic search)
- * Uses a neutral query to get representative notes
- */
-export async function getRecentPatientNotes(
-  patientId: string,
-  topK: number = 10
-): Promise<VectorSearchResult[]> {
-  // Use a neutral medical query to get notes
-  return searchClinicalNotes('patient visit clinical notes assessment plan', {
-    topK,
-    patientIds: [patientId],
-  });
-}
-
-/**
  * Truncate content to a maximum length while preserving word boundaries
+ *
+ * This helper is provided for you.
  */
 function truncateContent(content: string, maxLength: number): string {
+  if (!content) return '';
   if (content.length <= maxLength) return content;
 
   const truncated = content.substring(0, maxLength);

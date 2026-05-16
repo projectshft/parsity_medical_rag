@@ -1,101 +1,90 @@
+/**
+ * Medical RAG Agent
+ *
+ * Week 4: Build the agent that orchestrates queries and generates responses
+ *
+ * This agent:
+ * 1. Analyzes the user query
+ * 2. Executes appropriate retrieval (SQL and/or vector)
+ * 3. Formats results as context
+ * 4. Generates a response using the LLM
+ */
+
 import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { searchChunks, SearchResult } from "./pinecone";
-import { rerankResults } from "./reranker";
+import { executeQuery, formatResultsForLLM } from "./query-executor";
 
-const SYSTEM_PROMPT = `You are a helpful medical records assistant. You help users query and understand medical records from FHIR data.
+/**
+ * TODO: Write the system prompt for the medical assistant
+ *
+ * The prompt should:
+ * 1. Define the assistant's role
+ * 2. Explain what data sources are available
+ * 3. List the types of queries it can handle
+ * 4. Set guidelines for:
+ *    - Accuracy (only use retrieved data)
+ *    - Privacy (respect patient confidentiality)
+ *    - Formatting (organize information clearly)
+ *    - Limitations (what to do if info not found)
+ *
+ * Discussion points:
+ * - What tone is appropriate for healthcare providers?
+ * - What safety guardrails should we include?
+ * - How should we handle uncertain or missing information?
+ */
+const SYSTEM_PROMPT = `You are a helpful medical records assistant.
 
-Important guidelines:
-- Provide accurate information based only on the retrieved medical records
-- If information is not in the records, clearly state that
-- Never make up or infer medical information that isn't explicitly in the records
-- Present information in a clear, organized manner
-- Use medical terminology appropriately but explain it when needed
-- Respect patient privacy - only discuss records in the context provided
-- If asked about multiple patients, organize responses by patient
-- Highlight important medical information like diagnoses, medications, and allergies
-- Include dates when available to provide temporal context
+TODO: Complete this system prompt!
 
-When presenting medical information:
-- Group related information together (e.g., all medications, all conditions)
-- Note any potentially concerning findings
-- Provide context for lab values when available`;
+Your capabilities:
+- ...
 
-function buildContext(results: SearchResult[]): string {
-  if (results.length === 0) {
-    return "No relevant medical records found.";
-  }
-
-  const byPatient = new Map<string, SearchResult[]>();
-  const noPatient: SearchResult[] = [];
-
-  for (const result of results) {
-    const patientId = result.metadata.patientId;
-    if (patientId) {
-      const existing = byPatient.get(patientId) || [];
-      existing.push(result);
-      byPatient.set(patientId, existing);
-    } else {
-      noPatient.push(result);
-    }
-  }
-
-  let context = "=== Retrieved Medical Records ===\n\n";
-
-  Array.from(byPatient.entries()).forEach(([patientId, patientResults]) => {
-    const patientName = patientResults[0]?.metadata.patientName || "Unknown";
-    context += `--- Patient: ${patientName} (ID: ${patientId}) ---\n\n`;
-
-    const byType = new Map<string, SearchResult[]>();
-    for (const result of patientResults) {
-      const type = result.metadata.resourceType;
-      const existing = byType.get(type) || [];
-      existing.push(result);
-      byType.set(type, existing);
-    }
-
-    Array.from(byType.entries()).forEach(([type, typeResults]) => {
-      context += `[${type}]\n`;
-      for (const result of typeResults) {
-        context += result.content + "\n";
-        if (result.metadata.recordDate) {
-          context += `(Recorded: ${result.metadata.recordDate})\n`;
-        }
-        context += "\n";
-      }
-    });
-  });
-
-  if (noPatient.length > 0) {
-    context += "--- Additional Records ---\n\n";
-    for (const result of noPatient) {
-      context += `[${result.metadata.resourceType}]\n`;
-      context += result.content + "\n\n";
-    }
-  }
-
-  return context;
-}
+Guidelines:
+- ...
+`;
 
 export interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
+/**
+ * Run the medical RAG agent
+ *
+ * TODO: Review and understand this function
+ *
+ * The flow is:
+ * 1. Execute hybrid query to retrieve relevant data
+ * 2. Format results as context for the LLM
+ * 3. Build the messages array with conversation history
+ * 4. Stream the response
+ *
+ * Consider:
+ * - How does the query analysis info help the LLM?
+ * - Why do we include conversation history?
+ * - What happens if no results are found?
+ */
 export async function runAgent(
   query: string,
   conversationHistory: Message[] = []
 ) {
-  // Search for relevant records
-  const searchResults = await searchChunks(query, 20);
+  // Step 1: Execute hybrid query (SQL + Vector)
+  const queryResult = await executeQuery(query, { vectorTopK: 10 });
 
-  // Rerank results
-  const rerankedResults = await rerankResults(query, searchResults, 10);
+  // Step 2: Format results for LLM context
+  const context = formatResultsForLLM(queryResult);
 
-  // Build context from results
-  const context = buildContext(rerankedResults);
+  // Step 3: Include query analysis info for transparency
+  const analysisInfo = `Query Analysis:
+- Intent: ${queryResult.analysis.intent}
+- Requires SQL: ${queryResult.analysis.requiresSQL}
+- Requires Vector Search: ${queryResult.analysis.requiresVector}
+${queryResult.analysis.semanticQuery ? `- Semantic Query: "${queryResult.analysis.semanticQuery}"` : ''}
+${queryResult.analysis.entities.patientName ? `- Patient Name: "${queryResult.analysis.entities.patientName}"` : ''}
+${queryResult.analysis.entities.conditions?.length ? `- Conditions: ${queryResult.analysis.entities.conditions.join(', ')}` : ''}
+`;
 
-  // Build messages array
+  // Step 4: Build messages array
   const messages = [
     ...conversationHistory.map((m) => ({
       role: m.role as "user" | "assistant",
@@ -103,11 +92,16 @@ export async function runAgent(
     })),
     {
       role: "user" as const,
-      content: `Context from medical records:\n\n${context}\n\nUser question: ${query}`,
+      content: `${analysisInfo}
+
+Retrieved Data:
+${context}
+
+User Question: ${query}`,
     },
   ];
 
-  // Stream response
+  // Step 5: Stream response
   const response = await streamText({
     model: openai("gpt-4o-mini"),
     system: SYSTEM_PROMPT,
