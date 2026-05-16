@@ -1,16 +1,9 @@
 import { CohereClient } from "cohere-ai";
 import { SearchResult } from "./pinecone";
 
-let _cohere: CohereClient | null = null;
-
-function getCohere(): CohereClient {
-  if (!_cohere) {
-    _cohere = new CohereClient({
-      token: process.env.COHERE_API_KEY,
-    });
-  }
-  return _cohere;
-}
+const cohere = new CohereClient({
+  token: process.env.COHERE_API_KEY,
+});
 
 export async function rerankResults(
   query: string,
@@ -21,7 +14,7 @@ export async function rerankResults(
   if (results.length <= topN) return results;
 
   try {
-    const response = await getCohere().rerank({
+    const response = await cohere.rerank({
       model: "rerank-english-v3.0",
       query,
       documents: results.map((r) => r.content),

@@ -1,19 +1,49 @@
 import { Pinecone } from "@pinecone-database/pinecone";
 import { createEmbedding, createEmbeddings } from "./openai";
 
-let _pinecone: Pinecone | null = null;
+export const pinecone = new Pinecone({
+  apiKey: process.env.PINECONE_API_KEY!,
+});
 
-function getPinecone(): Pinecone {
-  if (!_pinecone) {
-    _pinecone = new Pinecone({
-      apiKey: process.env.PINECONE_API_KEY!,
-    });
-  }
-  return _pinecone;
+export const INDEX_NAME = process.env.PINECONE_INDEX || "medical-notes";
+
+// Backwards compatibility
+export function getPinecone(): Pinecone {
+  return pinecone;
 }
 
-function getIndexName(): string {
-  return process.env.PINECONE_INDEX || "medical-records";
+export function getIndexName(): string {
+  return INDEX_NAME;
+}
+
+/**
+ * Ensure the Pinecone index exists, create if not
+ */
+export async function ensureIndexExists(): Promise<void> {
+  const pinecone = getPinecone();
+  const indexName = getIndexName();
+
+  const existingIndexes = await pinecone.listIndexes();
+  const indexExists = existingIndexes.indexes?.some(idx => idx.name === indexName);
+
+  if (!indexExists) {
+    console.log(`Creating Pinecone index: ${indexName}`);
+    await pinecone.createIndex({
+      name: indexName,
+      dimension: 1536,
+      metric: 'cosine',
+      spec: {
+        serverless: {
+          cloud: 'aws',
+          region: 'us-east-1',
+        },
+      },
+      waitUntilReady: true,
+    });
+    console.log(`Index ${indexName} created successfully`);
+  } else {
+    console.log(`Index ${indexName} already exists`);
+  }
 }
 
 export interface MedicalChunk {
