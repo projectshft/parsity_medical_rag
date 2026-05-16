@@ -1,93 +1,185 @@
-# Medical Records RAG
+# Medical RAG: AI-Powered Patient Records
 
-AI-powered assistant for querying FHIR medical records using RAG (Retrieval-Augmented Generation).
+## The Challenge
 
-## Features
+You're building an AI assistant for healthcare providers. Doctors need to quickly find patient information across thousands of records—but the data is messy:
 
-- **FHIR Support**: Processes FHIR R4 bundles including Patient, Condition, Observation, MedicationRequest, Procedure, Encounter, Immunization, and AllergyIntolerance resources
-- **Vector Search**: Uses Pinecone for semantic search across medical records
-- **Re-ranking**: Cohere reranker for improved relevance
-- **Streaming Chat**: Real-time streaming responses with OpenAI
-- **Copilot-style UI**: Clean, dark-themed chat interface
+- **Structured data**: Names, dates, diagnoses, medications, lab values
+- **Unstructured data**: Clinical notes written by doctors in free-form text
 
-## Setup
+Traditional search fails because:
+- Keyword search for "breathing problems" misses notes about "dyspnea" or "shortness of breath"
+- SQL queries can't understand natural language like "patients who might have heart issues"
+- LLMs don't know your private patient data
 
-1. **Install dependencies**
-   ```bash
-   npm install
-   ```
+**Your mission**: Build a Retrieval-Augmented Generation (RAG) system that combines the precision of SQL with the semantic understanding of vector search.
 
-2. **Configure environment variables**
-   ```bash
-   cp .env.example .env
-   ```
+---
 
-   Fill in your API keys:
-   - `OPENAI_API_KEY` - OpenAI API key
-   - `PINECONE_API_KEY` - Pinecone API key
-   - `PINECONE_INDEX` - Pinecone index name (e.g., "medical-records")
-   - `COHERE_API_KEY` - Cohere API key for reranking
+## What You'll Build
 
-3. **Create Pinecone index**
-   - Go to [Pinecone Console](https://app.pinecone.io)
-   - Create an index with dimension `1536` and metric `cosine`
+```
+┌─────────────────────────────────────────────────────────────┐
+│                       User Query                             │
+│     "Find diabetic patients with notes about foot pain"      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Query Analyzer (LLM)                      │
+│     Extracts: entities, intent, structured vs semantic       │
+└─────────────────────────────────────────────────────────────┘
+                    │                         │
+         structured │                         │ semantic
+                    ▼                         ▼
+┌─────────────────────────┐       ┌─────────────────────────┐
+│   PostgreSQL (Neon)      │       │     Pinecone Vectors    │
+│   Structured Data        │       │     Clinical Notes      │
+│                          │       │                         │
+│  • patients              │       │  • Embeddings           │
+│  • conditions            │       │  • Semantic search      │
+│  • medications           │       │  • patient_id filter    │
+│  • lab results           │       │                         │
+└─────────────────────────┘       └─────────────────────────┘
+                    │                         │
+                    └────────────┬────────────┘
+                                 ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Response Generator                         │
+│        Merges SQL + vector results → LLM response            │
+└─────────────────────────────────────────────────────────────┘
+```
 
-4. **Generate sample FHIR data** (optional)
-   ```bash
-   npm run generate-fhir
-   ```
-   This creates 1000 synthetic patient records in the `fhir/` directory.
+---
 
-5. **Process and upload FHIR data**
-   ```bash
-   npm run process-fhir
-   ```
+## 6-Week Curriculum
 
-6. **Start the development server**
-   ```bash
-   npm run dev
-   ```
+| Week | Topic | What You'll Learn |
+|------|-------|-------------------|
+| 1 | **Intro to RAG** | What is RAG? Project setup, explore the data |
+| 2 | **Chunking** | Splitting documents for vector search |
+| 3 | **Vector Search** | Embeddings and Pinecone |
+| 4 | **Agents & Prompts** | Query understanding and response generation |
+| 5 | **MCP Integration** | Expose your RAG to Claude/Cursor |
+| 6 | **Capstone** | Build your own enhancement |
 
-7. Open [http://localhost:3000](http://localhost:3000)
+---
 
-## Usage
+## Quick Start
 
-### Chat Interface
-Ask questions about the medical records:
-- "What patients have diabetes?"
-- "Show me recent lab results for John Smith"
-- "What medications are commonly prescribed?"
-- "Find patients with hypertension and their medications"
+### Prerequisites
 
-### Upload Page
-Upload additional FHIR JSON files at `/upload`
+- Node.js 18+
+- Free accounts: [Neon](https://neon.tech), [Pinecone](https://pinecone.io), [OpenAI](https://platform.openai.com)
 
-## Architecture
+### Setup
+
+```bash
+# Install dependencies
+npm install
+
+# Copy environment template
+cp .env.example .env
+
+# Add your API keys to .env, then:
+npm run db:generate
+npm run db:push
+
+# Start the app
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000)
+
+---
+
+## Project Structure
 
 ```
 medical-rag/
-├── app/
-│   ├── api/
-│   │   ├── chat/route.ts      # Streaming chat endpoint
-│   │   └── upload/route.ts    # FHIR upload endpoint
-│   ├── upload/page.tsx        # Upload UI
-│   └── page.tsx               # Chat UI
+├── app/                    # Next.js UI (pre-built)
+│   ├── page.tsx            # Chat interface
+│   └── api/                # API routes
 ├── lib/
-│   ├── agent.ts               # RAG agent with context building
-│   ├── chunking.ts            # FHIR resource processing
-│   ├── openai.ts              # Embeddings client
-│   ├── pinecone.ts            # Vector store operations
-│   └── reranker.ts            # Cohere reranking
-└── scripts/
-    ├── generate-fhir.ts       # Synthetic data generator
-    └── process-fhir.ts        # Batch FHIR processor
+│   ├── chunking.ts         # Week 2: Document chunking
+│   ├── embeddings.ts       # Week 3: OpenAI embeddings
+│   ├── vector-search.ts    # Week 3: Pinecone queries
+│   ├── query-analyzer.ts   # Week 4: Query understanding
+│   ├── agent.ts            # Week 4: Response generation
+│   ├── sql-queries.ts      # Pre-built SQL queries
+│   └── prisma.ts           # Database client
+├── mcp-server/             # Week 5: MCP integration
+├── prisma/
+│   └── schema.prisma       # Database schema
+├── scripts/
+│   └── ingest-coherent.ts  # Data ingestion
+├── data/                   # Patient data (Synthea)
+└── docs/
+    ├── WEEK1-INTRO.html    # Presentations
+    ├── WEEK2-CHUNKING.html
+    └── ...
 ```
+
+---
+
+## The Data
+
+We're using the [Synthea Coherent Dataset](https://synthea.mitre.org/): realistic synthetic patient records with:
+
+- ~150 patients
+- Medical conditions (diabetes, hypertension, COPD, etc.)
+- Medications and lab results
+- **Clinical notes** (SOAP format)—this is what we'll search semantically
+
+---
+
+## Example Queries
+
+Once built, your system will handle queries like:
+
+| Query | How It's Answered |
+|-------|-------------------|
+| "What medications is John Smith taking?" | SQL lookup |
+| "Find patients with A1C > 9%" | SQL with numeric filter |
+| "Notes mentioning breathing problems" | Vector search |
+| "Diabetic patients with foot pain" | Hybrid: SQL → Vector |
+| "How many patients have hypertension?" | SQL aggregation |
+
+---
 
 ## Tech Stack
 
-- **Framework**: Next.js 15 with App Router
-- **AI**: OpenAI GPT-4o-mini, text-embedding-3-small
-- **Vector DB**: Pinecone
-- **Reranking**: Cohere rerank-english-v3.0
-- **Streaming**: Vercel AI SDK
-- **Styling**: Tailwind CSS
+| Component | Technology |
+|-----------|------------|
+| Framework | Next.js 15 |
+| Database | Neon PostgreSQL |
+| Vector DB | Pinecone |
+| Embeddings | OpenAI |
+| ORM | Prisma |
+| Styling | Tailwind CSS |
+
+---
+
+## Weekly Challenges
+
+Each week has a challenge file in `docs/CHALLENGE-*.md` with:
+- Learning objectives
+- TODO tasks to complete
+- Test cases to pass
+- Bonus challenges
+
+---
+
+## Resources
+
+- [RAG Explained](https://www.pinecone.io/learn/retrieval-augmented-generation/)
+- [OpenAI Embeddings](https://platform.openai.com/docs/guides/embeddings)
+- [Pinecone Docs](https://docs.pinecone.io/)
+- [Prisma Docs](https://www.prisma.io/docs)
+- [MCP Protocol](https://modelcontextprotocol.io/)
+
+---
+
+## License
+
+MIT - Built for educational purposes with synthetic data.

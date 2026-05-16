@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Week 3: Vector Search</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.7;
+      color: #1a1a1a;
+    }
+    h1 { border-bottom: 3px solid #333; padding-bottom: 0.5rem; margin-bottom: 2rem; }
+    h2 { margin-top: 3rem; color: #333; }
+    h3 { margin-top: 2rem; color: #555; }
+    code { background: #f5f5f5; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.9em; }
+    pre { background: #f5f5f5; padding: 1.5rem; overflow-x: auto; border-radius: 8px; border: 1px solid #e0e0e0; }
+    pre code { background: none; padding: 0; }
+    .diagram { background: #fafafa; border: 1px solid #ddd; padding: 1.5rem; margin: 1.5rem 0; font-family: monospace; white-space: pre; overflow-x: auto; border-radius: 8px; }
+    .highlight { background: #fffde7; padding: 1rem 1.5rem; border-left: 4px solid #fbc02d; margin: 1.5rem 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    th, td { border: 1px solid #ddd; padding: 0.75rem; text-align: left; }
+    th { background: #f5f5f5; }
+    ul, ol { padding-left: 1.5rem; }
+    li { margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+
+<h1>Week 3: Vector Search with Pinecone</h1>
+
+<div class="section">
+  <h2>What Are Embeddings?</h2>
+
+  <p>Embeddings convert text into numbers that capture <em>meaning</em>.</p>
+
+  <div class="diagram">
+Text                           Embedding (vector)
+────                           ──────────────────
+"cat"                    →     [0.12, -0.34, 0.56, 0.78, ...]
+"kitten"                 →     [0.11, -0.33, 0.57, 0.77, ...]  ← Similar!
+"car"                    →     [0.82, 0.15, -0.23, 0.44, ...]  ← Different
+
+Similar meanings = vectors point in similar directions
+  </div>
+
+  <h3>How similarity works</h3>
+  <p>We measure the angle between vectors using <strong>cosine similarity</strong>:</p>
+  <ul>
+    <li><code>1.0</code> = identical meaning</li>
+    <li><code>0.0</code> = unrelated</li>
+    <li><code>-1.0</code> = opposite meaning</li>
+  </ul>
+
+  <pre><code>cosine_similarity("breathing problems", "dyspnea")           → 0.89
+cosine_similarity("breathing problems", "respiratory distress") → 0.85
+cosine_similarity("breathing problems", "headache")            → 0.23</code></pre>
+</div>
+
+<div class="section">
+  <h2>OpenAI Embeddings API</h2>
+
+  <pre><code>import OpenAI from 'openai';
+
+const openai = new OpenAI();
+
+async function createEmbedding(text: string): Promise<number[]> {
+  const response = await openai.embeddings.create({
+    model: 'text-embedding-3-small',  // 1536 dimensions
+    input: text,
+  });
+
+  return response.data[0].embedding;
+}</code></pre>
+
+  <h3>Model options</h3>
+  <table>
+    <tr>
+      <th>Model</th>
+      <th>Dimensions</th>
+      <th>Cost per 1M tokens</th>
+      <th>Use case</th>
+    </tr>
+    <tr>
+      <td>text-embedding-3-small</td>
+      <td>1536</td>
+      <td>$0.02</td>
+      <td>Most use cases (we'll use this)</td>
+    </tr>
+    <tr>
+      <td>text-embedding-3-large</td>
+      <td>3072</td>
+      <td>$0.13</td>
+      <td>Higher accuracy needs</td>
+    </tr>
+    <tr>
+      <td>text-embedding-ada-002</td>
+      <td>1536</td>
+      <td>$0.10</td>
+      <td>Legacy (don't use)</td>
+    </tr>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Vector Databases</h2>
+
+  <h3>Why not just PostgreSQL?</h3>
+  <p>You <em>can</em> store vectors in PostgreSQL (with pgvector), but:</p>
+  <ul>
+    <li>Vector search is computationally expensive</li>
+    <li>Specialized indexes (HNSW, IVF) are needed for speed</li>
+    <li>Vector DBs are optimized for this one job</li>
+  </ul>
+
+  <h3>Pinecone basics</h3>
+  <div class="diagram">
+┌─────────────────────────────────────────────────────────┐
+│                    Pinecone Index                        │
+│                                                          │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │ Vector ID: "doc-123-chunk-0"                     │    │
+│  │ Values: [0.12, -0.34, 0.56, ...]  (1536 floats) │    │
+│  │ Metadata: {                                      │    │
+│  │   patientId: "patient-abc",                      │    │
+│  │   date: "2024-01-15",                           │    │
+│  │   sectionType: "assessment"                      │    │
+│  │ }                                                │    │
+│  └─────────────────────────────────────────────────┘    │
+│                                                          │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │ Vector ID: "doc-123-chunk-1"                     │    │
+│  │ Values: [0.08, -0.41, 0.62, ...]                │    │
+│  │ Metadata: { ... }                               │    │
+│  └─────────────────────────────────────────────────┘    │
+│                                                          │
+│  ... thousands more vectors ...                          │
+└─────────────────────────────────────────────────────────┘
+  </div>
+</div>
+
+<div class="section">
+  <h2>Pinecone Operations</h2>
+
+  <h3>1. Initialize client</h3>
+  <pre><code>import { Pinecone } from '@pinecone-database/pinecone';
+
+const pinecone = new Pinecone({
+  apiKey: process.env.PINECONE_API_KEY!,
+});
+
+const index = pinecone.Index('medical-notes');</code></pre>
+
+  <h3>2. Upsert vectors</h3>
+  <pre><code>await index.upsert([
+  {
+    id: 'doc-123-chunk-0',
+    values: embedding,  // number[]
+    metadata: {
+      patientId: 'patient-abc',
+      content: 'Patient reports chest pain...',  // Store text for retrieval
+      date: '2024-01-15',
+      sectionType: 'subjective',
+    },
+  },
+]);</code></pre>
+
+  <h3>3. Query (search)</h3>
+  <pre><code>const queryEmbedding = await createEmbedding('breathing problems');
+
+const results = await index.query({
+  vector: queryEmbedding,
+  topK: 5,
+  includeMetadata: true,
+  filter: {
+    patientId: { $in: ['patient-abc', 'patient-xyz'] },  // Optional filter
+  },
+});
+
+// results.matches = [
+//   { id: 'doc-456-chunk-2', score: 0.89, metadata: {...} },
+//   { id: 'doc-123-chunk-0', score: 0.85, metadata: {...} },
+//   ...
+// ]</code></pre>
+</div>
+
+<div class="section">
+  <h2>Metadata Filtering</h2>
+
+  <p>Pinecone can filter results <em>before</em> ranking by similarity.</p>
+
+  <pre><code>// Only search notes from specific patients
+filter: { patientId: { $in: ['p1', 'p2'] } }
+
+// Only recent notes
+filter: { date: { $gte: '2024-01-01' } }
+
+// Only assessment sections
+filter: { sectionType: { $eq: 'assessment' } }
+
+// Combine filters
+filter: {
+  $and: [
+    { patientId: { $eq: 'patient-abc' } },
+    { sectionType: { $in: ['assessment', 'plan'] } },
+  ]
+}</code></pre>
+
+  <div class="highlight">
+    <strong>Why this matters for hybrid RAG:</strong> We can first query PostgreSQL
+    to find diabetic patients, then filter Pinecone to only search <em>those patients'</em> notes.
+  </div>
+</div>
+
+<div class="section">
+  <h2>The Ingestion Pipeline</h2>
+
+  <div class="diagram">
+FHIR Documents
+      │
+      ▼
+┌─────────────┐
+│   Parse     │  Extract DocumentReference resources
+└─────────────┘
+      │
+      ▼
+┌─────────────┐
+│   Chunk     │  Split into ~400 token pieces (Week 2)
+└─────────────┘
+      │
+      ▼
+┌─────────────┐
+│   Embed     │  OpenAI text-embedding-3-small
+└─────────────┘
+      │
+      ▼
+┌─────────────┐
+│   Upsert    │  Store in Pinecone with metadata
+└─────────────┘
+  </div>
+
+  <h3>Batch processing</h3>
+  <pre><code>// Don't embed one at a time—batch for efficiency
+const BATCH_SIZE = 100;
+
+for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+  const batch = chunks.slice(i, i + BATCH_SIZE);
+
+  // Embed batch
+  const embeddings = await Promise.all(
+    batch.map(chunk => createEmbedding(chunk.content))
+  );
+
+  // Upsert batch
+  await index.upsert(
+    batch.map((chunk, j) => ({
+      id: chunk.id,
+      values: embeddings[j],
+      metadata: chunk.metadata,
+    }))
+  );
+}</code></pre>
+</div>
+
+<div class="section">
+  <h2>Today's TODOs</h2>
+
+  <p>Open <code>lib/embeddings.ts</code> and <code>lib/vector-search.ts</code>:</p>
+
+  <ol>
+    <li><code>createEmbedding()</code> - Wrap OpenAI embeddings API</li>
+    <li><code>upsertChunks()</code> - Batch upsert to Pinecone</li>
+    <li><code>searchClinicalNotes()</code> - Query with optional patient filter</li>
+  </ol>
+
+  <h3>Then run ingestion</h3>
+  <pre><code>npm run ingest</code></pre>
+</div>
+
+<div class="section">
+  <h2>Experiment: Semantic vs Keyword</h2>
+
+  <p>After ingestion, try these searches:</p>
+
+  <table>
+    <tr>
+      <th>Query</th>
+      <th>What you should find</th>
+    </tr>
+    <tr>
+      <td>"breathing problems"</td>
+      <td>Notes about dyspnea, shortness of breath, respiratory issues</td>
+    </tr>
+    <tr>
+      <td>"heart issues"</td>
+      <td>Notes about cardiac problems, chest pain, arrhythmia</td>
+    </tr>
+    <tr>
+      <td>"mental health concerns"</td>
+      <td>Notes about depression, anxiety, psychiatric symptoms</td>
+    </tr>
+  </table>
+
+  <p>Compare: Would keyword search have found these?</p>
+</div>
+
+<div class="section">
+  <h2>Week 3 Challenge</h2>
+
+  <ol>
+    <li>Implement embedding and search functions</li>
+    <li>Run full ingestion pipeline</li>
+    <li>Test 5 semantic queries and verify results make sense</li>
+    <li>Bonus: Add a reranking step using Cohere</li>
+  </ol>
+</div>
+
+<div class="section">
+  <h2>Next Week</h2>
+
+  <p><strong>Week 4: Agents and Prompts</strong></p>
+  <ul>
+    <li>Query analysis: Understanding user intent</li>
+    <li>Prompt engineering for medical context</li>
+    <li>Orchestrating SQL + vector search</li>
+  </ul>
+</div>
+
+</body>
+</html>

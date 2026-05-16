@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Week 1: Introduction to RAG</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.7;
+      color: #1a1a1a;
+    }
+    h1 {
+      border-bottom: 3px solid #333;
+      padding-bottom: 0.5rem;
+      margin-bottom: 2rem;
+    }
+    h2 {
+      margin-top: 3rem;
+      color: #333;
+    }
+    h3 {
+      margin-top: 2rem;
+      color: #555;
+    }
+    code {
+      background: #f5f5f5;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+    pre {
+      background: #f5f5f5;
+      padding: 1.5rem;
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+    }
+    .diagram {
+      background: #fafafa;
+      border: 1px solid #ddd;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      font-family: monospace;
+      white-space: pre;
+      overflow-x: auto;
+      border-radius: 8px;
+    }
+    .highlight {
+      background: #fffde7;
+      padding: 1rem 1.5rem;
+      border-left: 4px solid #fbc02d;
+      margin: 1.5rem 0;
+    }
+    .section {
+      margin-bottom: 3rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 0.75rem;
+      text-align: left;
+    }
+    th {
+      background: #f5f5f5;
+    }
+    ul, ol {
+      padding-left: 1.5rem;
+    }
+    li {
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Week 1: Introduction to RAG</h1>
+
+<div class="section">
+  <h2>The Problem</h2>
+
+  <p>Large Language Models are powerful, but they have a critical limitation:</p>
+
+  <div class="highlight">
+    <strong>LLMs don't know your private data.</strong><br>
+    GPT-4 has never seen your company's documents, your patient records, or your codebase.
+  </div>
+
+  <h3>What happens when you ask about your data?</h3>
+
+  <table>
+    <tr>
+      <th>You ask</th>
+      <th>LLM responds</th>
+      <th>Problem</th>
+    </tr>
+    <tr>
+      <td>"What medications is John Smith taking?"</td>
+      <td>"I don't have access to patient records..."</td>
+      <td>No access to your database</td>
+    </tr>
+    <tr>
+      <td>"Summarize our Q3 sales report"</td>
+      <td>Makes up plausible-sounding numbers</td>
+      <td>Hallucination</td>
+    </tr>
+    <tr>
+      <td>"Find bugs in our auth system"</td>
+      <td>Generic security advice</td>
+      <td>Doesn't know your code</td>
+    </tr>
+  </table>
+</div>
+
+<div class="section">
+  <h2>The Solution: RAG</h2>
+
+  <p><strong>Retrieval-Augmented Generation</strong> = Give the LLM your data at query time.</p>
+
+  <div class="diagram">
+┌──────────────────┐
+│   User Question  │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐     ┌──────────────────┐
+│    RETRIEVE      │────▶│   Your Data      │
+│  Find relevant   │     │   (database,     │
+│  information     │     │    documents)    │
+└────────┬─────────┘     └──────────────────┘
+         │
+         ▼
+┌──────────────────┐
+│    AUGMENT       │
+│  Add context to  │
+│  the prompt      │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│    GENERATE      │
+│  LLM creates     │
+│  response        │
+└──────────────────┘
+  </div>
+
+  <h3>The RAG Formula</h3>
+  <pre><code>prompt = system_instructions + retrieved_context + user_question
+
+# Example:
+"""
+You are a medical assistant.
+
+PATIENT DATA:
+- John Smith, 45, diabetic
+- Current medications: Metformin 500mg, Lisinopril 10mg
+- Recent A1C: 8.2%
+
+USER QUESTION: What medications is John Smith taking?
+"""</code></pre>
+</div>
+
+<div class="section">
+  <h2>Why Hybrid RAG?</h2>
+
+  <p>Medical data comes in two forms:</p>
+
+  <table>
+    <tr>
+      <th>Structured Data</th>
+      <th>Unstructured Data</th>
+    </tr>
+    <tr>
+      <td>
+        <ul>
+          <li>Patient names, DOB</li>
+          <li>Diagnosis codes (ICD-10)</li>
+          <li>Lab values (A1C = 8.2)</li>
+          <li>Medication lists</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Clinical notes</li>
+          <li>"Patient reports chest pain..."</li>
+          <li>"Discussed lifestyle changes..."</li>
+          <li>Doctor observations</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Best tool: SQL</strong></td>
+      <td><strong>Best tool: Vector Search</strong></td>
+    </tr>
+  </table>
+
+  <div class="highlight">
+    <strong>Hybrid RAG</strong> uses both:
+    <ul>
+      <li><strong>SQL</strong> for precise queries ("patients with A1C > 9")</li>
+      <li><strong>Vector search</strong> for semantic queries ("breathing problems")</li>
+    </ul>
+  </div>
+</div>
+
+<div class="section">
+  <h2>What is Vector Search?</h2>
+
+  <p>Vector search finds <em>semantically similar</em> content, not just keyword matches.</p>
+
+  <h3>The Process</h3>
+  <ol>
+    <li><strong>Embed</strong>: Convert text to numbers (vectors)</li>
+    <li><strong>Store</strong>: Save vectors in a vector database</li>
+    <li><strong>Query</strong>: Convert question to vector, find nearest neighbors</li>
+  </ol>
+
+  <pre><code># Text → Vector (embedding)
+"patient has trouble breathing" → [0.12, -0.34, 0.56, ...]
+
+# Similar meanings = similar vectors
+"dyspnea"                       → [0.11, -0.33, 0.57, ...]  # Very close!
+"headache"                      → [0.82, 0.15, -0.23, ...]  # Far away</code></pre>
+
+  <h3>Why this matters</h3>
+  <table>
+    <tr>
+      <th>Query</th>
+      <th>Keyword Search</th>
+      <th>Vector Search</th>
+    </tr>
+    <tr>
+      <td>"breathing problems"</td>
+      <td>Only finds "breathing"</td>
+      <td>Finds: dyspnea, shortness of breath, respiratory distress</td>
+    </tr>
+    <tr>
+      <td>"heart issues"</td>
+      <td>Only finds "heart"</td>
+      <td>Finds: cardiac, cardiovascular, chest pain, arrhythmia</td>
+    </tr>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Our Architecture</h2>
+
+  <div class="diagram">
+┌─────────────────────────────────────────────────────────────┐
+│                       User Query                             │
+│     "Find diabetic patients with notes about foot pain"      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Query Analyzer (LLM)                      │
+│     "diabetes" → structured    "foot pain" → semantic        │
+└─────────────────────────────────────────────────────────────┘
+                    │                         │
+                    ▼                         ▼
+┌─────────────────────────┐       ┌─────────────────────────┐
+│   Neon (PostgreSQL)      │       │       Pinecone          │
+│                          │       │                         │
+│  SELECT * FROM patients  │       │  Search clinical notes  │
+│  JOIN conditions         │       │  for "foot pain"        │
+│  WHERE code = 'diabetes' │       │  filtered to diabetics  │
+└─────────────────────────┘       └─────────────────────────┘
+                    │                         │
+                    └────────────┬────────────┘
+                                 ▼
+┌─────────────────────────────────────────────────────────────┐
+│                         LLM                                  │
+│    Generates response from merged SQL + vector results       │
+└─────────────────────────────────────────────────────────────┘
+  </div>
+</div>
+
+<div class="section">
+  <h2>The Data: Synthea</h2>
+
+  <p><a href="https://synthea.mitre.org/">Synthea</a> generates realistic synthetic patient records in FHIR format.</p>
+
+  <h3>What's in a patient bundle?</h3>
+  <ul>
+    <li><strong>Patient</strong>: Name, DOB, gender, address</li>
+    <li><strong>Conditions</strong>: Diagnoses (diabetes, hypertension, etc.)</li>
+    <li><strong>Observations</strong>: Lab results, vitals</li>
+    <li><strong>MedicationRequest</strong>: Prescriptions</li>
+    <li><strong>DocumentReference</strong>: Clinical notes (SOAP format)</li>
+  </ul>
+
+  <h3>SOAP Notes</h3>
+  <pre><code>S (Subjective):  What the patient reports
+O (Objective):   What the doctor observes/measures
+A (Assessment):  Diagnosis and clinical reasoning
+P (Plan):        Treatment plan</code></pre>
+
+  <div class="highlight">
+    <strong>Key insight:</strong> The clinical notes contain valuable information
+    that doesn't fit in structured fields. That's why we need vector search.
+  </div>
+</div>
+
+<div class="section">
+  <h2>Today's Setup</h2>
+
+  <h3>1. Clone and install</h3>
+  <pre><code>git clone &lt;repo-url&gt;
+cd medical-rag
+npm install</code></pre>
+
+  <h3>2. Set up accounts (free tiers)</h3>
+  <ul>
+    <li><a href="https://neon.tech">Neon</a> - PostgreSQL database</li>
+    <li><a href="https://pinecone.io">Pinecone</a> - Vector database</li>
+    <li><a href="https://platform.openai.com">OpenAI</a> - Embeddings + Chat</li>
+  </ul>
+
+  <h3>3. Configure environment</h3>
+  <pre><code>cp .env.example .env
+# Edit .env with your API keys</code></pre>
+
+  <h3>4. Initialize database</h3>
+  <pre><code>npm run db:generate
+npm run db:push</code></pre>
+
+  <h3>5. Explore the UI</h3>
+  <pre><code>npm run dev
+# Open http://localhost:3000</code></pre>
+</div>
+
+<div class="section">
+  <h2>Discussion: Metadata</h2>
+
+  <p>When we chunk and embed clinical notes, what metadata should we store?</p>
+
+  <p><strong>Think about:</strong></p>
+  <ul>
+    <li>How would you filter search results?</li>
+    <li>What context does the LLM need?</li>
+    <li>What queries might users ask?</li>
+  </ul>
+
+  <p><strong>Possible metadata:</strong></p>
+  <ul>
+    <li><code>patientId</code> - Link back to structured data</li>
+    <li><code>date</code> - When was this note written?</li>
+    <li><code>type</code> - SOAP section? Visit type?</li>
+    <li><code>provider</code> - Which doctor?</li>
+    <li>What else?</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h2>Week 1 Challenge</h2>
+
+  <ol>
+    <li>Get the app running locally</li>
+    <li>Explore 3-5 patient FHIR bundles in the data folder</li>
+    <li>Identify:
+      <ul>
+        <li>5 query types users might ask</li>
+        <li>Which are structured vs semantic?</li>
+      </ul>
+    </li>
+    <li>Propose metadata fields for vector storage</li>
+  </ol>
+</div>
+
+<div class="section">
+  <h2>Next Week</h2>
+
+  <p><strong>Week 2: Chunking</strong></p>
+  <ul>
+    <li>Why chunk size matters</li>
+    <li>Strategies for clinical notes</li>
+    <li>Implementing the chunking pipeline</li>
+  </ul>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Week 2: Chunking Documents</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.7;
+      color: #1a1a1a;
+    }
+    h1 { border-bottom: 3px solid #333; padding-bottom: 0.5rem; margin-bottom: 2rem; }
+    h2 { margin-top: 3rem; color: #333; }
+    h3 { margin-top: 2rem; color: #555; }
+    code { background: #f5f5f5; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.9em; }
+    pre { background: #f5f5f5; padding: 1.5rem; overflow-x: auto; border-radius: 8px; border: 1px solid #e0e0e0; }
+    pre code { background: none; padding: 0; }
+    .diagram { background: #fafafa; border: 1px solid #ddd; padding: 1.5rem; margin: 1.5rem 0; font-family: monospace; white-space: pre; overflow-x: auto; border-radius: 8px; }
+    .highlight { background: #fffde7; padding: 1rem 1.5rem; border-left: 4px solid #fbc02d; margin: 1.5rem 0; }
+    .warning { background: #ffebee; padding: 1rem 1.5rem; border-left: 4px solid #f44336; margin: 1.5rem 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    th, td { border: 1px solid #ddd; padding: 0.75rem; text-align: left; }
+    th { background: #f5f5f5; }
+    ul, ol { padding-left: 1.5rem; }
+    li { margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+
+<h1>Week 2: Chunking Documents</h1>
+
+<div class="section">
+  <h2>Why Chunking Matters</h2>
+
+  <p>Before we can search clinical notes, we need to break them into smaller pieces.</p>
+
+  <div class="highlight">
+    <strong>The Problem:</strong> A clinical note might be 5,000 words.
+    If we embed the whole thing as one vector, we lose precision—the embedding
+    becomes a blurry average of everything in the note.
+  </div>
+
+  <h3>What chunking gives us:</h3>
+  <ul>
+    <li><strong>Precision</strong>: Search returns the relevant paragraph, not a 10-page document</li>
+    <li><strong>Context window</strong>: LLMs have token limits—chunks fit better</li>
+    <li><strong>Cost</strong>: Smaller chunks = fewer tokens = lower embedding costs</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h2>Chunking Strategies</h2>
+
+  <table>
+    <tr>
+      <th>Strategy</th>
+      <th>How it works</th>
+      <th>Pros</th>
+      <th>Cons</th>
+    </tr>
+    <tr>
+      <td><strong>Fixed size</strong></td>
+      <td>Split every N characters</td>
+      <td>Simple, predictable</td>
+      <td>Cuts mid-sentence</td>
+    </tr>
+    <tr>
+      <td><strong>Sentence</strong></td>
+      <td>Split on sentence boundaries</td>
+      <td>Preserves meaning</td>
+      <td>Uneven chunk sizes</td>
+    </tr>
+    <tr>
+      <td><strong>Paragraph</strong></td>
+      <td>Split on double newlines</td>
+      <td>Natural boundaries</td>
+      <td>Paragraphs vary wildly</td>
+    </tr>
+    <tr>
+      <td><strong>Semantic</strong></td>
+      <td>Use LLM to find topic boundaries</td>
+      <td>Best quality</td>
+      <td>Expensive, slow</td>
+    </tr>
+    <tr>
+      <td><strong>Document-aware</strong></td>
+      <td>Use document structure (headers, sections)</td>
+      <td>Respects format</td>
+      <td>Requires parsing</td>
+    </tr>
+  </table>
+
+  <div class="highlight">
+    <strong>For SOAP notes:</strong> We'll use document-aware chunking.
+    SOAP notes have clear sections (S, O, A, P) that we should respect.
+  </div>
+</div>
+
+<div class="section">
+  <h2>Chunk Size: The Tradeoff</h2>
+
+  <div class="diagram">
+Too Small (50 tokens)          Too Large (2000 tokens)
+─────────────────────          ──────────────────────
+"Patient reports"              Entire clinical note
+                               as one chunk
+
+✗ No context                   ✗ Diluted embedding
+✗ Many chunks to search        ✗ Returns too much
+✓ Very precise                 ✓ Full context
+
+        Sweet Spot: 200-500 tokens
+        ──────────────────────────
+        A paragraph or section
+        with enough context
+  </div>
+
+  <h3>The overlap question</h3>
+  <p>Should chunks overlap? Example with 20% overlap:</p>
+
+  <pre><code>Chunk 1: "Patient reports chest pain when climbing stairs. Pain is..."
+Chunk 2: "Pain is sharp, 6/10, radiating to left arm. No shortness..."
+Chunk 3: "No shortness of breath. Patient denies nausea or..."</code></pre>
+
+  <p><strong>Overlap helps:</strong> If a query spans a chunk boundary, overlap ensures we don't miss it.</p>
+  <p><strong>Overlap costs:</strong> More chunks = more storage, more embedding cost, more search results to process.</p>
+</div>
+
+<div class="section">
+  <h2>SOAP Note Structure</h2>
+
+  <p>Clinical notes follow the SOAP format:</p>
+
+  <pre><code><strong>S - Subjective</strong>
+What the patient tells the doctor.
+"I've had this cough for 2 weeks. It's worse at night."
+
+<strong>O - Objective</strong>
+What the doctor observes and measures.
+"Vitals: BP 120/80, HR 72, Temp 98.6F. Lungs: wheezing bilateral."
+
+<strong>A - Assessment</strong>
+Doctor's diagnosis and clinical reasoning.
+"Acute bronchitis, likely viral. Rule out pneumonia."
+
+<strong>P - Plan</strong>
+Treatment plan and next steps.
+"Prescribe albuterol inhaler. Return if fever develops. Chest X-ray if no improvement in 5 days."</code></pre>
+
+  <div class="highlight">
+    <strong>Our approach:</strong> Parse SOAP sections and chunk each section separately.
+    Include section type in metadata so we can filter searches.
+  </div>
+</div>
+
+<div class="section">
+  <h2>Implementation</h2>
+
+  <h3>Step 1: Parse SOAP sections</h3>
+  <pre><code>function parseSOAPSections(content: string): SOAPSections {
+  // TODO: Identify S, O, A, P sections
+  // Look for headers like "SUBJECTIVE:", "S:", etc.
+  // Return { subjective, objective, assessment, plan }
+}</code></pre>
+
+  <h3>Step 2: Chunk each section</h3>
+  <pre><code>function chunkSection(text: string, maxTokens: number): string[] {
+  // TODO: Split section into chunks
+  // Respect sentence boundaries
+  // Add overlap if configured
+}</code></pre>
+
+  <h3>Step 3: Add metadata</h3>
+  <pre><code>interface Chunk {
+  content: string;
+  metadata: {
+    patientId: string;
+    documentId: string;
+    date: string;
+    sectionType: 'subjective' | 'objective' | 'assessment' | 'plan';
+    chunkIndex: number;
+  };
+}</code></pre>
+</div>
+
+<div class="section">
+  <h2>Token Counting</h2>
+
+  <p>Embeddings are priced per token. We need to count tokens accurately.</p>
+
+  <pre><code>import { encoding_for_model } from 'tiktoken';
+
+const encoder = encoding_for_model('text-embedding-3-small');
+
+function countTokens(text: string): number {
+  return encoder.encode(text).length;
+}
+
+// Example:
+countTokens("Patient reports chest pain")  // → 5 tokens
+countTokens("The patient reports experiencing chest pain")  // → 7 tokens</code></pre>
+
+  <div class="warning">
+    <strong>Don't guess token counts!</strong> "500 characters ≈ 100 tokens" is only roughly true.
+    Medical terms often tokenize unexpectedly.
+  </div>
+</div>
+
+<div class="section">
+  <h2>Today's TODOs</h2>
+
+  <p>Open <code>lib/chunking.ts</code> and implement:</p>
+
+  <ol>
+    <li><code>parseSOAPSections()</code> - Extract S, O, A, P from raw text</li>
+    <li><code>chunkText()</code> - Split text respecting sentence boundaries</li>
+    <li><code>chunkDocument()</code> - Full pipeline: parse → chunk → add metadata</li>
+  </ol>
+
+  <h3>Test your implementation</h3>
+  <pre><code>npm run test:run lib/chunking.test.ts</code></pre>
+</div>
+
+<div class="section">
+  <h2>Group Decision</h2>
+
+  <p>Let's decide together:</p>
+
+  <ul>
+    <li><strong>Chunk size:</strong> How many tokens per chunk? (Recommendation: 300-500)</li>
+    <li><strong>Overlap:</strong> What percentage? (Recommendation: 10-20%)</li>
+    <li><strong>Section handling:</strong> Chunk each SOAP section separately, or treat as one document?</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h2>Week 2 Challenge</h2>
+
+  <ol>
+    <li>Implement all functions in <code>lib/chunking.ts</code></li>
+    <li>Run on 5 sample documents and inspect the output</li>
+    <li>Experiment: Try chunk sizes of 200, 400, and 600 tokens. What changes?</li>
+    <li>Bonus: Handle edge cases (missing sections, malformed notes)</li>
+  </ol>
+</div>
+
+<div class="section">
+  <h2>Next Week</h2>
+
+  <p><strong>Week 3: Vector Search with Pinecone</strong></p>
+  <ul>
+    <li>Creating embeddings with OpenAI</li>
+    <li>Storing vectors in Pinecone</li>
+    <li>Querying with semantic search</li>
+  </ul>
+</div>
+
+</body>
+</html>
