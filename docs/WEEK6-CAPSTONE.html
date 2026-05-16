@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Week 6: Capstone Project</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.7;
+      color: #1a1a1a;
+    }
+    h1 { border-bottom: 3px solid #333; padding-bottom: 0.5rem; margin-bottom: 2rem; }
+    h2 { margin-top: 3rem; color: #333; }
+    h3 { margin-top: 2rem; color: #555; }
+    code { background: #f5f5f5; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.9em; }
+    pre { background: #f5f5f5; padding: 1.5rem; overflow-x: auto; border-radius: 8px; border: 1px solid #e0e0e0; }
+    pre code { background: none; padding: 0; }
+    .highlight { background: #fffde7; padding: 1rem 1.5rem; border-left: 4px solid #fbc02d; margin: 1.5rem 0; }
+    .card { background: #fafafa; border: 1px solid #ddd; padding: 1.5rem; margin: 1rem 0; border-radius: 8px; }
+    .card h4 { margin-top: 0; color: #333; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    th, td { border: 1px solid #ddd; padding: 0.75rem; text-align: left; }
+    th { background: #f5f5f5; }
+    ul, ol { padding-left: 1.5rem; }
+    li { margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+
+<h1>Week 6: Capstone Project</h1>
+
+<div class="section">
+  <h2>You Made It!</h2>
+
+  <p>Over the past 5 weeks, you've built a production-quality RAG system:</p>
+
+  <table>
+    <tr>
+      <th>Week</th>
+      <th>What You Built</th>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Project setup, explored FHIR data</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Document chunking for clinical notes</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Vector embeddings and Pinecone search</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Query analyzer and response generation</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>MCP integration with Claude/Cursor</td>
+    </tr>
+  </table>
+
+  <p>Now it's time to make it your own.</p>
+</div>
+
+<div class="section">
+  <h2>Capstone Options</h2>
+
+  <p>Choose one enhancement to implement. Each has a challenge file with detailed instructions.</p>
+
+  <div class="card">
+    <h4>Option 1: PII Obscuring</h4>
+    <p><strong>File:</strong> <code>docs/CHALLENGE-PII.md</code></p>
+    <p>Add privacy protection to obscure patient names, dates, and other PII in query results.</p>
+    <ul>
+      <li>Hash-based name pseudonymization</li>
+      <li>Date obscuring (keep year, hide day/month)</li>
+      <li>Regex patterns for SSN, phone, email</li>
+    </ul>
+    <p><strong>Skills:</strong> Regex, hashing, privacy engineering</p>
+  </div>
+
+  <div class="card">
+    <h4>Option 2: Reranking</h4>
+    <p><strong>File:</strong> <code>docs/CHALLENGE-RERANK.md</code></p>
+    <p>Add Cohere reranking to improve search result quality.</p>
+    <ul>
+      <li>Integrate Cohere Rerank API</li>
+      <li>Rerank vector search results</li>
+      <li>Compare before/after quality</li>
+    </ul>
+    <p><strong>Skills:</strong> API integration, search quality evaluation</p>
+  </div>
+
+  <div class="card">
+    <h4>Option 3: Conversation Memory</h4>
+    <p><strong>File:</strong> <code>docs/CHALLENGE-MEMORY.md</code></p>
+    <p>Add conversation history so users can ask follow-up questions.</p>
+    <ul>
+      <li>Store conversation context</li>
+      <li>Resolve pronouns ("What about his medications?")</li>
+      <li>Maintain patient focus across turns</li>
+    </ul>
+    <p><strong>Skills:</strong> State management, context handling</p>
+  </div>
+
+  <div class="card">
+    <h4>Option 4: Custom MCP Tool</h4>
+    <p><strong>File:</strong> <code>docs/CHALLENGE-MCP-TOOL.md</code></p>
+    <p>Build a novel MCP tool that extends the system's capabilities.</p>
+    <ul>
+      <li>Design tool interface and parameters</li>
+      <li>Implement the functionality</li>
+      <li>Document usage and demo</li>
+    </ul>
+    <p><strong>Skills:</strong> API design, MCP protocol</p>
+  </div>
+
+  <div class="card">
+    <h4>Option 5: Your Idea</h4>
+    <p>Have a different idea? Pitch it! Possibilities:</p>
+    <ul>
+      <li>Multi-modal (images, PDFs)</li>
+      <li>Additional data sources</li>
+      <li>Analytics dashboard</li>
+      <li>Export/reporting features</li>
+    </ul>
+    <p><strong>Requirement:</strong> Get instructor approval for scope</p>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Requirements</h2>
+
+  <p>Your capstone should include:</p>
+
+  <ol>
+    <li><strong>Working code</strong> - Passes existing tests, doesn't break the app</li>
+    <li><strong>New tests</strong> - At least 3 test cases for your feature</li>
+    <li><strong>Documentation</strong> - Update README or add docs explaining your feature</li>
+    <li><strong>Demo</strong> - 3-5 minute demonstration of your feature</li>
+  </ol>
+
+  <div class="highlight">
+    <strong>Use AI tools!</strong> This is encouraged. Show how you used Claude, Cursor,
+    or other AI tools to help build your feature. Include interesting prompts or
+    conversations in your demo.
+  </div>
+</div>
+
+<div class="section">
+  <h2>Timeline</h2>
+
+  <table>
+    <tr>
+      <th>Time</th>
+      <th>Activity</th>
+    </tr>
+    <tr>
+      <td>0:00 - 0:15</td>
+      <td>Review options, choose your capstone</td>
+    </tr>
+    <tr>
+      <td>0:15 - 1:30</td>
+      <td>Build! (Instructor available for help)</td>
+    </tr>
+    <tr>
+      <td>1:30 - 1:50</td>
+      <td>Student demos (volunteers)</td>
+    </tr>
+    <tr>
+      <td>1:50 - 2:00</td>
+      <td>Wrap-up, next steps, Q&A</td>
+    </tr>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Evaluation Criteria</h2>
+
+  <table>
+    <tr>
+      <th>Criteria</th>
+      <th>Points</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>Functionality</td>
+      <td>40%</td>
+      <td>Does it work? Does it solve the problem?</td>
+    </tr>
+    <tr>
+      <td>Code Quality</td>
+      <td>25%</td>
+      <td>Clean, readable, follows project patterns</td>
+    </tr>
+    <tr>
+      <td>Testing</td>
+      <td>20%</td>
+      <td>Tests exist and pass</td>
+    </tr>
+    <tr>
+      <td>Documentation</td>
+      <td>15%</td>
+      <td>Clear explanation of what and how</td>
+    </tr>
+  </table>
+</div>
+
+<div class="section">
+  <h2>What You've Learned</h2>
+
+  <p>Take a moment to reflect on your new skills:</p>
+
+  <ul>
+    <li><strong>RAG Architecture</strong> - When to use retrieval, how to augment prompts</li>
+    <li><strong>Chunking</strong> - Document preparation for vector search</li>
+    <li><strong>Embeddings</strong> - Semantic representation of text</li>
+    <li><strong>Vector Databases</strong> - Storing and querying embeddings</li>
+    <li><strong>Hybrid Search</strong> - Combining SQL and semantic search</li>
+    <li><strong>Prompt Engineering</strong> - Writing effective LLM prompts</li>
+    <li><strong>Structured Outputs</strong> - Getting reliable JSON from LLMs</li>
+    <li><strong>MCP</strong> - Exposing tools to AI assistants</li>
+    <li><strong>AI-Assisted Development</strong> - Using AI tools effectively</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h2>Next Steps</h2>
+
+  <p>Where to go from here:</p>
+
+  <h3>Deepen Your Knowledge</h3>
+  <ul>
+    <li><a href="https://www.pinecone.io/learn/">Pinecone Learning Center</a></li>
+    <li><a href="https://platform.openai.com/docs">OpenAI Documentation</a></li>
+    <li><a href="https://modelcontextprotocol.io/">MCP Specification</a></li>
+  </ul>
+
+  <h3>Advanced Topics</h3>
+  <ul>
+    <li>Fine-tuning embeddings for domain-specific search</li>
+    <li>Evaluation frameworks (RAGAS, etc.)</li>
+    <li>Production deployment and monitoring</li>
+    <li>Multi-agent systems</li>
+  </ul>
+
+  <h3>Build Something!</h3>
+  <p>The best way to learn is to apply these skills to a real problem.</p>
+  <ul>
+    <li>Personal knowledge base</li>
+    <li>Documentation assistant for your company</li>
+    <li>Research paper analyzer</li>
+    <li>Code search tool</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h2>Thank You!</h2>
+
+  <p>Questions? Feedback? Let's discuss.</p>
+
+  <p>Good luck with your capstones!</p>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Week 4: Agents and Prompts</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.7;
+      color: #1a1a1a;
+    }
+    h1 { border-bottom: 3px solid #333; padding-bottom: 0.5rem; margin-bottom: 2rem; }
+    h2 { margin-top: 3rem; color: #333; }
+    h3 { margin-top: 2rem; color: #555; }
+    code { background: #f5f5f5; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.9em; }
+    pre { background: #f5f5f5; padding: 1.5rem; overflow-x: auto; border-radius: 8px; border: 1px solid #e0e0e0; }
+    pre code { background: none; padding: 0; }
+    .diagram { background: #fafafa; border: 1px solid #ddd; padding: 1.5rem; margin: 1.5rem 0; font-family: monospace; white-space: pre; overflow-x: auto; border-radius: 8px; }
+    .highlight { background: #fffde7; padding: 1rem 1.5rem; border-left: 4px solid #fbc02d; margin: 1.5rem 0; }
+    .warning { background: #ffebee; padding: 1rem 1.5rem; border-left: 4px solid #f44336; margin: 1.5rem 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    th, td { border: 1px solid #ddd; padding: 0.75rem; text-align: left; }
+    th { background: #f5f5f5; }
+    ul, ol { padding-left: 1.5rem; }
+    li { margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+
+<h1>Week 4: Agents and Prompts</h1>
+
+<div class="section">
+  <h2>The Orchestration Problem</h2>
+
+  <p>We have two retrieval systems. How do we know which to use?</p>
+
+  <table>
+    <tr>
+      <th>User Query</th>
+      <th>What's Needed</th>
+    </tr>
+    <tr>
+      <td>"What medications is John Smith taking?"</td>
+      <td>SQL only (structured lookup)</td>
+    </tr>
+    <tr>
+      <td>"Notes about breathing problems"</td>
+      <td>Vector only (semantic search)</td>
+    </tr>
+    <tr>
+      <td>"Diabetic patients with foot pain in their notes"</td>
+      <td>Both! SQL → filter → Vector</td>
+    </tr>
+    <tr>
+      <td>"How many patients have hypertension?"</td>
+      <td>SQL aggregation</td>
+    </tr>
+  </table>
+
+  <div class="highlight">
+    <strong>Solution:</strong> Use an LLM to analyze the query and decide the strategy.
+  </div>
+</div>
+
+<div class="section">
+  <h2>Query Analysis with Structured Outputs</h2>
+
+  <p>We use OpenAI's structured outputs to get reliable JSON from the LLM.</p>
+
+  <h3>The Zod Schema</h3>
+  <pre><code>import { z } from 'zod';
+
+const QueryAnalysisSchema = z.object({
+  intent: z.enum([
+    'patient_lookup',      // Find specific patient
+    'patient_search',      // Search patients by criteria
+    'clinical_search',     // Search clinical notes
+    'hybrid_search',       // Structured + semantic
+    'analytics',           // Counts, aggregations
+    'general'              // General medical question
+  ]),
+
+  requiresSQL: z.boolean(),
+  requiresVector: z.boolean(),
+
+  entities: z.object({
+    patientName: z.string().optional(),
+    conditions: z.array(z.string()).optional(),
+    medications: z.array(z.string()).optional(),
+    labTypes: z.array(z.string()).optional(),
+  }),
+
+  semanticQuery: z.string().optional(),  // For vector search
+});</code></pre>
+
+  <h3>Using the Responses API</h3>
+  <pre><code>import { zodTextFormat } from 'openai/helpers/zod';
+
+const response = await openai.responses.parse({
+  model: 'gpt-4o-mini',
+  input: [
+    { role: 'system', content: ANALYSIS_PROMPT },
+    { role: 'user', content: userQuery },
+  ],
+  text: {
+    format: zodTextFormat(QueryAnalysisSchema, 'query_analysis'),
+  },
+});
+
+const analysis = response.output_parsed;</code></pre>
+</div>
+
+<div class="section">
+  <h2>The Analysis Prompt</h2>
+
+  <pre><code>const ANALYSIS_PROMPT = `You are a query analyzer for a medical records system.
+
+Given a user query, determine:
+1. The intent (what type of query is this?)
+2. Whether we need SQL (structured data: patients, conditions, meds, labs)
+3. Whether we need vector search (clinical notes, symptoms, observations)
+4. Extract any entities mentioned (patient names, conditions, etc.)
+5. If vector search is needed, what semantic query should we use?
+
+Examples:
+- "Find John Smith" → patient_lookup, SQL only
+- "Notes about chest pain" → clinical_search, vector only
+- "Diabetics with foot problems" → hybrid_search, SQL + vector
+- "How many patients have diabetes?" → analytics, SQL only
+
+Be precise. Extract exact entity names when mentioned.`;</code></pre>
+</div>
+
+<div class="section">
+  <h2>Query Execution Flow</h2>
+
+  <div class="diagram">
+User Query: "Find diabetic patients with notes about foot pain"
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Query Analyzer                            │
+│  {                                                           │
+│    intent: "hybrid_search",                                  │
+│    requiresSQL: true,                                        │
+│    requiresVector: true,                                     │
+│    entities: { conditions: ["diabetes"] },                   │
+│    semanticQuery: "foot pain"                                │
+│  }                                                           │
+└─────────────────────────────────────────────────────────────┘
+                              │
+              ┌───────────────┴───────────────┐
+              ▼                               ▼
+┌─────────────────────────┐       ┌─────────────────────────┐
+│   SQL Query              │       │   Vector Query          │
+│   SELECT patient_id      │       │   (wait for SQL)        │
+│   FROM conditions        │       │                         │
+│   WHERE code LIKE        │       │                         │
+│   '%diabetes%'           │       │                         │
+└───────────┬─────────────┘       └─────────────────────────┘
+            │                                   │
+            │ patient_ids = [p1, p2, p3]       │
+            │                                   │
+            └───────────────┬───────────────────┘
+                            ▼
+              ┌─────────────────────────┐
+              │   Vector Query          │
+              │   query: "foot pain"    │
+              │   filter: {             │
+              │     patientId: {$in:    │
+              │       [p1, p2, p3]      │
+              │     }                   │
+              │   }                     │
+              └───────────┬─────────────┘
+                          │
+                          ▼
+              ┌─────────────────────────┐
+              │   Merge Results         │
+              │   Format for LLM        │
+              └─────────────────────────┘
+  </div>
+</div>
+
+<div class="section">
+  <h2>Formatting Results for the LLM</h2>
+
+  <p>The retrieved data becomes context for the response generation.</p>
+
+  <pre><code>function formatResultsForLLM(result: QueryResult): string {
+  const parts: string[] = [];
+
+  if (result.sqlResults?.patients) {
+    parts.push('## Matching Patients\n');
+    for (const patient of result.sqlResults.patients) {
+      parts.push(`### ${patient.name}`);
+      parts.push(`- DOB: ${patient.birthDate}`);
+      parts.push(`- Conditions: ${patient.conditions.join(', ')}`);
+    }
+  }
+
+  if (result.vectorResults) {
+    parts.push('## Relevant Clinical Notes\n');
+    for (const note of result.vectorResults) {
+      parts.push(`### ${note.patientName} - ${note.date}`);
+      parts.push('```');
+      parts.push(note.content);
+      parts.push('```');
+    }
+  }
+
+  return parts.join('\n');
+}</code></pre>
+</div>
+
+<div class="section">
+  <h2>The Response Generation Prompt</h2>
+
+  <pre><code>const SYSTEM_PROMPT = `You are a medical records assistant.
+
+You help healthcare providers find patient information quickly and accurately.
+
+Guidelines:
+- Be concise and clinical in tone
+- Always cite which patient/note the information comes from
+- If information is not in the provided context, say so
+- Never make up patient data
+- Flag any concerning findings appropriately
+
+When responding:
+1. Directly answer the question
+2. Provide relevant details from the records
+3. Note any limitations (missing data, etc.)`;</code></pre>
+
+  <h3>Building the final prompt</h3>
+  <pre><code>const messages = [
+  { role: 'system', content: SYSTEM_PROMPT },
+  {
+    role: 'user',
+    content: `Context from medical records:
+
+${formattedResults}
+
+---
+
+User question: ${userQuery}`
+  }
+];</code></pre>
+</div>
+
+<div class="section">
+  <h2>Prompt Engineering Tips</h2>
+
+  <table>
+    <tr>
+      <th>Technique</th>
+      <th>Example</th>
+      <th>Why</th>
+    </tr>
+    <tr>
+      <td><strong>Role setting</strong></td>
+      <td>"You are a medical records assistant"</td>
+      <td>Sets appropriate tone and expertise</td>
+    </tr>
+    <tr>
+      <td><strong>Explicit constraints</strong></td>
+      <td>"Never make up patient data"</td>
+      <td>Prevents hallucination</td>
+    </tr>
+    <tr>
+      <td><strong>Output format</strong></td>
+      <td>"Cite which patient the info comes from"</td>
+      <td>Ensures traceability</td>
+    </tr>
+    <tr>
+      <td><strong>Structured context</strong></td>
+      <td>Markdown headers, code blocks</td>
+      <td>Helps LLM parse the data</td>
+    </tr>
+  </table>
+
+  <div class="warning">
+    <strong>Medical safety:</strong> Always remind the LLM it's a search tool,
+    not a diagnostic system. Include disclaimers as appropriate.
+  </div>
+</div>
+
+<div class="section">
+  <h2>Today's TODOs</h2>
+
+  <p>Open <code>lib/query-analyzer.ts</code> and <code>lib/agent.ts</code>:</p>
+
+  <ol>
+    <li><code>analyzeQuery()</code> - Parse user query with structured output</li>
+    <li><code>executeQuery()</code> - Orchestrate SQL and vector based on analysis</li>
+    <li><code>formatResultsForLLM()</code> - Format retrieved data as context</li>
+    <li><code>generateResponse()</code> - Call LLM with context + query</li>
+  </ol>
+</div>
+
+<div class="section">
+  <h2>Group Discussion: Prompts</h2>
+
+  <p>Let's refine the prompts together:</p>
+
+  <ul>
+    <li>What tone is appropriate for healthcare providers?</li>
+    <li>What safety guardrails should we add?</li>
+    <li>How should we handle queries outside our scope?</li>
+    <li>Should we support follow-up questions?</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h2>Week 4 Challenge</h2>
+
+  <ol>
+    <li>Implement query analyzer and executor</li>
+    <li>Test with these query types:
+      <ul>
+        <li>Patient lookup by name</li>
+        <li>Condition search</li>
+        <li>Clinical note semantic search</li>
+        <li>Hybrid query</li>
+      </ul>
+    </li>
+    <li>Iterate on prompts based on output quality</li>
+    <li>Bonus: Add conversation history for follow-ups</li>
+  </ol>
+</div>
+
+<div class="section">
+  <h2>Next Week</h2>
+
+  <p><strong>Week 5: MCP Integration</strong></p>
+  <ul>
+    <li>What is the Model Context Protocol?</li>
+    <li>Exposing your RAG as tools for Claude/Cursor</li>
+    <li>Building an MCP server</li>
+  </ul>
+</div>
+
+</body>
+</html>

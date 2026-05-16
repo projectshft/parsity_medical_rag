@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Week 5: MCP Integration</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.7;
+      color: #1a1a1a;
+    }
+    h1 { border-bottom: 3px solid #333; padding-bottom: 0.5rem; margin-bottom: 2rem; }
+    h2 { margin-top: 3rem; color: #333; }
+    h3 { margin-top: 2rem; color: #555; }
+    code { background: #f5f5f5; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.9em; }
+    pre { background: #f5f5f5; padding: 1.5rem; overflow-x: auto; border-radius: 8px; border: 1px solid #e0e0e0; }
+    pre code { background: none; padding: 0; }
+    .diagram { background: #fafafa; border: 1px solid #ddd; padding: 1.5rem; margin: 1.5rem 0; font-family: monospace; white-space: pre; overflow-x: auto; border-radius: 8px; }
+    .highlight { background: #fffde7; padding: 1rem 1.5rem; border-left: 4px solid #fbc02d; margin: 1.5rem 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    th, td { border: 1px solid #ddd; padding: 0.75rem; text-align: left; }
+    th { background: #f5f5f5; }
+    ul, ol { padding-left: 1.5rem; }
+    li { margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+
+<h1>Week 5: MCP Integration</h1>
+
+<div class="section">
+  <h2>What is MCP?</h2>
+
+  <p><strong>Model Context Protocol</strong> is a standard for connecting AI assistants to external tools and data.</p>
+
+  <div class="diagram">
+┌─────────────────┐         ┌─────────────────┐
+│  Claude Desktop │         │     Cursor      │
+│  or other AI    │         │     IDE         │
+└────────┬────────┘         └────────┬────────┘
+         │                           │
+         │      MCP Protocol         │
+         └───────────┬───────────────┘
+                     │
+                     ▼
+         ┌─────────────────────┐
+         │    MCP Server       │
+         │  (your RAG system)  │
+         │                     │
+         │  Tools:             │
+         │  - search_patients  │
+         │  - query_notes      │
+         │  - get_patient      │
+         └─────────────────────┘
+  </div>
+
+  <div class="highlight">
+    <strong>Why MCP?</strong> Instead of building a custom UI, you can expose your
+    RAG system as tools that any MCP-compatible AI can use. Claude, Cursor, and
+    other tools can then query your medical records naturally.
+  </div>
+</div>
+
+<div class="section">
+  <h2>MCP Concepts</h2>
+
+  <table>
+    <tr>
+      <th>Concept</th>
+      <th>Description</th>
+      <th>Example</th>
+    </tr>
+    <tr>
+      <td><strong>Server</strong></td>
+      <td>Your application that provides tools</td>
+      <td>Medical RAG server</td>
+    </tr>
+    <tr>
+      <td><strong>Client</strong></td>
+      <td>AI assistant that calls your tools</td>
+      <td>Claude Desktop, Cursor</td>
+    </tr>
+    <tr>
+      <td><strong>Tools</strong></td>
+      <td>Functions the AI can call</td>
+      <td><code>search_patients</code>, <code>query_notes</code></td>
+    </tr>
+    <tr>
+      <td><strong>Resources</strong></td>
+      <td>Data the AI can read</td>
+      <td>Patient records, documents</td>
+    </tr>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Setting Up an MCP Server</h2>
+
+  <h3>1. Install the SDK</h3>
+  <pre><code>npm install @modelcontextprotocol/sdk</code></pre>
+
+  <h3>2. Create the server</h3>
+  <pre><code>// mcp-server/index.ts
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+
+const server = new McpServer({
+  name: 'medical-rag',
+  version: '1.0.0',
+});
+
+// Register tools (we'll add these next)
+
+// Start the server
+const transport = new StdioServerTransport();
+await server.connect(transport);</code></pre>
+</div>
+
+<div class="section">
+  <h2>Defining Tools</h2>
+
+  <pre><code>// Tool: Search for patients
+server.tool(
+  'search_patients',
+  'Search for patients by name or condition',
+  {
+    query: {
+      type: 'string',
+      description: 'Search query (name or condition)',
+    },
+    limit: {
+      type: 'number',
+      description: 'Max results to return',
+      default: 10,
+    },
+  },
+  async ({ query, limit }) => {
+    // Call your existing RAG system
+    const results = await executeQuery(query, { limit });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: formatResultsForLLM(results),
+        },
+      ],
+    };
+  }
+);
+
+// Tool: Query clinical notes
+server.tool(
+  'query_notes',
+  'Search clinical notes semantically',
+  {
+    query: {
+      type: 'string',
+      description: 'Semantic search query',
+    },
+    patientId: {
+      type: 'string',
+      description: 'Optional: limit to specific patient',
+      optional: true,
+    },
+  },
+  async ({ query, patientId }) => {
+    const results = await searchClinicalNotes(query, {
+      patientIds: patientId ? [patientId] : undefined,
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: formatVectorResults(results),
+        },
+      ],
+    };
+  }
+);
+
+// Tool: Get patient details
+server.tool(
+  'get_patient',
+  'Get full details for a specific patient',
+  {
+    patientId: {
+      type: 'string',
+      description: 'The patient ID',
+    },
+  },
+  async ({ patientId }) => {
+    const patient = await getPatientById(patientId);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: formatPatientDetails(patient),
+        },
+      ],
+    };
+  }
+);</code></pre>
+</div>
+
+<div class="section">
+  <h2>Configuring Claude Desktop</h2>
+
+  <p>Add to <code>~/Library/Application Support/Claude/claude_desktop_config.json</code>:</p>
+
+  <pre><code>{
+  "mcpServers": {
+    "medical-rag": {
+      "command": "npx",
+      "args": ["ts-node", "/path/to/medical-rag/mcp-server/index.ts"],
+      "env": {
+        "DATABASE_URL": "your-neon-url",
+        "PINECONE_API_KEY": "your-pinecone-key",
+        "OPENAI_API_KEY": "your-openai-key"
+      }
+    }
+  }
+}</code></pre>
+
+  <h3>Restart Claude Desktop</h3>
+  <p>After saving the config, restart Claude Desktop. You should see your tools available.</p>
+</div>
+
+<div class="section">
+  <h2>Configuring Cursor</h2>
+
+  <p>Add to <code>.cursor/mcp.json</code> in your project:</p>
+
+  <pre><code>{
+  "mcpServers": {
+    "medical-rag": {
+      "command": "npx",
+      "args": ["ts-node", "mcp-server/index.ts"]
+    }
+  }
+}</code></pre>
+</div>
+
+<div class="section">
+  <h2>How It Works</h2>
+
+  <div class="diagram">
+User: "Find patients with diabetes who mentioned foot pain"
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Claude Desktop                            │
+│                                                              │
+│  "I'll use the medical-rag tools to find this information"  │
+│                                                              │
+│  1. Call search_patients(query="diabetes")                   │
+│  2. Call query_notes(query="foot pain", patientId=...)       │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    MCP Server                                │
+│                                                              │
+│  - Receives tool calls                                       │
+│  - Executes RAG queries                                      │
+│  - Returns formatted results                                 │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Claude Desktop                            │
+│                                                              │
+│  "I found 3 diabetic patients with notes about foot pain:   │
+│   - John Smith: noted tingling in feet on 2024-01-15        │
+│   - Jane Doe: foot ulcer assessment on 2024-02-20           │
+│   ..."                                                       │
+└─────────────────────────────────────────────────────────────┘
+  </div>
+</div>
+
+<div class="section">
+  <h2>Today's TODOs</h2>
+
+  <p>Create <code>mcp-server/index.ts</code>:</p>
+
+  <ol>
+    <li>Set up MCP server with SDK</li>
+    <li>Implement <code>search_patients</code> tool</li>
+    <li>Implement <code>query_notes</code> tool</li>
+    <li>Implement <code>get_patient</code> tool</li>
+    <li>Configure Claude Desktop or Cursor</li>
+    <li>Test with natural language queries</li>
+  </ol>
+</div>
+
+<div class="section">
+  <h2>Group Discussion</h2>
+
+  <p>What other tools would be useful?</p>
+
+  <ul>
+    <li><code>list_conditions</code> - Get all conditions for a patient</li>
+    <li><code>list_medications</code> - Get current medications</li>
+    <li><code>summarize_patient</code> - AI summary of patient history</li>
+    <li><code>compare_patients</code> - Compare two patients</li>
+    <li>What else?</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h2>Week 5 Challenge</h2>
+
+  <ol>
+    <li>Implement the three core tools</li>
+    <li>Get MCP working with Claude Desktop or Cursor</li>
+    <li>Demo: Ask 5 natural language questions via the AI</li>
+    <li>Bonus: Add a fourth tool of your choice</li>
+  </ol>
+</div>
+
+<div class="section">
+  <h2>Next Week</h2>
+
+  <p><strong>Week 6: Capstone Project</strong></p>
+  <ul>
+    <li>Choose your enhancement</li>
+    <li>Build and demo</li>
+    <li>Course wrap-up</li>
+  </ul>
+</div>
+
+</body>
+</html>
