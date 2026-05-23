@@ -2,16 +2,12 @@
  * LLM-as-Judge Evaluator
  *
  * Uses an LLM to evaluate RAG system outputs against quality criteria.
- * This pattern is useful when human evaluation isn't scalable.
  */
 
 import { z } from 'zod';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { openai } from '../openai';
 
-/**
- * Evaluation result schema
- */
 const EvalResultSchema = z.object({
   score: z.number().min(0).max(10).describe('Score from 0-10'),
   reasoning: z.string().describe('Brief explanation for the score'),
@@ -22,8 +18,6 @@ export type EvalResult = z.infer<typeof EvalResultSchema>;
 
 /**
  * Evaluate retrieval relevance
- *
- * Measures how relevant the retrieved documents are to the query.
  */
 export async function evaluateRetrievalRelevance(
   query: string,
@@ -35,16 +29,16 @@ export async function evaluateRetrievalRelevance(
       {
         role: 'system',
         content: `You are an expert evaluator for retrieval systems.
-Given a user query and retrieved documents, rate the relevance of the retrieved content.
+Given a user query and retrieved documents, rate the relevance.
 
-Scoring guide:
-- 9-10: All documents highly relevant, directly answer the query
-- 7-8: Most documents relevant, some tangentially related
-- 5-6: Mixed relevance, some useful content
-- 3-4: Mostly irrelevant with a few relevant pieces
-- 0-2: Retrieved content doesn't address the query
+Scoring:
+- 9-10: All documents highly relevant
+- 7-8: Most documents relevant
+- 5-6: Mixed relevance
+- 3-4: Mostly irrelevant
+- 0-2: Doesn't address the query
 
-A score of 7 or above is considered passing.`,
+Score 7+ is passing.`,
       },
       {
         role: 'user',
@@ -53,7 +47,7 @@ A score of 7 or above is considered passing.`,
 Retrieved Content:
 ${retrievedContent.map((c, i) => `[${i + 1}] ${c}`).join('\n\n')}
 
-Evaluate the relevance of these retrieved documents to the query.`,
+Evaluate relevance.`,
       },
     ],
     temperature: 0,
@@ -66,9 +60,7 @@ Evaluate the relevance of these retrieved documents to the query.`,
 }
 
 /**
- * Evaluate answer faithfulness
- *
- * Measures whether the generated answer is grounded in the retrieved context.
+ * Evaluate answer faithfulness (grounded in context)
  */
 export async function evaluateAnswerFaithfulness(
   context: string,
@@ -80,28 +72,26 @@ export async function evaluateAnswerFaithfulness(
       {
         role: 'system',
         content: `You are an expert evaluator for RAG systems.
-Given context (retrieved documents) and a generated answer, evaluate whether
-the answer is faithful to the context (doesn't hallucinate or add information
-not present in the context).
+Evaluate whether the answer is faithful to the context (no hallucination).
 
-Scoring guide:
-- 9-10: Answer is fully grounded in context, no hallucination
-- 7-8: Answer mostly grounded, minor extrapolations that are reasonable
-- 5-6: Some claims not supported by context
-- 3-4: Significant unsupported claims or hallucinations
-- 0-2: Answer contradicts context or is entirely hallucinated
+Scoring:
+- 9-10: Fully grounded, no hallucination
+- 7-8: Mostly grounded, minor extrapolations
+- 5-6: Some unsupported claims
+- 3-4: Significant hallucinations
+- 0-2: Contradicts context or entirely hallucinated
 
-A score of 7 or above is considered passing.`,
+Score 7+ is passing.`,
       },
       {
         role: 'user',
         content: `Context:
 ${context}
 
-Generated Answer:
+Answer:
 ${answer}
 
-Evaluate the faithfulness of this answer to the context.`,
+Evaluate faithfulness.`,
       },
     ],
     temperature: 0,
@@ -115,8 +105,6 @@ Evaluate the faithfulness of this answer to the context.`,
 
 /**
  * Evaluate answer completeness
- *
- * Measures whether the answer fully addresses the user's question.
  */
 export async function evaluateAnswerCompleteness(
   query: string,
@@ -128,26 +116,25 @@ export async function evaluateAnswerCompleteness(
       {
         role: 'system',
         content: `You are an expert evaluator for question-answering systems.
-Given a user query and a generated answer, evaluate whether the answer
-completely addresses all aspects of the query.
+Evaluate whether the answer fully addresses the query.
 
-Scoring guide:
-- 9-10: Answer fully addresses all aspects of the query
-- 7-8: Answer addresses main points, minor aspects missing
-- 5-6: Answer partially addresses the query, some aspects missing
-- 3-4: Answer only addresses a small part of the query
-- 0-2: Answer doesn't address the query at all
+Scoring:
+- 9-10: Fully addresses all aspects
+- 7-8: Addresses main points, minor gaps
+- 5-6: Partially addresses query
+- 3-4: Only addresses small part
+- 0-2: Doesn't address query
 
-A score of 7 or above is considered passing.`,
+Score 7+ is passing.`,
       },
       {
         role: 'user',
         content: `Query: ${query}
 
-Generated Answer:
+Answer:
 ${answer}
 
-Evaluate the completeness of this answer.`,
+Evaluate completeness.`,
       },
     ],
     temperature: 0,

@@ -2,8 +2,6 @@
  * RAG Evaluation Tests
  *
  * Uses LLM-as-judge pattern to evaluate retrieval and generation quality.
- * These tests call real APIs - run sparingly and with appropriate API keys.
- *
  * Run with: npm test lib/evals/retrieval.test.ts
  */
 
@@ -18,7 +16,7 @@ describe('retrieval relevance evaluation', () => {
       const retrievedContent = [
         'Patient is currently prescribed Metformin 500mg twice daily for type 2 diabetes management.',
         'Hemoglobin A1C levels measured at 7.2%, indicating moderate glucose control.',
-        'Patient reports compliance with diabetes medication regimen, no hypoglycemic episodes.',
+        'Patient reports compliance with diabetes medication regimen.',
       ];
 
       const result = await evaluateRetrievalRelevance(query, retrievedContent);
@@ -59,12 +57,5 @@ describe('retrieval relevance evaluation', () => {
 
 // TODO: Add end-to-end RAG evaluation
 // - Query the full pipeline
-// - Evaluate retrieval relevance
-// - Evaluate answer faithfulness
-// - Evaluate answer completeness
+// - Evaluate retrieval, faithfulness, completeness
 // - Aggregate scores
-
-// TODO: Add evaluation dataset
-// - Create test cases in lib/evals/fixtures/
-// - Load and iterate through test cases
-// - Generate evaluation report

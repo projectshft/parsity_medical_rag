@@ -1,7 +1,5 @@
 /**
  * RAG Evaluation Module
- *
- * Provides LLM-as-judge evaluators for measuring RAG system quality.
  */
 
 export {
