@@ -18,9 +18,31 @@ export async function POST(request: Request) {
       })
     );
 
-    const response = await runAgent(query, conversationHistory);
+    const { stream, schedulingAction } = await runAgent(query, conversationHistory);
 
-    return response.toTextStreamResponse();
+    // If there's a scheduling action, we need to append it to the stream
+    if (schedulingAction) {
+      const textStream = stream.textStream;
+      const encoder = new TextEncoder();
+      const actionMarker = `\n\n<!-- SCHEDULING_ACTION ${JSON.stringify(schedulingAction)} -->`;
+
+      const transformedStream = new ReadableStream({
+        async start(controller) {
+          for await (const chunk of textStream) {
+            controller.enqueue(encoder.encode(chunk));
+          }
+          // Append the scheduling action marker at the end
+          controller.enqueue(encoder.encode(actionMarker));
+          controller.close();
+        },
+      });
+
+      return new Response(transformedStream, {
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
+
+    return stream.toTextStreamResponse();
   } catch (error) {
     console.error("Chat error:", error);
     return new Response(
