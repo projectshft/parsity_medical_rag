@@ -2,7 +2,8 @@ import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { searchChunks, SearchResult } from "./pinecone";
 import { rerankResults } from "./reranker";
-import { traced, isLangSmithEnabled } from "./langsmith";
+import { traced } from "./langsmith";
+import { detectSchedulingIntent, formatSchedulingAction } from "./scheduling";
 
 const SYSTEM_PROMPT = `You are a helpful medical records assistant. You help users query and understand medical records from FHIR data.
 
@@ -21,6 +22,15 @@ When presenting medical information:
 - Group related information together (e.g., all medications, all conditions)
 - Note any potentially concerning findings
 - Provide context for lab values when available`;
+
+const SCHEDULING_SYSTEM_PROMPT = `You are a helpful medical records assistant that can also help schedule patient appointments.
+
+When the user asks to schedule an appointment:
+1. Confirm the patient name and any relevant context from their records
+2. Acknowledge the scheduling request
+3. Let them know a scheduling form will appear for them to confirm
+
+Keep your response brief when scheduling - the UI will handle the actual booking.`;
 
 function buildContext(results: SearchResult[]): string {
   if (results.length === 0) {
@@ -83,10 +93,23 @@ export interface Message {
   content: string;
 }
 
+export interface AgentResponse {
+  stream: ReturnType<typeof streamText>;
+  schedulingAction?: {
+    patientName: string;
+    suggestedDate: string;
+    suggestedTime: string;
+    reason?: string | null;
+  };
+}
+
 export async function runAgent(
   query: string,
   conversationHistory: Message[] = []
-) {
+): Promise<AgentResponse> {
+  // Check for scheduling intent first
+  const schedulingIntent = await detectSchedulingIntent(query);
+
   // Search for relevant records (with optional tracing)
   const searchResults = await traced(
     'vector_search',
@@ -104,6 +127,11 @@ export async function runAgent(
   // Build context from results
   const context = buildContext(rerankedResults);
 
+  // Choose system prompt based on scheduling intent
+  const systemPrompt = schedulingIntent.isSchedulingRequest
+    ? SCHEDULING_SYSTEM_PROMPT
+    : SYSTEM_PROMPT;
+
   // Build messages array
   const messages = [
     ...conversationHistory.map((m) => ({
@@ -117,11 +145,31 @@ export async function runAgent(
   ];
 
   // Stream response
-  const response = await streamText({
+  const stream = streamText({
     model: openai("gpt-4o-mini"),
-    system: SYSTEM_PROMPT,
+    system: systemPrompt,
     messages,
   });
 
-  return response;
+  // Return stream with scheduling action if applicable
+  return {
+    stream,
+    schedulingAction: schedulingIntent.isSchedulingRequest && schedulingIntent.patientName
+      ? {
+          patientName: schedulingIntent.patientName,
+          suggestedDate: schedulingIntent.suggestedDate || getDefaultDate(),
+          suggestedTime: schedulingIntent.suggestedTime || '09:00',
+          reason: schedulingIntent.reason,
+        }
+      : undefined,
+  };
+}
+
+function getDefaultDate(): string {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  while (date.getDay() === 0 || date.getDay() === 6) {
+    date.setDate(date.getDate() + 1);
+  }
+  return date.toISOString().split('T')[0];
 }
