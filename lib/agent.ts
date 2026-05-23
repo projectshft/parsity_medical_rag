@@ -2,6 +2,7 @@ import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { searchChunks, SearchResult } from "./pinecone";
 import { rerankResults } from "./reranker";
+import { traced, isLangSmithEnabled } from "./langsmith";
 
 const SYSTEM_PROMPT = `You are a helpful medical records assistant. You help users query and understand medical records from FHIR data.
 
@@ -86,11 +87,19 @@ export async function runAgent(
   query: string,
   conversationHistory: Message[] = []
 ) {
-  // Search for relevant records
-  const searchResults = await searchChunks(query, 20);
+  // Search for relevant records (with optional tracing)
+  const searchResults = await traced(
+    'vector_search',
+    () => searchChunks(query, 20),
+    { runType: 'retriever', inputs: { query, topK: 20 } }
+  );
 
-  // Rerank results
-  const rerankedResults = await rerankResults(query, searchResults, 10);
+  // Rerank results (with optional tracing)
+  const rerankedResults = await traced(
+    'rerank',
+    () => rerankResults(query, searchResults, 10),
+    { runType: 'chain', inputs: { query, resultsCount: searchResults.length } }
+  );
 
   // Build context from results
   const context = buildContext(rerankedResults);
