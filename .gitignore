@@ -33,5 +33,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# FHIR data (can be regenerated)
-fhir/
+# FHIR data (downloaded from Synthea, 4.4GB)
+data/

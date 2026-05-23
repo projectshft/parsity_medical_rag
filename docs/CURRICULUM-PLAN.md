@@ -41,8 +41,37 @@
 
 ---
 
-### Week 2: Chunking Clinical Notes
-**Theme**: Preparing documents for vector search
+### Week 2: Embeddings & Data Ingestion
+**Theme**: Understanding vectors and loading data
+
+**Presentation Topics** (20 min):
+- What are embeddings? (visual: word2vec-style)
+- Vector math: dot product, magnitude, cosine similarity
+- OpenAI embeddings API
+- Vector databases vs SQL: when to use each
+
+**Live Coding / TODOs** (90 min):
+- Set up Pinecone account and index
+- TODO: Implement `createEmbedding()` wrapper
+- TODO: Run FHIR → PostgreSQL ingestion (patients, conditions, medications)
+- TODO: Implement `upsertChunks()` to Pinecone
+- Upload clinical notes to Pinecone with metadata
+- Verify data in both SQL and Pinecone
+
+**Student Challenge**:
+- Query embeddings: "heart disease" vs "cardiac condition"
+- Observe similarity scores
+
+**Files to Prepare**:
+- `docs/WEEK2-EMBEDDINGS.html` - Presentation
+- `lib/openai.ts` - Embedding functions
+- `lib/pinecone.ts` - Pinecone client
+- `scripts/ingest-coherent.ts` - Ingestion script
+
+---
+
+### Week 3: Document Chunking & Vector Search
+**Theme**: Preparing documents and searching them
 
 **Presentation Topics** (20 min):
 - Why chunking matters (context windows, relevance)
@@ -54,48 +83,18 @@
 - Review raw clinical notes from Synthea
 - TODO: Implement `chunkDocument()` function
 - TODO: Handle SOAP note sections (Subjective, Objective, Assessment, Plan)
-- TODO: Add metadata to chunks (patientId, date, section type)
-- Group decision: Chunk size and overlap values
-- Test chunking on sample documents
-
-**Student Challenge**:
-- Experiment with different chunk sizes
-- Compare retrieval quality
-
-**Files to Prepare**:
-- `docs/WEEK2-CHUNKING.html` - Presentation
-- `lib/chunking.ts` - Skeleton with TODOs
-- `scripts/chunk-documents.ts` - Ingestion script
-- Sample FHIR DocumentReference files
-
----
-
-### Week 3: Vector Search with Pinecone
-**Theme**: Embeddings and semantic search
-
-**Presentation Topics** (20 min):
-- What are embeddings? (visual: word2vec-style)
-- OpenAI embeddings API
-- Vector databases: why not just SQL?
-- Pinecone basics: indexes, namespaces, metadata filtering
-
-**Live Coding / TODOs** (90 min):
-- Set up Pinecone account and index
-- TODO: Implement `createEmbedding()` wrapper
-- TODO: Implement `upsertChunks()` to Pinecone
 - TODO: Implement `searchClinicalNotes()` query function
-- Run ingestion: chunks → embeddings → Pinecone
+- TODO: Add metadata filtering (patientId, date)
 - Test semantic queries vs keyword search
 
 **Student Challenge**:
+- Experiment with different chunk sizes
 - Query: "patients with breathing problems" vs "dyspnea"
-- Compare vector search results
 
 **Files to Prepare**:
-- `docs/WEEK3-VECTORS.html` - Presentation
-- `lib/embeddings.ts` - Skeleton with TODOs
+- `docs/WEEK3-CHUNKING.html` - Presentation
+- `lib/chunking.ts` - Skeleton with TODOs
 - `lib/vector-search.ts` - Skeleton with TODOs
-- `scripts/ingest-to-pinecone.ts` - Ingestion script
 
 ---
 
@@ -145,9 +144,9 @@
 - Demo: Natural language → MCP tool → RAG results
 - Group discussion: What other tools would be useful?
 
-**Student Challenge**:
-- Add a new MCP tool (e.g., `list_conditions`, `summarize_patient`)
-- Test with Claude Desktop or Cursor
+**Homework (Due Week 6)**:
+- Choose your capstone data source
+- Prepare 5-minute presentation: What data? What queries? What's the RAG strategy?
 
 **Files to Prepare**:
 - `docs/WEEK5-MCP.html` - Presentation
@@ -157,31 +156,35 @@
 
 ---
 
-### Week 6: Capstone Project
-**Theme**: Put it all together
+### Week 6: Capstone Presentations
+**Theme**: Show what you built
 
-**Presentation Topics** (15 min):
-- Capstone requirements review
-- Demo of complete system
-- Ideas for extensions
+**Student Presentations** (full session):
+Each student presents their capstone RAG application:
+- Data source and domain (5 min)
+- RAG strategy and architecture decisions
+- Live demo of working system
+- Challenges faced and lessons learned
+- Q&A from class
 
-**Capstone Work** (90 min):
-Students complete their own enhancements. Options:
-1. **PII Obscuring** - Implement privacy protection (existing challenge)
-2. **Reranking** - Add Cohere reranker for better results
-3. **Multi-modal** - Add image/PDF support
-4. **New Data Source** - Integrate additional medical data
+**Capstone Options**:
+1. **New Domain** - Apply RAG to your own dataset (legal docs, support tickets, etc.)
+2. **PII Obscuring** - Implement privacy protection for medical data
+3. **Reranking** - Add Cohere reranker for precision
+4. **Multi-modal** - Add image/PDF support
 5. **Custom MCP Tool** - Build a novel MCP integration
+6. **Evals** - Implement LLM-as-judge evaluation suite
 
-**Final 15 min**:
-- Student demos (volunteers)
-- Q&A and wrap-up
-- Resources for continued learning
+**Grading Criteria**:
+- Working end-to-end demo
+- Clear explanation of RAG decisions
+- Code quality and organization
+- Handling of edge cases
 
 **Files to Prepare**:
-- `docs/WEEK6-CAPSTONE.html` - Requirements
-- `docs/CHALLENGE-*.md` - Multiple challenge options
-- Grading rubric (if applicable)
+- `docs/WEEK6-CAPSTONE.html` - Presentation guidelines
+- `docs/CHALLENGE-*.md` - Challenge option details
+- Grading rubric
 
 ---
 
@@ -195,14 +198,21 @@ medical-rag/
 │       ├── chat/route.ts
 │       └── query/route.ts
 ├── lib/
-│   ├── chunking.ts         # Week 2 TODOs
-│   ├── embeddings.ts       # Week 3 TODOs
+│   ├── openai.ts           # Week 2 TODOs (embeddings)
+│   ├── pinecone.ts         # Week 2 TODOs (upserts)
+│   ├── chunking.ts         # Week 3 TODOs
 │   ├── vector-search.ts    # Week 3 TODOs
+│   ├── reranker.ts         # Week 3 (Cohere reranking)
 │   ├── query-analyzer.ts   # Week 4 TODOs
 │   ├── agent.ts            # Week 4 TODOs
 │   ├── prompts.ts          # Week 4 TODOs (group)
 │   ├── sql-queries.ts      # Pre-built
-│   └── prisma.ts           # Pre-built
+│   ├── prisma.ts           # Pre-built
+│   ├── pii.ts              # Capstone challenge
+│   ├── langsmith.ts        # Observability
+│   └── evals/              # Capstone challenge
+│       ├── llm-judge.ts    # LLM-as-judge evaluators
+│       └── index.ts
 ├── mcp-server/             # Week 5
 │   ├── index.ts            # TODOs
 │   └── tools.ts            # TODOs
@@ -214,8 +224,8 @@ medical-rag/
 ├── data/                   # Subset of Synthea data (or S3 URL)
 ├── docs/
 │   ├── WEEK1-INTRO.html
-│   ├── WEEK2-CHUNKING.html
-│   ├── WEEK3-VECTORS.html
+│   ├── WEEK2-EMBEDDINGS.html
+│   ├── WEEK3-CHUNKING.html
 │   ├── WEEK4-AGENTS.html
 │   ├── WEEK5-MCP.html
 │   ├── WEEK6-CAPSTONE.html

@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+// ============================================
+// PATIENTS
+// ============================================
+model Patient {
+  id          String   @id @default(uuid())
+  fhirId      String   @unique @map("fhir_id")
+  name        String
+  givenName   String?  @map("given_name")
+  familyName  String?  @map("family_name")
+  gender      String?
+  birthDate   DateTime? @map("birth_date")
+  city        String?
+  state       String?
+  postalCode  String?  @map("postal_code")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  conditions    Condition[]
+  observations  Observation[]
+  medications   Medication[]
+  procedures    Procedure[]
+  encounters    Encounter[]
+  immunizations Immunization[]
+  allergies     Allergy[]
+  documents     Document[]
+
+  @@map("patients")
+}
+
+// ============================================
+// CONDITIONS (Diagnoses)
+// ============================================
+model Condition {
+  id          String   @id @default(uuid())
+  fhirId      String   @unique @map("fhir_id")
+  patientId   String   @map("patient_id")
+
+  code        String
+  codeSystem  String   @default("snomed-ct") @map("code_system")
+  display     String
+
+  status      String?
+  severity    String?
+  onsetDate   DateTime? @map("onset_date")
+  abatementDate DateTime? @map("abatement_date")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([code])
+  @@index([status])
+  @@map("conditions")
+}
+
+// ============================================
+// OBSERVATIONS (Labs, Vitals)
+// ============================================
+model Observation {
+  id          String   @id @default(uuid())
+  fhirId      String   @unique @map("fhir_id")
+  patientId   String   @map("patient_id")
+
+  code        String
+  codeSystem  String   @default("loinc") @map("code_system")
+  display     String
+  category    String?
+
+  valueNumeric  Float?   @map("value_numeric")
+  valueString   String?  @map("value_string")
+  unit          String?
+
+  referenceLow  Float?   @map("reference_low")
+  referenceHigh Float?   @map("reference_high")
+
+  effectiveDate DateTime? @map("effective_date")
+  status        String?
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([code])
+  @@index([effectiveDate])
+  @@index([valueNumeric])
+  @@map("observations")
+}
+
+// ============================================
+// MEDICATIONS
+// ============================================
+model Medication {
+  id          String   @id @default(uuid())
+  fhirId      String   @unique @map("fhir_id")
+  patientId   String   @map("patient_id")
+
+  code        String?
+  codeSystem  String   @default("rxnorm") @map("code_system")
+  display     String
+
+  status      String?
+  intent      String?
+
+  dosageInstruction String? @map("dosage_instruction")
+  authoredDate      DateTime? @map("authored_date")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([status])
+  @@map("medications")
+}
+
+// ============================================
+// PROCEDURES
+// ============================================
+model Procedure {
+  id          String   @id @default(uuid())
+  fhirId      String   @unique @map("fhir_id")
+  patientId   String   @map("patient_id")
+
+  code        String?
+  codeSystem  String?  @map("code_system")
+  display     String
+
+  status      String?
+  performedDate DateTime? @map("performed_date")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("procedures")
+}
+
+// ============================================
+// ENCOUNTERS (Visits)
+// ============================================
+model Encounter {
+  id          String   @id @default(uuid())
+  fhirId      String   @unique @map("fhir_id")
+  patientId   String   @map("patient_id")
+
+  class       String?
+  type        String?
+  status      String?
+
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([startDate])
+  @@map("encounters")
+}
+
+// ============================================
+// IMMUNIZATIONS
+// ============================================
+model Immunization {
+  id          String   @id @default(uuid())
+  fhirId      String   @unique @map("fhir_id")
+  patientId   String   @map("patient_id")
+
+  code        String?
+  codeSystem  String   @default("cvx") @map("code_system")
+  display     String
+
+  status      String?
+  occurrenceDate DateTime? @map("occurrence_date")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("immunizations")
+}
+
+// ============================================
+// ALLERGIES
+// ============================================
+model Allergy {
+  id          String   @id @default(uuid())
+  fhirId      String   @unique @map("fhir_id")
+  patientId   String   @map("patient_id")
+
+  code        String?
+  codeSystem  String?  @map("code_system")
+  display     String
+
+  category    String?
+  criticality String?
+  status      String?
+
+  onsetDate   DateTime? @map("onset_date")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("allergies")
+}
+
+// ============================================
+// DOCUMENTS (Clinical Notes - metadata only)
+// Content stored in Pinecone for vector search
+// ============================================
+model Document {
+  id          String   @id @default(uuid())
+  fhirId      String   @unique @map("fhir_id")
+  patientId   String   @map("patient_id")
+
+  type        String
+  loincCode   String?  @map("loinc_code")
+
+  date        DateTime?
+  wordCount   Int?     @map("word_count")
+
+  pineconeId  String   @unique @map("pinecone_id")
+  snippet     String?
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([type])
+  @@index([date])
+  @@map("documents")
+}
