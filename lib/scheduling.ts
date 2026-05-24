@@ -19,15 +19,29 @@ const SchedulingIntentSchema = z.object({
 
 export type SchedulingIntent = z.infer<typeof SchedulingIntentSchema>;
 
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 /**
- * Analyze a query for scheduling intent
+ * Analyze a query for scheduling intent, using conversation history for context
  */
-export async function detectSchedulingIntent(query: string): Promise<SchedulingIntent> {
+export async function detectSchedulingIntent(
+  query: string,
+  conversationHistory: ConversationMessage[] = []
+): Promise<SchedulingIntent> {
   return traced(
     'detect_scheduling_intent',
     async () => {
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
+
+      // Build context from recent conversation (last 4 messages)
+      const recentHistory = conversationHistory.slice(-4);
+      const historyContext = recentHistory.length > 0
+        ? `\n\nRecent conversation:\n${recentHistory.map(m => `${m.role}: ${m.content}`).join('\n')}`
+        : '';
 
       const response = await openai.responses.parse({
         model: 'gpt-4o-mini',
@@ -39,16 +53,18 @@ Today's date is ${todayStr}.
 
 If the user wants to schedule/book an appointment:
 - Set isSchedulingRequest to true
-- Extract the patient name
-- Parse relative dates (e.g., "next Tuesday", "tomorrow", "in 2 days") to YYYY-MM-DD
+- Extract the patient name (look in conversation history if user says "him", "her", "them", "this patient", etc.)
+- Parse relative dates (e.g., "next Monday", "tomorrow", "in 2 days") to YYYY-MM-DD
 - Parse times to HH:MM 24-hour format (default to 09:00 if not specified)
 - Extract appointment reason if mentioned
+
+IMPORTANT: If the user confirms a scheduling request (e.g., "yes", "yeah", "do it", "schedule him"), look at the conversation history to find the patient name being discussed.
 
 If not a scheduling request, set isSchedulingRequest to false and all other fields to null.`,
           },
           {
             role: 'user',
-            content: query,
+            content: `${historyContext}\n\nCurrent message: ${query}`,
           },
         ],
         temperature: 0,
@@ -57,9 +73,11 @@ If not a scheduling request, set isSchedulingRequest to false and all other fiel
         },
       });
 
-      return SchedulingIntentSchema.parse(response.output_parsed);
+      const result = SchedulingIntentSchema.parse(response.output_parsed);
+      console.log('Scheduling intent detected:', result);
+      return result;
     },
-    { runType: 'chain', inputs: { query } }
+    { runType: 'chain', inputs: { query, historyLength: conversationHistory.length } }
   );
 }
 

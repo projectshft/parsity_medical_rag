@@ -107,8 +107,8 @@ export async function runAgent(
   query: string,
   conversationHistory: Message[] = []
 ): Promise<AgentResponse> {
-  // Check for scheduling intent first
-  const schedulingIntent = await detectSchedulingIntent(query);
+  // Check for scheduling intent first (pass conversation history for context)
+  const schedulingIntent = await detectSchedulingIntent(query, conversationHistory);
 
   // Search for relevant records (with optional tracing)
   const searchResults = await traced(
