@@ -234,6 +234,21 @@ export function obscurePatient<T extends Record<string, unknown>>(
   if ('familyName' in result) {
     result.familyName = '[REDACTED]';
   }
+  // New-schema name fields (prisma/schema.prisma stores first/last separately)
+  if ('firstName' in result) {
+    result.firstName = '[REDACTED]';
+  }
+  if ('lastName' in result) {
+    result.lastName = '[REDACTED]';
+  }
+  // Death date deserves the same treatment as birth date
+  if ('deathDate' in result && result.deathDate) {
+    result.deathDate = obscureDate(result.deathDate as Date | string | null);
+  }
+  // Phone numbers are direct identifiers
+  if ('phone' in result && result.phone) {
+    result.phone = '[PHONE REDACTED]';
+  }
   if ('patientName' in result) {
     result.patientName = obscureName(result.patientName as string | null);
   }
