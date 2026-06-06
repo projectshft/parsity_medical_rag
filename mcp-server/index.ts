@@ -140,7 +140,7 @@ server.tool(
 
       const lines = [`## Patients matching "${name}"\n`];
       for (const patient of patients) {
-        lines.push(`### ${patient.name}`);
+        lines.push(`### ${fullName(patient)}`);
         lines.push(`- **ID**: ${patient.id}`);
         lines.push(`- **Gender**: ${patient.gender}`);
         lines.push(`- **Birth Date**: ${patient.birthDate?.toISOString().split('T')[0] || 'Unknown'}`);
@@ -186,7 +186,7 @@ server.tool(
       const lines = [`## Patients with ${condition} (${patients.length} total, showing ${limited.length})\n`];
       for (const patient of limited) {
         const matchingConditions = patient.conditions?.map(c => c.display).join(', ') || condition;
-        lines.push(`- **${patient.name}** (ID: ${patient.id}) - ${matchingConditions}`);
+        lines.push(`- **${fullName(patient)}** (ID: ${patient.id}) - ${matchingConditions}`);
       }
 
       return {
@@ -200,6 +200,13 @@ server.tool(
     }
   }
 );
+
+/**
+ * Helper: Full name from the patient row (schema stores first/last separately)
+ */
+function fullName(patient: { firstName?: string | null; lastName?: string | null }): string {
+  return [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Unknown';
+}
 
 /**
  * Helper: Format vector search results
@@ -226,7 +233,7 @@ function formatVectorResults(results: any[]): string {
 function formatPatientDetails(patient: any): string {
   const obscure = shouldObscurePII();
 
-  const name = obscure ? obscureName(patient.name) : patient.name;
+  const name = obscure ? obscureName(fullName(patient)) : fullName(patient);
   const dob = obscure
     ? obscureDate(patient.birthDate)
     : (patient.birthDate?.toISOString().split('T')[0] || 'Unknown');
