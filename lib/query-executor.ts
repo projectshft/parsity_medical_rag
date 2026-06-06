@@ -119,14 +119,15 @@ export function formatResultsForLLM(result: QueryResult, obscurePII?: boolean): 
           for (const patient of result.sqlResults.patients.slice(0, 10)) {
             // Handle both direct patients and {patient, observations} objects
             const p = patient.patient || patient;
-            const name = obscure ? obscureName(p.name) : p.name;
+            const rawName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Unknown';
+            const name = obscure ? obscureName(rawName) : rawName;
             const dob = obscure
               ? obscureDate(p.birthDate)
               : (p.birthDate?.toISOString().split('T')[0] || 'unknown');
             parts.push(`- **${name}** (${p.gender}, born ${dob})`);
             if (patient.observations?.length) {
               const obs = patient.observations[0];
-              parts.push(`  - ${obs.display}: ${obs.valueNumeric} ${obs.unit || ''}`);
+              parts.push(`  - ${obs.display}: ${obs.valueNumber} ${obs.unit || ''}`);
             }
             if (patient.conditions?.length) {
               parts.push(`  - Conditions: ${patient.conditions.map((c: any) => c.display).join(', ')}`);
@@ -170,13 +171,14 @@ export function formatResultsForLLM(result: QueryResult, obscurePII?: boolean): 
 function formatPatientSummary(patient: any, obscure: boolean = false): string {
   const lines: string[] = [];
 
-  const name = obscure ? obscureName(patient.name) : patient.name;
+  const rawName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Unknown';
+  const name = obscure ? obscureName(rawName) : rawName;
   const dob = obscure
     ? obscureDate(patient.birthDate)
     : (patient.birthDate?.toISOString().split('T')[0] || 'Unknown');
   const location = obscure
-    ? obscureLocation(patient.city, patient.state, patient.postalCode)
-    : `${patient.city}, ${patient.state} ${patient.postalCode || ''}`;
+    ? obscureLocation(patient.city, patient.state)
+    : [patient.city, patient.state].filter(Boolean).join(', ');
 
   lines.push(`### ${name}`);
   lines.push(`- **ID**: ${patient.id}`);
@@ -199,7 +201,7 @@ function formatPatientSummary(patient: any, obscure: boolean = false): string {
   if (patient.medications?.length) {
     lines.push('\n**Current Medications:**');
     for (const med of patient.medications.slice(0, 10)) {
-      lines.push(`- ${med.display}${med.dosageInstruction ? ` - ${med.dosageInstruction}` : ''}`);
+      lines.push(`- ${med.display}${med.dosage ? ` - ${med.dosage}` : ''}`);
     }
   }
 
@@ -208,8 +210,8 @@ function formatPatientSummary(patient: any, obscure: boolean = false): string {
     lines.push('\n**Recent Observations:**');
     for (const obs of patient.observations.slice(0, 10)) {
       const date = obs.effectiveDate?.toISOString().split('T')[0] || '';
-      const value = obs.valueNumeric !== null
-        ? `${obs.valueNumeric} ${obs.unit || ''}`
+      const value = obs.valueNumber !== null
+        ? `${obs.valueNumber} ${obs.unit || ''}`
         : obs.valueString || 'N/A';
       lines.push(`- ${obs.display}: ${value}${date ? ` (${date})` : ''}`);
     }

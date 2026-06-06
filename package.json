@@ -9,6 +9,7 @@
     "lint": "next lint",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:evals": "RUN_EVALS=1 vitest run lib/evals",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
@@ -17,13 +18,16 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.2.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@neondatabase/serverless": "^0.10.0",
     "@pinecone-database/pinecone": "^4.0.0",
     "@prisma/client": "^6.0.0",
     "ai": "^4.1.0",
     "axios": "^1.7.9",
+    "bcryptjs": "^3.0.3",
     "cohere-ai": "^7.17.0",
-    "langsmith": "^0.7.1",
+    "jose": "^6.2.3",
+    "langsmith": "^0.7.5",
     "next": "15.1.6",
     "openai": "^4.77.3",
     "react": "^19.0.0",
@@ -33,6 +37,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -44,5 +49,6 @@
     "ts-node": "^10.9.2",
     "typescript": "^5",
     "vitest": "^2.1.0"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

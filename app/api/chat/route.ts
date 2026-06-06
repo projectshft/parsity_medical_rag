@@ -20,6 +20,9 @@ export async function POST(request: Request) {
 
     const { stream, schedulingAction } = await runAgent(query, conversationHistory);
 
+    // Debug: log scheduling action detection
+    console.log('Scheduling action detected:', schedulingAction);
+
     // If there's a scheduling action, we need to append it to the stream
     if (schedulingAction) {
       const textStream = stream.textStream;

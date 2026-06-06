@@ -1,5 +1,8 @@
 /**
  * Prisma query builders for structured medical data
+ *
+ * Ported to the FHIR-id schema (prisma/schema.prisma): patients, conditions,
+ * observations, medications. Patient.id IS the FHIR id.
  */
 
 import { prisma } from './prisma';
@@ -60,26 +63,24 @@ export async function findPatientByName(name: string) {
     where: {
       AND: searchTerms.map(term => ({
         OR: [
-          { name: { contains: term, mode: 'insensitive' } },
-          { givenName: { contains: term, mode: 'insensitive' } },
-          { familyName: { contains: term, mode: 'insensitive' } },
+          { firstName: { contains: term, mode: 'insensitive' as const } },
+          { lastName: { contains: term, mode: 'insensitive' as const } },
         ],
       })),
     },
     include: {
       conditions: {
-        where: { status: 'active' },
+        where: { clinicalStatus: 'active' },
         orderBy: { onsetDate: 'desc' },
       },
       medications: {
         where: { status: 'active' },
-        orderBy: { authoredDate: 'desc' },
+        orderBy: { authoredOn: 'desc' },
       },
       observations: {
         orderBy: { effectiveDate: 'desc' },
         take: 20,
       },
-      allergies: true,
     },
     take: 5,
   });
@@ -88,7 +89,7 @@ export async function findPatientByName(name: string) {
 }
 
 /**
- * Get full patient summary by ID
+ * Get full patient summary by ID (FHIR id)
  */
 export async function getPatientSummary(patientId: string) {
   const patient = await prisma.patient.findUnique({
@@ -98,27 +99,11 @@ export async function getPatientSummary(patientId: string) {
         orderBy: { onsetDate: 'desc' },
       },
       medications: {
-        orderBy: { authoredDate: 'desc' },
+        orderBy: { authoredOn: 'desc' },
       },
       observations: {
         orderBy: { effectiveDate: 'desc' },
         take: 50,
-      },
-      procedures: {
-        orderBy: { performedDate: 'desc' },
-        take: 20,
-      },
-      immunizations: {
-        orderBy: { occurrenceDate: 'desc' },
-      },
-      allergies: true,
-      encounters: {
-        orderBy: { startDate: 'desc' },
-        take: 10,
-      },
-      documents: {
-        orderBy: { date: 'desc' },
-        take: 10,
       },
     },
   });
@@ -147,7 +132,7 @@ export async function findPatientsByConditions(conditions: string[]) {
       conditions: {
         some: {
           OR: searchTerms.map(term => ({
-            display: { contains: term, mode: 'insensitive' },
+            display: { contains: term, mode: 'insensitive' as const },
           })),
         },
       },
@@ -156,7 +141,7 @@ export async function findPatientsByConditions(conditions: string[]) {
       conditions: {
         where: {
           OR: searchTerms.map(term => ({
-            display: { contains: term, mode: 'insensitive' },
+            display: { contains: term, mode: 'insensitive' as const },
           })),
         },
       },
@@ -211,7 +196,7 @@ export async function findPatientsByLabValues(
     where: {
       AND: [
         { OR: whereConditions },
-        { valueNumeric: numericFilter },
+        { valueNumber: numericFilter },
       ],
     },
     include: {
@@ -246,7 +231,7 @@ export async function countPatientsByCondition(condition: string) {
       conditions: {
         some: {
           OR: searchTerms.map(term => ({
-            display: { contains: term, mode: 'insensitive' },
+            display: { contains: term, mode: 'insensitive' as const },
           })),
         },
       },
