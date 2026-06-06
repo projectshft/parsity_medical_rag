@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  DOCTOR
+  STAFF
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime @default(now())
+
+  @@map("users")
+}
+
+model Patient {
+  id            String    @id
+  firstName     String?
+  lastName      String?
+  gender        String?
+  birthDate     DateTime? @db.Date
+  deathDate     DateTime? // null = alive (823/1280 Coherent patients have a death date)
+  phone         String?
+  maritalStatus String?
+  race          String?
+  ethnicity     String?
+  city          String?
+  state         String?
+
+  conditions   Condition[]
+  observations Observation[]
+  medications  Medication[]
+
+  @@index([lastName, firstName])
+  @@map("patients")
+}
+
+model Condition {
+  id             String    @id
+  patientId      String
+  code           String? // SNOMED code
+  display        String // e.g. "Type 2 Diabetes Mellitus"
+  clinicalStatus String? // active | resolved | inactive
+  onsetDate      DateTime?
+  abatementDate  DateTime?
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([display])
+  @@map("conditions")
+}
+
+model Observation {
+  id            String    @id
+  patientId     String
+  code          String? // LOINC code
+  display       String // e.g. "Hemoglobin A1c"
+  category      String? // laboratory | vital-signs | survey | ...
+  valueNumber   Float?
+  valueString   String?
+  unit          String?
+  effectiveDate DateTime?
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([code])
+  @@index([display])
+  @@map("observations")
+}
+
+model Medication {
+  id         String    @id
+  patientId  String
+  code       String? // RxNorm code
+  display    String // e.g. "Simvastatin 10 MG Oral Tablet"
+  status     String? // active | stopped | completed
+  authoredOn DateTime?
+  dosage     String?
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([display])
+  @@map("medications")
+}
