@@ -10,20 +10,23 @@
  */
 
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { processBundle, FHIRBundle } from '@/lib/fhir-extract';
 import { upsertChunks } from '@/lib/pinecone';
 import { prisma } from '@/lib/prisma';
 
+const FHIRBundleSchema = z
+  .object({
+    resourceType: z.literal('Bundle'),
+    entry: z
+      .array(z.object({ resource: z.object({ resourceType: z.string() }).passthrough() }))
+      .optional(),
+  })
+  .passthrough();
+
 export async function POST(request: Request) {
   try {
-    const bundle = (await request.json().catch(() => null)) as FHIRBundle | null;
-
-    if (!bundle || bundle.resourceType !== 'Bundle') {
-      return NextResponse.json(
-        { error: 'Request body must be a FHIR Bundle' },
-        { status: 400 }
-      );
-    }
+    const bundle = FHIRBundleSchema.parse(await request.json()) as FHIRBundle;
 
     const extracted = processBundle(bundle);
     if (!extracted) {
@@ -62,6 +65,9 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     console.error('Upload error:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Upload failed' },

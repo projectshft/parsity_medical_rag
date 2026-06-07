@@ -28,7 +28,7 @@ Replace the body of `app/api/upload/route.ts` so that uploading a FHIR bundle in
 
 **Behavior:**
 
-1. Validate the body: reject anything that isn't a `Bundle` containing a `Patient` resource with a `400` and a helpful error message
+1. Validate the body with a Zod schema — `.parse()` and let it throw; map `ZodError` to `400` in the catch (see CLAUDE.md "API Route Input Validation"). A `Bundle` without a `Patient` resource is also a `400`
 2. Run the bundle through `processBundle()` from `lib/fhir-extract.ts`
 3. Write the patient, conditions, observations, and medications to Postgres (use the shared client from `lib/prisma.ts`)
 4. Upsert the clinical notes to Pinecone with `upsertChunks()` from `lib/pinecone.ts`

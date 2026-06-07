@@ -1,6 +1,14 @@
 import { executeQuery, formatResultsForLLM } from "@/lib/query-executor";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuth, AuthError } from "@/lib/auth";
+
+const QueryRequestSchema = z.object({
+  query: z.string().min(1),
+  vectorTopK: z.number().int().positive().max(50).default(10),
+  obscurePII: z.boolean().optional(),
+  format: z.enum(["raw", "formatted"]).default("raw"),
+});
 
 /**
  * Direct query endpoint for programmatic access to the hybrid RAG system
@@ -16,8 +24,9 @@ export async function POST(request: Request) {
     // INSTRUCTOR SOLUTION: STAFF never see PII, regardless of client input (docs/CHALLENGE-RBAC.md)
     const session = await requireAuth(request);
 
-    const body = await request.json();
-    const { query, vectorTopK = 10, obscurePII, format = 'raw' } = body;
+    const { query, vectorTopK, obscurePII, format } = QueryRequestSchema.parse(
+      await request.json()
+    );
 
     // Check header for PII obscuring (takes precedence over body)
     const headerObscure = request.headers.get('x-obscure-pii');
@@ -26,13 +35,6 @@ export async function POST(request: Request) {
                           obscurePII;
     // The role wins: STAFF are always obscured; doctors may opt in
     const shouldObscure = session.role === 'STAFF' ? true : clientObscure;
-
-    if (!query || typeof query !== "string") {
-      return NextResponse.json(
-        { error: "Query is required" },
-        { status: 400 }
-      );
-    }
 
     const result = await executeQuery(query, { vectorTopK, obscurePII: shouldObscure });
 
@@ -48,6 +50,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error("Query error:", error);
     return NextResponse.json(
