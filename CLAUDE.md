@@ -76,6 +76,20 @@ export async function POST(request: Request) {
 - ~~`safeParse` + hand-built issue strings~~ — just `.parse()` and let it fail
 - ~~`new Response(JSON.stringify({ error }), { status, headers })`~~ — use `NextResponse.json(body, { status })`
 
+## TypeScript Conventions
+
+**Prefer `type` aliases over `interface`** for object shapes, props, and data models:
+
+```typescript
+// Do this
+type Patient = { id: string; firstName: string | null };
+
+// Not this
+interface Patient { id: string; firstName: string | null }
+```
+
+`type` is more consistent (handles unions, intersections, and primitives that `interface` can't) and avoids declaration-merging surprises. Reach for `interface` only when you specifically need merging (rare here).
+
 ## Project Architecture
 
 - **Neon PostgreSQL**: Structured medical data (patients, conditions, observations, medications)

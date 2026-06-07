@@ -2,16 +2,16 @@
 
 Working doc for building the day-by-day curriculum in batches. **Update the status table every batch.** The template and rules here are the spec — every day file must follow them so the course reads in one voice.
 
-## ▶ Pick up here (updated 2026-06-06)
+## ▶ Pick up here (updated 2026-06-07)
 
-**Next: Batch 2 — Days 2–6** (setup / data / Postgres / SQL / first build day with the course's first 🎥 deliverable).
+**Next: Batch 3 — Days 7–12, the Bible chunking lab** (why chunking / naive chunking breaks / boundaries+overlap / metadata / five failure modes measured / your-turn unseen doc). Day 12 is a 🎥 deliverable day. This batch also CREATES `scripts/bible/` — chunking scripts students run against the KJV plain text (gutenberg.org/cache/epub/10/pg10.txt, verses formatted `1:1 ...`). The medical notes are NOT chunked (one note = one vector); the Bible is the corpus that needs it — that contrast is the lesson.
 
-Before writing a single line of Batch 2:
-1. Re-read `day-01.md` (the voice exemplar, currently rev 3) and ALL 16 authoring rules below — rules 12–16 came from Brian's day-1 review and are easy to violate by habit.
-2. Verify every command/path against the repo facts sheet; Day 2 will need real screenshots placeholders for Neon/Pinecone/OpenAI signup + `npm run dev`.
-3. After the batch: update the status table, get Brian's review before starting Batch 3 (the Bible chunking lab — `scripts/bible/` gets created there).
+Before writing Batch 3:
+1. Re-read `day-01.md` (voice exemplar) and ALL 17 authoring rules — rules 12–17 came from Brian's reviews and are easy to violate by habit.
+2. Pull boundary/overlap/metadata concepts from pinecone.io/learn/chunking-strategies and anthropic.com/news/contextual-retrieval (both verified).
+3. After the batch: update the status table, get Brian's review before Batch 4 (embeddings & vector search — the first time "embeddings" may be named, Day 13).
 
-Done so far: README (rev 2), day-01 (rev 3), this tracker.
+Done so far: README (rev 2), day-01 (rev 3), days 02–06 (Batch 2), this tracker.
 
 **Where this lives:** the `instructor` branch ONLY — the repo is cold storage; day files get copy/pasted into the delivery platform. Do NOT sync `curriculum/` to `main` or `student` (students must not see it in the repo). Author future batches directly on `instructor`.
 
@@ -21,11 +21,11 @@ Done so far: README (rev 2), day-01 (rev 3), this tracker.
 |---|---|---|---|
 | — | README (overview, calendar, cadence) | ✅ written (rev 2: weekly deliverables, no week labels, no durations) | 1 |
 | 1 | What RAG actually is | ✅ written (rev 2) — **the exemplar, read it before writing any day** | 1 |
-| 2 | Setup: accounts, keys, running app | ⬜ todo | 2 |
-| 3 | Meet the data: FHIR + 1,278 patients | ⬜ todo | 2 |
-| 4 | Postgres + Prisma | ⬜ todo | 2 |
-| 5 | The SQL half of hybrid RAG | ⬜ todo | 2 |
-| 6 | Build day: first end-to-end feature | ⬜ todo | 2 |
+| 2 | Setup: accounts, keys, running app | ✅ written | 2 |
+| 3 | Meet the data: FHIR + 1,278 patients | ✅ written | 2 |
+| 4 | Postgres + Prisma | ✅ written | 2 |
+| 5 | The SQL half of hybrid RAG | ✅ written | 2 |
+| 6 | Build day: first end-to-end feature (🎥) | ✅ written | 2 |
 | 7 | Why chunking exists (and why our notes don't need it) | ⬜ todo | 3 |
 | 8 | Bible lab I: naive chunking breaks | ⬜ todo | 3 |
 | 9 | Bible lab II: boundaries + overlap | ⬜ todo | 3 |
@@ -112,7 +112,7 @@ Full worked solution. Never inline-visible.
 6. **Screenshots:** `![Screenshot: <what it shows>](assets/dayNN-<slug>.png)` followed by `<!-- TODO: capture screenshot -->`. Use only where a UI is involved (dashboards, Claude Desktop, Prisma Studio, the app).
 7. **Deliverables are weekly, not daily.** The 🎥 video + Typeform section appears ONLY on Days 6, 12, 18, 24, 30, 36. Placeholder URL: `https://form.typeform.com/to/PLACEHOLDER-DAYNN` with the replace-me comment.
 8. **Every command and file path must be real** — verify against the repo before writing. No invented npm scripts, no invented exports.
-9. **Code style:** zod `.parse()` (never `safeParse`, never `typeof` checks), OpenAI Responses API + `zodTextFormat` (see CLAUDE.md). Curriculum code must model repo conventions.
+9. **Code style:** zod `.parse()` (never `safeParse`, never `typeof` checks), OpenAI Responses API + `zodTextFormat`, `type` aliases over `interface` (see CLAUDE.md). Curriculum code must model repo conventions.
 10. **Rest days:** mentioned at the end of each Day 6/12/18/24/30 file ("tomorrow is a rest day"), not separate files.
 11. Days that correspond to existing challenge docs (27→MCP-AUTH, 31→UPLOAD-API, 32–33→RBAC/PII, 34→POISONED-DOCS) should **link to and build on** those docs, not duplicate them. The failing test specs are the assignment; the day file is the narrative wrapper.
 12. **No time estimates** — never "~60 min" or per-section budgets. The ONLY permitted time mention is a cap: "spend no more than X minutes" (use in Your Turn or before solutions).
@@ -120,6 +120,7 @@ Full worked solution. Never inline-visible.
 14. **No concepts before they're taught.** Maintain the unlock order: embeddings/vectors are NOT mentioned before Day 13 (say "meaning-based search" or "a search that understands meaning"); chunking specifics not before Day 7; MCP not before Day 25. When in doubt, check what an attentive student would know on that morning.
 15. **Examples use household-name medicine only** — aspirin, ibuprofen, insulin, antibiotics, "blood pressure medication", diabetes, high blood pressure. NOT clinician-common drugs (metformin, lisinopril, amlodipine — those read as jargon to non-medical students). Generic patients ("this patient"), never dataset names. Questions answerable from general knowledge plus the day's content.
 16. **Rule 14 applies to ML concepts too** — no fine-tuning, no tokenization internals, no "context window" mechanics beyond plain meaning, until/unless a day actually teaches them. Day 1 mentions zero ML vocabulary beyond "LLM" and "prompt".
+17. **Backward references are fine, forward ones are vague.** "You saw on Day 1" / "the mapping from earlier" reinforces continuity — allowed. Forward references stay vague ("later", "when we build the search layer") and never cite a future day number. "The vector database" is allowed as the NAME of the Pinecone service (established Day 2) — that's naming a tool, not explaining embeddings; don't *explain* vectors/embeddings before Day 13.
 
 ## Repo facts sheet (do not hallucinate — check here first)
 
