@@ -8,25 +8,27 @@
  * as a marker the frontend can parse: <!-- SCHEDULING_ACTION {...} -->
  */
 
+import { NextResponse } from "next/server";
+import { z } from "zod";
 import { runAgent, Message } from "@/lib/agent";
+
+const ChatRequestSchema = z.object({
+  query: z.string().min(1),
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string(),
+      })
+    )
+    .default([]),
+});
 
 export async function POST(request: Request) {
   try {
-    const { query, messages = [] } = await request.json();
+    const { query, messages } = ChatRequestSchema.parse(await request.json());
 
-    if (!query || typeof query !== "string") {
-      return new Response(JSON.stringify({ error: "Query is required" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const conversationHistory: Message[] = messages.map(
-      (m: { role: string; content: string }) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      })
-    );
+    const conversationHistory: Message[] = messages;
 
     const { stream, schedulingAction } = await runAgent(query, conversationHistory);
 
@@ -56,15 +58,13 @@ export async function POST(request: Request) {
 
     return stream.toTextStreamResponse();
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     console.error("Chat error:", error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Internal server error",
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Internal server error" },
+      { status: 500 }
     );
   }
 }

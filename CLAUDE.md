@@ -45,6 +45,37 @@ return MySchema.parse(parsed);
 - ~~`response_format: zodResponseFormat(...)`~~ → use `text: { format: zodTextFormat(...) }`
 - ~~`response.choices[0].message.parsed`~~ → use `response.output_parsed`
 
+## API Route Input Validation
+
+**Parse request bodies with a Zod schema and let it throw** — the route's catch-all maps `ZodError` to a 400:
+
+```typescript
+const MyRequestSchema = z.object({
+  query: z.string().min(1),
+  topK: z.number().int().positive().default(10),
+});
+
+export async function POST(request: Request) {
+  try {
+    const { query, topK } = MyRequestSchema.parse(await request.json()); // typed, defaults applied
+    // ... happy path only
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+**DO NOT:**
+- ~~`if (!query || typeof query !== "string") { ... }`~~ — that's what the schema is for
+- ~~`safeParse` + hand-built issue strings~~ — just `.parse()` and let it fail
+- ~~`new Response(JSON.stringify({ error }), { status, headers })`~~ — use `NextResponse.json(body, { status })`
+
 ## Project Architecture
 
 - **Neon PostgreSQL**: Structured medical data (patients, conditions, observations, medications)

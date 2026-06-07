@@ -43,7 +43,7 @@ The file exists with TODO stubs. Implement:
 
 The `User` model and `Role` enum are already in `prisma/schema.prisma`. Implement the stub route:
 
-1. Validate the body — missing email or password is a `400`
+1. Validate the body with a Zod schema — `.parse()` and let it throw; map `ZodError` to `400` in the catch (see CLAUDE.md "API Route Input Validation")
 2. `prisma.user.findUnique` + `bcrypt.compare`
 3. On success, set the token as an **httpOnly** cookie — never return it in the body
 4. Unknown email and wrong password must produce **identical** `401` responses (no email enumeration)

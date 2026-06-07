@@ -1,29 +1,25 @@
+import { z } from "zod";
 import { processBundle } from "@/lib/chunking";
 import { upsertChunks, MedicalChunk } from "@/lib/pinecone";
 
-interface UploadedRecord {
-  name: string;
-  content: {
-    resourceType: string;
-    entry?: Array<{ resource: unknown }>;
-    [key: string]: unknown;
-  };
-}
+const UploadRequestSchema = z.object({
+  records: z.array(
+    z.object({
+      name: z.string(),
+      content: z
+        .object({ resourceType: z.string() })
+        .passthrough(),
+    })
+  ),
+});
 
 export async function POST(request: Request) {
   try {
-    const { records } = await request.json();
-
-    if (!records || !Array.isArray(records)) {
-      return Response.json(
-        { error: "Records array is required" },
-        { status: 400 }
-      );
-    }
+    const { records } = UploadRequestSchema.parse(await request.json());
 
     const allChunks: MedicalChunk[] = [];
 
-    for (const record of records as UploadedRecord[]) {
+    for (const record of records) {
       try {
         const chunks = processBundle(
           record.content as Parameters<typeof processBundle>[0],
@@ -50,6 +46,9 @@ export async function POST(request: Request) {
       chunksCreated: upsertedCount,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return Response.json({ error: error.message }, { status: 400 });
+    }
     console.error("Upload error:", error);
     return Response.json(
       {

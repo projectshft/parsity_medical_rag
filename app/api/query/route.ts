@@ -1,5 +1,13 @@
 import { executeQuery, formatResultsForLLM } from "@/lib/query-executor";
 import { NextResponse } from "next/server";
+import { z } from "zod";
+
+const QueryRequestSchema = z.object({
+  query: z.string().min(1),
+  vectorTopK: z.number().int().positive().max(50).default(10),
+  obscurePII: z.boolean().optional(),
+  format: z.enum(["raw", "formatted"]).default("raw"),
+});
 
 /**
  * Direct query endpoint for programmatic access to the hybrid RAG system
@@ -12,21 +20,15 @@ import { NextResponse } from "next/server";
  */
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { query, vectorTopK = 10, obscurePII, format = 'raw' } = body;
+    const { query, vectorTopK, obscurePII, format } = QueryRequestSchema.parse(
+      await request.json()
+    );
 
     // Check header for PII obscuring (takes precedence over body)
     const headerObscure = request.headers.get('x-obscure-pii');
     const shouldObscure = headerObscure === 'true' ? true :
                           headerObscure === 'false' ? false :
                           obscurePII;
-
-    if (!query || typeof query !== "string") {
-      return NextResponse.json(
-        { error: "Query is required" },
-        { status: 400 }
-      );
-    }
 
     const result = await executeQuery(query, { vectorTopK, obscurePII: shouldObscure });
 
@@ -40,6 +42,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     console.error("Query error:", error);
     return NextResponse.json(
       {
