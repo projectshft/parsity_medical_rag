@@ -48,8 +48,7 @@ Sign up for each (free tier is enough for the whole course), then grab the crede
 - **Neon** — [neon.tech](https://neon.tech) → create a project → copy the connection string from **Dashboard → Connection Details**. It looks like `postgresql://user:pass@ep-xxx.region.aws.neon.tech/...`
 
     ![Screenshot: Neon dashboard showing the connection string panel](assets/day02-neon-connection.png)
-      <!-- TODO(brian): capture from logged-in Neon dashboard -->
-
+      <!-- TODO: capture screenshot -->
 
 - **OpenAI** — [platform.openai.com](https://platform.openai.com) → **API keys** → create one. Starts with `sk-`. (Add a few dollars of credit; the whole course costs roughly the price of a coffee.)
 
@@ -79,6 +78,8 @@ npm run dev
 Open the URL it prints (usually `http://localhost:3000`). You should see the **Medical Records Assistant** chat interface.
 
 ![Screenshot: the Medical Records Assistant chat UI running locally](assets/day02-app-running.png)
+
+<!-- TODO: capture screenshot -->
 
 It won't _answer_ anything useful yet — the retrieval engines aren't built. A running, empty-handed app is exactly the right Day 2 outcome.
 
@@ -123,7 +124,7 @@ git status         # .env is NOT listed
 
 **If `.env` gets committed:** removing the file in a later commit is **not enough** — it's still in history. The key must be treated as compromised: **rotate it immediately** (delete and regenerate it in the OpenAI/Neon/Pinecone dashboard), then scrub history if the repo is shared. Rotation is the real fix; deletion just hides it.
 
-**Expected test summary** on a fresh student branch: `Test Files 4 failed | 4 passed`, `Tests 24 failed | 148 passed` (the 24 are homework specs you'll complete later).
+**Expected test summary** on a fresh student branch: `Test Files 4 failed | 2 passed`, `Tests 24 failed | 56 passed` (the 24 are homework specs you'll complete later).
 
 </details>
 

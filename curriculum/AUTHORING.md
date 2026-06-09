@@ -2,15 +2,15 @@
 
 Working doc for building the day-by-day curriculum in batches. **Update the status table every batch.** The template and rules here are the spec — every day file must follow them so the course reads in one voice.
 
-## ▶ Pick up here (updated 2026-06-09)
+## ▶ Pick up here (updated 2026-06-09, batch 4 done)
 
-**Next: Batch 4 — Days 13–18, embeddings & vector search.** Day 13 is the FIRST day "embeddings"/"vectors" may be named and explained — everything before said "meaning-based search." Days: 13 embeddings as geometry, 14 Pinecone first index (creating `medical-notes`, 1536 dims, cosine — and screenshotting the dashboard = brian-owned), 15 semantic search over notes (the vector-search.ts TODO on student), 16 hybrid SQL→vector, 17 reranking (cohere, `lib/reranker.ts`), 18 build day: retrieval eval set (🎥). Day 15's "dyspnea vs breathing problems" pays off the Day 1 your-turn (students saved synonym pairs). Day 18 seeds the eval-as-spine thread that Day 24/35 build on.
+**Next: Batch 5 — Days 19–24, query understanding & agents.** Days: 19 structured outputs (zod + Responses API + `zodTextFormat` — CLAUDE.md pattern is law here), 20 the query analyzer (`lib/query-analyzer.ts` student skeleton: schema EXISTS, students write SYSTEM_PROMPT + FEW_SHOT_EXAMPLES + the responses.parse call), 21 orchestration (`lib/query-executor.ts` — complete on student, students READ it; three paths: SQL-only/vector-only/hybrid), 22 the chat agent (`lib/agent.ts` student skeleton, 7 TODOs; streaming; system prompt tone/safety — the "refuse to practice medicine" guardrail pays off the Day 1 refusal question), 23 failure day: hallucination bait + ambiguous queries (plant them; students catch them), 24 build day: eval the analyzer (🎥) — intent-classification accuracy on a hand-built query set, extends the Day 18 eval habit.
 
-Before writing Batch 4:
-1. Re-read `day-01.md` (voice) and ALL 17 authoring rules.
-2. Verify repo facts: `lib/vector-search.ts` student TODO state, `lib/pinecone.ts` exports, `lib/reranker.ts` shape, embedding model (text-embedding-3-small, 1536 dims) in `lib/openai.ts`.
-3. The Bible-lab chunks (chunks-smart.jsonl) can optionally be embedded as a cheap first index BEFORE touching medical data — decide when writing Day 14.
-4. After the batch: update status table, Brian reviews before Batch 5.
+Before writing Batch 5:
+1. Re-read `day-01.md` (voice) and ALL 17 rules.
+2. Verify student-branch state of: `lib/query-analyzer.ts`, `lib/agent.ts`, `lib/query-executor.ts`, `app/api/chat/route.ts` (zod parse now), `lib/langsmith.ts` (skeleton — do NOT teach LangSmith yet, that's Day 28).
+3. Day 19 needs a non-medical warm-up example for structured outputs (recipe? support ticket?) before the medical analyzer — decide while writing.
+4. After the batch: update status table, Brian reviews before Batch 6.
 
 **Sync reminder:** `scripts/bible/` + the three `bible:*` npm scripts + the `data/bible/` gitignore entry live on `instructor` only right now — they MUST be synced to `main` and `student` before students hit Day 7 (they're lab infrastructure, not solutions; the only solution-ish file is Day 12's `chunk-constitution.ts` which students write themselves — do NOT ship that one).
 
@@ -35,12 +35,12 @@ Done so far: README (rev 2), day-01 (rev 3), days 02–06 (Batch 2), days 07–1
 | 10 | Metadata: the part everyone skips | ✅ written | 3 |
 | 11 | Five chunking failure modes, measured | ✅ written | 3 |
 | 12 | Your turn: chunk the Constitution (🎥) | ✅ written | 3 |
-| 13 | Embeddings: meaning as geometry | ⬜ todo | 4 |
-| 14 | Pinecone: first vector index | ⬜ todo | 4 |
-| 15 | Semantic search over clinical notes | ⬜ todo | 4 |
-| 16 | Hybrid queries: SQL meets vectors | ⬜ todo | 4 |
-| 17 | When cosine lies: reranking | ⬜ todo | 4 |
-| 18 | Build day: retrieval eval set | ⬜ todo | 4 |
+| 13 | Embeddings: meaning as geometry | ✅ written | 4 |
+| 14 | Pinecone: first vector index (Bible chunks as test cargo) | ✅ written | 4 |
+| 15 | Semantic search over clinical notes | ✅ written | 4 |
+| 16 | Hybrid queries: SQL meets vectors | ✅ written | 4 |
+| 17 | When cosine lies: reranking | ✅ written | 4 |
+| 18 | Build day: retrieval eval set (🎥) | ✅ written | 4 |
 | 19 | Structured outputs (zod + Responses API) | ⬜ todo | 5 |
 | 20 | The query analyzer | ⬜ todo | 5 |
 | 21 | Orchestration: three paths | ⬜ todo | 5 |
@@ -73,6 +73,7 @@ Gotcha learned 2026-06-09: the medical-rag dev server may land on **:3001** if a
 | day02-app-running.png | 2 | agent | ✅ captured |
 | day02-neon-connection.png | 2 | brian | ⬜ pending (logged-in Neon dashboard) |
 | day04-prisma-studio.png | 4 | class-ingest | ⬜ pending (needs new schema + data) |
+| day14-pinecone-index.png | 14 | brian | ⬜ pending (Pinecone console: medical-notes index, 1536/cosine) |
 
 Add a row here whenever a day file gets a screenshot placeholder.
 
@@ -157,6 +158,11 @@ Full worked solution. Never inline-visible.
 |---|---|
 | https://www.gutenberg.org/cache/epub/10/pg10.txt — KJV plain text | Days 7–11 |
 | https://www.gutenberg.org/cache/epub/5/pg5.txt — US Constitution plain text (verified 2026-06-09) | Day 12 |
+| https://developers.openai.com/api/docs/guides/embeddings — OpenAI embeddings guide (301 from platform.openai.com; verified 2026-06-09) | Day 13 |
+| https://www.pinecone.io/learn/vector-database/ (verified 2026-06-09) | Day 14 |
+| https://docs.pinecone.io/guides/index-data/indexing-overview#metadata — metadata filtering (verified 2026-06-09) | Days 15–16 |
+| https://docs.cohere.com/docs/rerank-overview (verified 2026-06-09) | Day 17 |
+| https://www.pinecone.io/learn/offline-evaluation/ — Recall@K/MRR/nDCG (verified 2026-06-09) | Day 18 |
 | https://www.pinecone.io/learn/chunking-strategies/ | Days 7, 9 |
 | https://www.anthropic.com/news/contextual-retrieval | Days 1, 10, 17 |
 | https://modelcontextprotocol.io/ | Days 25–27 |
