@@ -2,16 +2,19 @@
 
 Working doc for building the day-by-day curriculum in batches. **Update the status table every batch.** The template and rules here are the spec — every day file must follow them so the course reads in one voice.
 
-## ▶ Pick up here (updated 2026-06-07)
+## ▶ Pick up here (updated 2026-06-09)
 
-**Next: Batch 3 — Days 7–12, the Bible chunking lab** (why chunking / naive chunking breaks / boundaries+overlap / metadata / five failure modes measured / your-turn unseen doc). Day 12 is a 🎥 deliverable day. This batch also CREATES `scripts/bible/` — chunking scripts students run against the KJV plain text (gutenberg.org/cache/epub/10/pg10.txt, verses formatted `1:1 ...`). The medical notes are NOT chunked (one note = one vector); the Bible is the corpus that needs it — that contrast is the lesson.
+**Next: Batch 4 — Days 13–18, embeddings & vector search.** Day 13 is the FIRST day "embeddings"/"vectors" may be named and explained — everything before said "meaning-based search." Days: 13 embeddings as geometry, 14 Pinecone first index (creating `medical-notes`, 1536 dims, cosine — and screenshotting the dashboard = brian-owned), 15 semantic search over notes (the vector-search.ts TODO on student), 16 hybrid SQL→vector, 17 reranking (cohere, `lib/reranker.ts`), 18 build day: retrieval eval set (🎥). Day 15's "dyspnea vs breathing problems" pays off the Day 1 your-turn (students saved synonym pairs). Day 18 seeds the eval-as-spine thread that Day 24/35 build on.
 
-Before writing Batch 3:
-1. Re-read `day-01.md` (voice exemplar) and ALL 17 authoring rules — rules 12–17 came from Brian's reviews and are easy to violate by habit.
-2. Pull boundary/overlap/metadata concepts from pinecone.io/learn/chunking-strategies and anthropic.com/news/contextual-retrieval (both verified).
-3. After the batch: update the status table, get Brian's review before Batch 4 (embeddings & vector search — the first time "embeddings" may be named, Day 13).
+Before writing Batch 4:
+1. Re-read `day-01.md` (voice) and ALL 17 authoring rules.
+2. Verify repo facts: `lib/vector-search.ts` student TODO state, `lib/pinecone.ts` exports, `lib/reranker.ts` shape, embedding model (text-embedding-3-small, 1536 dims) in `lib/openai.ts`.
+3. The Bible-lab chunks (chunks-smart.jsonl) can optionally be embedded as a cheap first index BEFORE touching medical data — decide when writing Day 14.
+4. After the batch: update status table, Brian reviews before Batch 5.
 
-Done so far: README (rev 2), day-01 (rev 3), days 02–06 (Batch 2), this tracker.
+**Sync reminder:** `scripts/bible/` + the three `bible:*` npm scripts + the `data/bible/` gitignore entry live on `instructor` only right now — they MUST be synced to `main` and `student` before students hit Day 7 (they're lab infrastructure, not solutions; the only solution-ish file is Day 12's `chunk-constitution.ts` which students write themselves — do NOT ship that one).
+
+Done so far: README (rev 2), day-01 (rev 3), days 02–06 (Batch 2), days 07–12 + scripts/bible lab (Batch 3), this tracker.
 
 **Where this lives:** the `instructor` branch ONLY — the repo is cold storage; day files get copy/pasted into the delivery platform. Do NOT sync `curriculum/` to `main` or `student` (students must not see it in the repo). Author future batches directly on `instructor`.
 
@@ -26,12 +29,12 @@ Done so far: README (rev 2), day-01 (rev 3), days 02–06 (Batch 2), this tracke
 | 4 | Postgres + Prisma | ✅ written | 2 |
 | 5 | The SQL half of hybrid RAG | ✅ written | 2 |
 | 6 | Build day: first end-to-end feature (🎥) | ✅ written | 2 |
-| 7 | Why chunking exists (and why our notes don't need it) | ⬜ todo | 3 |
-| 8 | Bible lab I: naive chunking breaks | ⬜ todo | 3 |
-| 9 | Bible lab II: boundaries + overlap | ⬜ todo | 3 |
-| 10 | Metadata: the part everyone skips | ⬜ todo | 3 |
-| 11 | Five chunking failure modes, measured | ⬜ todo | 3 |
-| 12 | Your turn: chunk an unseen document | ⬜ todo | 3 |
+| 7 | Why chunking exists (and why our notes don't need it) | ✅ written | 3 |
+| 8 | Bible lab I: naive chunking breaks | ✅ written | 3 |
+| 9 | Bible lab II: boundaries + overlap | ✅ written | 3 |
+| 10 | Metadata: the part everyone skips | ✅ written | 3 |
+| 11 | Five chunking failure modes, measured | ✅ written | 3 |
+| 12 | Your turn: chunk the Constitution (🎥) | ✅ written | 3 |
 | 13 | Embeddings: meaning as geometry | ⬜ todo | 4 |
 | 14 | Pinecone: first vector index | ⬜ todo | 4 |
 | 15 | Semantic search over clinical notes | ⬜ todo | 4 |
@@ -152,7 +155,8 @@ Full worked solution. Never inline-visible.
 
 | Link | Use on |
 |---|---|
-| https://www.gutenberg.org/cache/epub/10/pg10.txt — KJV plain text | Days 8–11 |
+| https://www.gutenberg.org/cache/epub/10/pg10.txt — KJV plain text | Days 7–11 |
+| https://www.gutenberg.org/cache/epub/5/pg5.txt — US Constitution plain text (verified 2026-06-09) | Day 12 |
 | https://www.pinecone.io/learn/chunking-strategies/ | Days 7, 9 |
 | https://www.anthropic.com/news/contextual-retrieval | Days 1, 10, 17 |
 | https://modelcontextprotocol.io/ | Days 25–27 |
