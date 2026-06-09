@@ -59,6 +59,20 @@ Done so far: README (rev 2), day-01 (rev 3), days 02–06 (Batch 2), this tracke
 
 **Batch plan:** one week per batch (Batch 2 = Week 1 remainder, Batch 3 = Week 2 chunking, … Batch 7 = Week 6). Review + commit after each batch.
 
+## Screenshot registry
+
+Ownership: **agent** captures localhost UIs (the app, Prisma Studio when schema+data align, MCP Inspector, etc.) by running the service and driving the gstack `browse` binary (`~/.claude/skills/gstack/browse/dist/browse` → `goto` + `screenshot <abs path>`). **brian** captures authenticated dashboards (Neon, Pinecone, OpenAI, LangSmith) and desktop apps (Claude Desktop, Cursor). **class-ingest** = capture during the live class data load (needs the new-schema DB populated).
+
+Gotcha learned 2026-06-09: the medical-rag dev server may land on **:3001** if another project holds :3000 — check `npm run dev` output for the actual port before screenshotting.
+
+| File | Day | Owner | Status |
+|---|---|---|---|
+| day02-app-running.png | 2 | agent | ✅ captured |
+| day02-neon-connection.png | 2 | brian | ⬜ pending (logged-in Neon dashboard) |
+| day04-prisma-studio.png | 4 | class-ingest | ⬜ pending (needs new schema + data) |
+
+Add a row here whenever a day file gets a screenshot placeholder.
+
 ## Day template
 
 ```markdown

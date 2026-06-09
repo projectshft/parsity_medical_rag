@@ -74,7 +74,7 @@ npm run db:studio
 It opens a UI at `localhost:5555`. Click into `patients`, `conditions`, `observations`, `medications` and confirm rows exist.
 
 ![Screenshot: Prisma Studio showing populated patients and conditions tables](assets/day04-prisma-studio.png)
-<!-- TODO: capture screenshot -->
+<!-- TODO(class-ingest): capture during the live ingest once the new schema + subset data are loaded -->
 
 ### Common mistakes
 

@@ -21,13 +21,13 @@ flowchart LR
 
 Three services, three jobs:
 
-| Service | Job | Why this one |
-|---|---|---|
-| **Neon** | Hosted Postgres for structured data | Serverless Postgres with a real free tier; no local DB to install |
-| **OpenAI** | Powers the LLM answers and the meaning-based search you'll build later | Industry-standard API, reliable structured output support |
-| **Pinecone** | Stores the searchable form of clinical notes | Managed vector database with a free starter index |
+| Service      | Job                                                                    | Why this one                                                      |
+| ------------ | ---------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **Neon**     | Hosted Postgres for structured data                                    | Serverless Postgres with a real free tier; no local DB to install |
+| **OpenAI**   | Powers the LLM answers and the meaning-based search you'll build later | Industry-standard API, reliable structured output support         |
+| **Pinecone** | Stores the searchable form of clinical notes                           | Managed vector database with a free starter index                 |
 
-You won't *use* all three today — you'll just wire them up so later days are pure building, not setup detours.
+You won't _use_ all three today — you'll just wire them up so later days are pure building, not setup detours.
 
 > **Why `.env` and not hardcoding keys?** A key in source code is a key in your git history forever, readable by anyone with repo access. `.env` is gitignored — it never leaves your machine. Leaking an OpenAI key means someone else spends your money; leaking a database URL means someone else reads your data. Treat `.env` like a password file, because it is one.
 
@@ -47,8 +47,9 @@ Sign up for each (free tier is enough for the whole course), then grab the crede
 
 - **Neon** — [neon.tech](https://neon.tech) → create a project → copy the connection string from **Dashboard → Connection Details**. It looks like `postgresql://user:pass@ep-xxx.region.aws.neon.tech/...`
 
-  ![Screenshot: Neon dashboard showing the connection string panel](assets/day02-neon-connection.png)
-  <!-- TODO: capture screenshot -->
+    ![Screenshot: Neon dashboard showing the connection string panel](assets/day02-neon-connection.png)
+      <!-- TODO(brian): capture from logged-in Neon dashboard -->
+
 
 - **OpenAI** — [platform.openai.com](https://platform.openai.com) → **API keys** → create one. Starts with `sk-`. (Add a few dollars of credit; the whole course costs roughly the price of a coffee.)
 
@@ -78,9 +79,8 @@ npm run dev
 Open the URL it prints (usually `http://localhost:3000`). You should see the **Medical Records Assistant** chat interface.
 
 ![Screenshot: the Medical Records Assistant chat UI running locally](assets/day02-app-running.png)
-<!-- TODO: capture screenshot -->
 
-It won't *answer* anything useful yet — the retrieval engines aren't built. A running, empty-handed app is exactly the right Day 2 outcome.
+It won't _answer_ anything useful yet — the retrieval engines aren't built. A running, empty-handed app is exactly the right Day 2 outcome.
 
 ### 5. Confirm your environment with the tests
 
@@ -88,20 +88,20 @@ It won't *answer* anything useful yet — the retrieval engines aren't built. A 
 npm run test:run
 ```
 
-You'll see a mix of passing and failing tests. **That is correct and intended** — the failures are the assignments waiting for you. What you're checking is that the suite *runs at all* (Node, install, and TypeScript are healthy).
+You'll see a mix of passing and failing tests. **That is correct and intended** — the failures are the assignments waiting for you. What you're checking is that the suite _runs at all_ (Node, install, and TypeScript are healthy).
 
 ### Common mistakes
 
 - **Quoting `DATABASE_URL` wrong.** Keep it in double quotes exactly as Neon gives it, `?sslmode=require` and all. A stray space or missing quote is the #1 Day 2 error.
 - **Committing `.env`.** Run `git status` — if `.env` shows up, stop. It's gitignored by default; if you see it, you renamed something. Never commit secrets.
 - **Wrong Node version.** Run `node --version`. Below 20 and Next.js will throw cryptic errors. Use `nvm install 20` if needed.
-- **Pasting the OpenAI *project* ID instead of the key.** The key starts with `sk-`. The project ID (`proj_...`) is not it.
+- **Pasting the OpenAI _project_ ID instead of the key.** The key starts with `sk-`. The project ID (`proj_...`) is not it.
 
 ## Your turn
 
 Spend **no more than 20 minutes** here.
 
-1. Get `npm run dev` showing the chat UI and `npm run test:run` executing (pass *and* fail is fine).
+1. Get `npm run dev` showing the chat UI and `npm run test:run` executing (pass _and_ fail is fine).
 2. In your course notes file, record the test summary line (e.g. "24 failed | 56 passed"). You'll watch that "failed" number shrink as you complete the course — it's your progress bar.
 3. Run `git status` and confirm `.env` does **not** appear in the output.
 
@@ -119,7 +119,7 @@ git status         # .env is NOT listed
 <details>
 <summary>Solution / discussion</summary>
 
-**The app runs but can't answer** because the retrieval layer is empty: there's no data in Postgres yet, no searchable notes, and the query-routing code is still a skeleton. The *shell* (UI, API routes, service connections) is wired; the *brain* is what you'll build.
+**The app runs but can't answer** because the retrieval layer is empty: there's no data in Postgres yet, no searchable notes, and the query-routing code is still a skeleton. The _shell_ (UI, API routes, service connections) is wired; the _brain_ is what you'll build.
 
 **If `.env` gets committed:** removing the file in a later commit is **not enough** — it's still in history. The key must be treated as compromised: **rotate it immediately** (delete and regenerate it in the OpenAI/Neon/Pinecone dashboard), then scrub history if the repo is shared. Rotation is the real fix; deletion just hides it.
 
