@@ -2,15 +2,15 @@
 
 Working doc for building the day-by-day curriculum in batches. **Update the status table every batch.** The template and rules here are the spec — every day file must follow them so the course reads in one voice.
 
-## ▶ Pick up here (updated 2026-06-09, batch 4 done)
+## ▶ Pick up here (updated 2026-06-09, batch 5 done)
 
-**Next: Batch 5 — Days 19–24, query understanding & agents.** Days: 19 structured outputs (zod + Responses API + `zodTextFormat` — CLAUDE.md pattern is law here), 20 the query analyzer (`lib/query-analyzer.ts` student skeleton: schema EXISTS, students write SYSTEM_PROMPT + FEW_SHOT_EXAMPLES + the responses.parse call), 21 orchestration (`lib/query-executor.ts` — complete on student, students READ it; three paths: SQL-only/vector-only/hybrid), 22 the chat agent (`lib/agent.ts` student skeleton, 7 TODOs; streaming; system prompt tone/safety — the "refuse to practice medicine" guardrail pays off the Day 1 refusal question), 23 failure day: hallucination bait + ambiguous queries (plant them; students catch them), 24 build day: eval the analyzer (🎥) — intent-classification accuracy on a hand-built query set, extends the Day 18 eval habit.
+**Next: Batch 6 — Days 25–30, MCP / observability / human-in-the-loop.** Days: 25 MCP concepts + the server (`mcp-server/index.ts` student skeleton: 3 tools with TODO bodies — students implement using their own lib functions; modelcontextprotocol.io verified), 26 wiring into Claude Desktop/Cursor (config file, desktop-app screenshots = brian-owned), 27 securing MCP (`mcp-server/auth.ts` COMPLETE on student + 43 passing tests + `docs/CHALLENGE-MCP-AUTH.md` — day is the narrative wrapper per rule 11; scopes read/read_pii/admin), 28 observability (`lib/langsmith.ts` student TODO: implement `traced`; LangSmith dashboard screenshot = brian; pays off "what does the model actually receive" from Day 21), 29 human-in-the-loop scheduling (`lib/scheduling.ts` + `lib/calendar.ts` skeletons; detectSchedulingIntent via structured outputs = Day 19 pattern; agent.ts scheduling TODOs finally uncommented; Cal.com), 30 build day (🎥): new MCP tool + audit trail (mirror `mcp-server/audit.ts`).
 
-Before writing Batch 5:
+Before writing Batch 6:
 1. Re-read `day-01.md` (voice) and ALL 17 rules.
-2. Verify student-branch state of: `lib/query-analyzer.ts`, `lib/agent.ts`, `lib/query-executor.ts`, `app/api/chat/route.ts` (zod parse now), `lib/langsmith.ts` (skeleton — do NOT teach LangSmith yet, that's Day 28).
-3. Day 19 needs a non-medical warm-up example for structured outputs (recipe? support ticket?) before the medical analyzer — decide while writing.
-4. After the batch: update status table, Brian reviews before Batch 6.
+2. Verify student-branch state of: `mcp-server/index.ts` + `auth.ts` + `audit.ts`, `lib/scheduling.ts`, `lib/calendar.ts`, `app/api/schedule/route.ts` (Week-5 TODO skeleton — but NOTE: the RBAC homework specs also target this route; Day 29 must not collide with the RBAC challenge, which is Batch 7 material), `.env.example` CAL_* vars.
+3. Day 23's prompt-injection bait #6 promised "a much sneakier entrance" — that's the poisoned-doc day in Batch 7, NOT batch 6; don't pay it off early.
+4. After the batch: update status table, Brian reviews before Batch 7 (final).
 
 **Sync reminder:** `scripts/bible/` + the three `bible:*` npm scripts + the `data/bible/` gitignore entry live on `instructor` only right now — they MUST be synced to `main` and `student` before students hit Day 7 (they're lab infrastructure, not solutions; the only solution-ish file is Day 12's `chunk-constitution.ts` which students write themselves — do NOT ship that one).
 
@@ -41,12 +41,12 @@ Done so far: README (rev 2), day-01 (rev 3), days 02–06 (Batch 2), days 07–1
 | 16 | Hybrid queries: SQL meets vectors | ✅ written | 4 |
 | 17 | When cosine lies: reranking | ✅ written | 4 |
 | 18 | Build day: retrieval eval set (🎥) | ✅ written | 4 |
-| 19 | Structured outputs (zod + Responses API) | ⬜ todo | 5 |
-| 20 | The query analyzer | ⬜ todo | 5 |
-| 21 | Orchestration: three paths | ⬜ todo | 5 |
-| 22 | The chat agent: streaming + prompts | ⬜ todo | 5 |
-| 23 | Failure day: hallucination bait | ⬜ todo | 5 |
-| 24 | Build day: eval the analyzer | ⬜ todo | 5 |
+| 19 | Structured outputs (zod + Responses API) | ✅ written | 5 |
+| 20 | The query analyzer | ✅ written | 5 |
+| 21 | Orchestration: three paths (reading day) | ✅ written | 5 |
+| 22 | The chat agent: grounding contract | ✅ written | 5 |
+| 23 | Failure day: six bait categories incl. prompt injection | ✅ written | 5 |
+| 24 | Build day: analyzer eval (🎥) | ✅ written | 5 |
 | 25 | MCP concepts + server tour | ⬜ todo | 6 |
 | 26 | Wiring MCP into Claude Desktop/Cursor | ⬜ todo | 6 |
 | 27 | Securing MCP: keys + scopes | ⬜ todo | 6 |
@@ -163,6 +163,10 @@ Full worked solution. Never inline-visible.
 | https://docs.pinecone.io/guides/index-data/indexing-overview#metadata — metadata filtering (verified 2026-06-09) | Days 15–16 |
 | https://docs.cohere.com/docs/rerank-overview (verified 2026-06-09) | Day 17 |
 | https://www.pinecone.io/learn/offline-evaluation/ — Recall@K/MRR/nDCG (verified 2026-06-09) | Day 18 |
+| https://developers.openai.com/api/docs/guides/structured-outputs (verified 2026-06-09) | Days 19–20 |
+| https://platform.claude.com/docs/en/docs/build-with-claude/prompt-engineering/overview (301 from docs.anthropic.com; verified 2026-06-09) | Day 22 |
+| https://genai.owasp.org/llmrisk/llm01-prompt-injection/ — OWASP LLM01 (verified 2026-06-09) | Day 23 |
+| https://hamel.dev/blog/posts/evals/ — Hamel Husain on evals (verified 2026-06-09) | Day 24 |
 | https://www.pinecone.io/learn/chunking-strategies/ | Days 7, 9 |
 | https://www.anthropic.com/news/contextual-retrieval | Days 1, 10, 17 |
 | https://modelcontextprotocol.io/ | Days 25–27 |
