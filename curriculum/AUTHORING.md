@@ -2,17 +2,19 @@
 
 Working doc for building the day-by-day curriculum in batches. **Update the status table every batch.** The template and rules here are the spec — every day file must follow them so the course reads in one voice.
 
-## ▶ Pick up here (updated 2026-06-09, batch 5 done)
+## ▶ Pick up here (updated 2026-06-09, batch 6 done)
 
-**Next: Batch 6 — Days 25–30, MCP / observability / human-in-the-loop.** Days: 25 MCP concepts + the server (`mcp-server/index.ts` student skeleton: 3 tools with TODO bodies — students implement using their own lib functions; modelcontextprotocol.io verified), 26 wiring into Claude Desktop/Cursor (config file, desktop-app screenshots = brian-owned), 27 securing MCP (`mcp-server/auth.ts` COMPLETE on student + 43 passing tests + `docs/CHALLENGE-MCP-AUTH.md` — day is the narrative wrapper per rule 11; scopes read/read_pii/admin), 28 observability (`lib/langsmith.ts` student TODO: implement `traced`; LangSmith dashboard screenshot = brian; pays off "what does the model actually receive" from Day 21), 29 human-in-the-loop scheduling (`lib/scheduling.ts` + `lib/calendar.ts` skeletons; detectSchedulingIntent via structured outputs = Day 19 pattern; agent.ts scheduling TODOs finally uncommented; Cal.com), 30 build day (🎥): new MCP tool + audit trail (mirror `mcp-server/audit.ts`).
+**Next: Batch 7 (FINAL) — Days 31–36, production gates & capstone.** Days: 31 the upload API (rebuild `/api/upload` on the new pipeline — `docs/CHALLENGE-UPLOAD-API.md` is the spec per rule 11; additive + idempotent; zod `.parse()` validation per CLAUDE.md), 32 RBAC I (sessions/login/auth guard — `docs/CHALLENGE-RBAC.md` + the 24 failing specs ARE the assignment; lib/auth.ts stubs; jose JWT, httpOnly cookie, anti-enumeration 401s), 33 RBAC II (role-shaped responses: STAFF never see PII even via header/body override, DOCTOR can't schedule; `lib/pii.ts` is complete on student — the obscuring layer finally gets its consumer), 34 adversarial day: the poisoned document (`docs/CHALLENGE-POISONED-DOCS.md` + `data/security/poisoned/` exist on main/instructor — CHECK student-branch presence, likely needs sync; pays off Day 23's "sneakier entrance" promise: injection via retrieved CONTENT; `lib/security/content-validator.ts` + 49 tests), 35 evals as the spine (regression suite assembled from ALL prior instruments: fhir-extract tests, retrieval hit@5, analyzer accuracy, failure battery, RBAC specs; `npm run test:evals` for LLM-judge; cost observability), 36 capstone (🎥): ship one extension + THE POSTMORTEM (the credibility artifact — what broke, what changed, what I deliberately didn't build; adversarial review questions from the challenge-design philosophy).
 
-Before writing Batch 6:
+Before writing Batch 7:
 1. Re-read `day-01.md` (voice) and ALL 17 rules.
-2. Verify student-branch state of: `mcp-server/index.ts` + `auth.ts` + `audit.ts`, `lib/scheduling.ts`, `lib/calendar.ts`, `app/api/schedule/route.ts` (Week-5 TODO skeleton — but NOTE: the RBAC homework specs also target this route; Day 29 must not collide with the RBAC challenge, which is Batch 7 material), `.env.example` CAL_* vars.
-3. Day 23's prompt-injection bait #6 promised "a much sneakier entrance" — that's the poisoned-doc day in Batch 7, NOT batch 6; don't pay it off early.
-4. After the batch: update status table, Brian reviews before Batch 7 (final).
+2. Verify student-branch state of: `app/api/upload/route.ts` (old chunking version = the homework target), the 24 failing RBAC specs (lib/auth.test.ts etc.), `lib/pii.ts` (complete) vs `challenge/pii-obscuring` branch (skeleton — which do students get?), `data/security/poisoned/` + `lib/security/content-validator.ts` presence on student, `lib/evals/` (skeleton: llm-judge TODOs).
+3. Day 36's deliverable should reference the full test-suite progress bar from Day 2 (24 failed → 0 on student after RBAC days) — verify the final expected counts.
+4. After the batch: update status table, final review, then the BIG SYNC (see sync reminder) before any student touches the course.
 
-**Sync reminder:** `scripts/bible/` + the three `bible:*` npm scripts + the `data/bible/` gitignore entry live on `instructor` only right now — they MUST be synced to `main` and `student` before students hit Day 7 (they're lab infrastructure, not solutions; the only solution-ish file is Day 12's `chunk-constitution.ts` which students write themselves — do NOT ship that one).
+**Sync reminder (grows as batches land):** the following live on `instructor`/`main` only and MUST reach `student` before the corresponding days ship:
+- `scripts/bible/` + three `bible:*` npm scripts + `data/bible/` gitignore entry → before Day 7 (lab infrastructure; do NOT ship Day 12's `chunk-constitution.ts` — students write it)
+- `mcp-server/auth.ts`, `mcp-server/auth.test.ts`, `mcp-server/audit.ts` → before Day 27 (student branch's mcp-server/ currently has ONLY index.ts; the challenge doc says "the auth module is provided" — discovered 2026-06-09, batch 6)
 
 Done so far: README (rev 2), day-01 (rev 3), days 02–06 (Batch 2), days 07–12 + scripts/bible lab (Batch 3), this tracker.
 
@@ -47,12 +49,12 @@ Done so far: README (rev 2), day-01 (rev 3), days 02–06 (Batch 2), days 07–1
 | 22 | The chat agent: grounding contract | ✅ written | 5 |
 | 23 | Failure day: six bait categories incl. prompt injection | ✅ written | 5 |
 | 24 | Build day: analyzer eval (🎥) | ✅ written | 5 |
-| 25 | MCP concepts + server tour | ⬜ todo | 6 |
-| 26 | Wiring MCP into Claude Desktop/Cursor | ⬜ todo | 6 |
-| 27 | Securing MCP: keys + scopes | ⬜ todo | 6 |
-| 28 | Observability: LangSmith tracing | ⬜ todo | 6 |
-| 29 | Human-in-the-loop scheduling | ⬜ todo | 6 |
-| 30 | Build day: new tool + audit trail | ⬜ todo | 6 |
+| 25 | MCP: tools for AI assistants (3 TODO bodies + pipe smoke-test) | ✅ written | 6 |
+| 26 | Wiring into Claude Desktop/Cursor (config, logs, break-fix) | ✅ written | 6 |
+| 27 | Securing MCP: keys + scopes (wrapper for CHALLENGE-MCP-AUTH) | ✅ written | 6 |
+| 28 | Observability: implement traced(), debugger-for-the-past | ✅ written | 6 |
+| 29 | HITL scheduling: propose/approve/execute, Cal.com | ✅ written | 6 |
+| 30 | Build day: 4th tool + audit trail + adversarial demo (🎥) | ✅ written | 6 |
 | 31 | Upload API: additive ingestion | ⬜ todo | 7 |
 | 32 | RBAC I: sessions + login | ⬜ todo | 7 |
 | 33 | RBAC II: role-shaped responses + PII | ⬜ todo | 7 |
@@ -74,6 +76,8 @@ Gotcha learned 2026-06-09: the medical-rag dev server may land on **:3001** if a
 | day02-neon-connection.png | 2 | brian | ⬜ pending (logged-in Neon dashboard) |
 | day04-prisma-studio.png | 4 | class-ingest | ⬜ pending (needs new schema + data) |
 | day14-pinecone-index.png | 14 | brian | ⬜ pending (Pinecone console: medical-notes index, 1536/cosine) |
+| day26-claude-desktop-tools.png | 26 | brian | ⬜ pending (Claude Desktop, medical-rag server connected, tools visible) |
+| day28-langsmith-trace.png | 28 | brian | ⬜ pending (LangSmith project, one execute_query trace open) |
 
 Add a row here whenever a day file gets a screenshot placeholder.
 
@@ -167,6 +171,10 @@ Full worked solution. Never inline-visible.
 | https://platform.claude.com/docs/en/docs/build-with-claude/prompt-engineering/overview (301 from docs.anthropic.com; verified 2026-06-09) | Day 22 |
 | https://genai.owasp.org/llmrisk/llm01-prompt-injection/ — OWASP LLM01 (verified 2026-06-09) | Day 23 |
 | https://hamel.dev/blog/posts/evals/ — Hamel Husain on evals (verified 2026-06-09) | Day 24 |
+| https://modelcontextprotocol.io/docs/develop/connect-local-servers (verified 2026-06-09; log paths + config format confirmed against it) | Day 26 |
+| https://modelcontextprotocol.io/specification/draft/basic/security_best_practices (verified 2026-06-09) | Days 27, 30 |
+| https://docs.langchain.com/langsmith/observability (308 from docs.smith.langchain.com; verified 2026-06-09) | Day 28 |
+| https://cal.com/docs/api-reference (verified 2026-06-09) | Day 29 |
 | https://www.pinecone.io/learn/chunking-strategies/ | Days 7, 9 |
 | https://www.anthropic.com/news/contextual-retrieval | Days 1, 10, 17 |
 | https://modelcontextprotocol.io/ | Days 25–27 |
