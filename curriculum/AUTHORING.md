@@ -6,13 +6,7 @@ Working doc for building the day-by-day curriculum in batches. **Update the stat
 
 **The curriculum is content-complete.** No more day files to write. What remains before students can use it, in priority order:
 
-1. **THE BIG SYNC (blocking).** All lab/infra files that days reference live on `instructor`/`main` only and MUST reach `student`. Full list:
-   - `scripts/bible/` + `bible:fixed|smart|audit` npm scripts + `data/bible/` gitignore → before Day 7
-   - `mcp-server/auth.ts` + `auth.test.ts` + `audit.ts` → before Day 27 (student mcp-server/ has ONLY index.ts; **discovered batch 6**)
-   - `data/security/poisoned/*.json` + `lib/security/content-validator.ts` + `.test.ts` + `scripts/security/demo-poisoned-docs.ts` → before Day 34 (**confirmed batch 7: NONE of these are on student**; the poisoned-docs challenge is unrunnable until synced)
-   - `docs/CHALLENGE-POISONED-DOCS.md` → before Day 34 (**confirmed: NOT on student**; CHALLENGE-RBAC/-UPLOAD-API/-PII already there)
-   - (`lib/reranker.ts` confirmed ALREADY on student — no sync needed for Day 17)
-   Do NOT sync: Day 12's `chunk-constitution.ts`, the curriculum/ dir itself (instructor-only), or any solution code.
+1. **THE BIG SYNC — ✅ DONE (2026-06-14, student commit c78dda8).** Synced to student: `scripts/bible/`+`bible:*` scripts+`data/bible/` gitignore; `mcp-server/auth.ts`+`auth.test.ts`+`audit.ts`; `lib/security/content-validator.ts`+`.test.ts`; `data/security/poisoned/*.json`; `scripts/security/demo-{poisoned-docs,mcp-auth}.ts`; `docs/CHALLENGE-{POISONED-DOCS,MCP-AUTH}.md`. NOT synced (correct): `mcp-server/index.ts` (student skeleton = the assignment), curriculum/, solution code. Student suite now **24 failed / 148 passed** (the +92 are the two provided modules' tests); Day 2's count updated to match. Left alone: pre-existing student tsc warts in `app/api/upload/route.ts` (Day 31 homework target) and dead `scripts/process-fhir.ts`.
 2. **Screenshots** — see registry: 5 brian-owned (Neon, Pinecone, Claude Desktop, LangSmith, Prisma-Studio-at-class-ingest), 1 agent-captured already done (day02-app-running).
 3. **Typeform URLs** — 6 deliverable days (6/12/18/24/30/36) have `PLACEHOLDER-DAYNN` links to replace.
 4. **PII branch decision:** `lib/pii.ts` is COMPLETE on student, but `challenge/pii-obscuring` has it as a skeleton. Day 33 assumes complete. Decide whether the PII-implementation is its own assignment (then Day 33 needs a dependency note) or pre-built (then it's fine as written). Unresolved — ask Brian.
@@ -69,7 +63,7 @@ Done so far: README (rev 2), day-01 (rev 3), days 02–06 (Batch 2), days 07–1
 | 35 | Evals as the spine + cost gate | ✅ written | 7 |
 | 36 | Capstone + postmortem (🎥, the credibility artifact) | ✅ written | 7 |
 
-**ALL 36 DAYS WRITTEN (2026-06-13). Course content complete.** Remaining work is the big sync (below) + screenshot capture + Typeform URLs.
+**ALL 36 DAYS WRITTEN (2026-06-13). Course content complete.** The big sync to student is ✅ DONE (2026-06-14, student commit c78dda8 — student suite now 24 failed / 148 passed). Remaining: screenshot capture + Typeform URLs + the PII-branch decision (see Pick up here).
 
 **Batch plan:** one week per batch (Batch 2 = Week 1 remainder, Batch 3 = Week 2 chunking, … Batch 7 = Week 6). Review + commit after each batch.
 

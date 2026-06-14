@@ -103,7 +103,7 @@ You'll see a mix of passing and failing tests. **That is correct and intended** 
 Spend **no more than 20 minutes** here.
 
 1. Get `npm run dev` showing the chat UI and `npm run test:run` executing (pass _and_ fail is fine).
-2. In your course notes file, record the test summary line (e.g. "24 failed | 56 passed"). You'll watch that "failed" number shrink as you complete the course — it's your progress bar.
+2. In your course notes file, record the test summary line (e.g. "24 failed | 148 passed"). You'll watch that "failed" number shrink as you complete the course — it's your progress bar.
 3. Run `git status` and confirm `.env` does **not** appear in the output.
 
 ## Check yourself
@@ -124,7 +124,7 @@ git status         # .env is NOT listed
 
 **If `.env` gets committed:** removing the file in a later commit is **not enough** — it's still in history. The key must be treated as compromised: **rotate it immediately** (delete and regenerate it in the OpenAI/Neon/Pinecone dashboard), then scrub history if the repo is shared. Rotation is the real fix; deletion just hides it.
 
-**Expected test summary** on a fresh student branch: `Test Files 4 failed | 2 passed`, `Tests 24 failed | 56 passed` (the 24 are homework specs you'll complete later).
+**Expected test summary** on a fresh student branch: `Test Files 4 failed | 4 passed`, `Tests 24 failed | 148 passed` (the 24 are homework specs you'll complete later).
 
 </details>
 
