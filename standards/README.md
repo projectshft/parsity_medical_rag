@@ -45,9 +45,11 @@ When the curriculum changes, apply the mapping rules from the build guide:
   separate from the RTI floor.
 - **Competencies:** 13 across 8 domains (12 RTI-module + 1 capstone), all mapped
   to an assessment method and a rubric.
-- **Structural orphans:** none. **Assignment coverage:** 7/13 competencies fully
-  covered by a graded deliverable; 6 partial/gap with recommended fixes (see the
-  alignment review in `crosswalk.md`).
+- **Structural orphans:** none. **Assignment coverage:** 9/13 competencies fully
+  covered by a graded deliverable (incl. C-APP-1 and C-DEP-1 via new capstone
+  tracks); 4 partial with recommended fixes (see the alignment review in
+  `crosswalk.md`).
 - **Open items remaining:** occupation/RAPIDS code, registration pathway, term
-  length, agency hour-counting rules, boilerplate template, and the 4 assignment
-  gaps — see each file's *Open Items* section.
+  length, agency hour-counting rules, boilerplate template, authoring the two new
+  capstone challenge files, and the 4 partial-coverage competencies — see each
+  file's *Open Items* section.

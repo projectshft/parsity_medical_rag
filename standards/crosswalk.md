@@ -17,38 +17,44 @@ assignment-to-competency **alignment review** requested for the hybrid program.
 | 3 — Relational Data & SQL Setup | RTI-3 | Data & Security | C-SEC-1 | R-SEC-1 | Wk1 TODOs: connect Neon, run Prisma migration. Schema (`prisma/schema.prisma`) **pre-built** | ⚠️ Partial — provisions/migrates only; no modeling |
 | 4 — RAG Ingestion (chunk/embed/upsert) | RTI-4 | Retrieval | C-RET-2 | R-RET-2 | Wk2 `chunkDocument()` (`lib/chunking.ts`) + Wk3 `createEmbedding()`/`upsertChunks()` (`lib/embeddings.ts`, `lib/pinecone.ts`) | ✅ Full |
 | 5 — Retrieval & Hybrid Search | RTI-5 | Retrieval | C-RET-3 | R-RET-3 | Wk3 `searchClinicalNotes()` (`lib/vector-search.ts`); eval via `lib/evals/retrieval.test.ts`; reranking as capstone track (`lib/reranker.ts`) | ✅ Full (rerank = capstone-optional) |
-| 6 — Chat Interface & App Routes | RTI-6 | Application | C-APP-1 | R-APP-1 | UI + API routes shipped **complete for students** (`app/`) | ❌ Gap — no student build assignment |
+| 6 — Chat Interface & App Routes | RTI-6 | Application | C-APP-1 | R-APP-1 | Capstone **Option 5: App Layer Build** (`docs/WEEK6-CAPSTONE.html`; `docs/CHALLENGE-APP-BUILD.md` to author). Every apprentice builds + deploys the app | ✅ Covered via capstone track |
 | 7 — MCP Server Design | RTI-7 | Agents & Tooling | C-AGT-1 | R-AGT-1 | Wk5 TODOs: define MCP tools + handlers; add a new tool (`mcp-server/`) | ✅ Full |
 | 8 — SQL Agent Design | RTI-8 | Agents & Tooling | C-AGT-2 | R-AGT-2 | Wk4: `executeQuery()` orchestration (`lib/query-executor.ts`). Scoped SQL (`lib/sql-queries.ts`) **pre-built** | ⚠️ Partial — orchestration only; safe-SQL pre-built |
 | 9 — RBAC | RTI-9 | Data & Security | C-SEC-2 | R-SEC-2 | `docs/CHALLENGE-MCP-AUTH.md`: API keys, scopes, audit (`mcp-server/auth.ts`, `audit.ts`, `auth.test.ts`) | ✅ Full (challenge / capstone track) |
 | 10 — PII Handling | RTI-10 | Data & Security | C-SEC-3 | R-SEC-3 | `docs/CHALLENGE-PII.md` (`lib/pii.ts`, `pii.test.ts`) + `docs/CHALLENGE-POISONED-DOCS.md` (`lib/security/content-validator.ts`) | ✅ Full (challenge / capstone track) |
 | 11 — Evaluation & Observability | RTI-11 | Eval & Observability | C-EVL-1 | R-EVL-1 | `lib/evals/retrieval.test.ts` (retrieval eval, has student TODO); `lib/langsmith.ts` observability **pre-wired** | ⚠️ Partial — retrieval eval only; no observability deliverable |
-| 12 — Model Hosting & Deployment | RTI-12 | Deployment | C-DEP-1 | R-DEP-1 | `.env.example` only — no deployment assignment in the 6-week sequence | ❌ Gap — no graded deliverable |
+| 12 — Model Hosting & Deployment | RTI-12 | Deployment | C-DEP-1 | R-DEP-1 | Capstone **Option 6: Deployment & Hosted Inference** (`docs/WEEK6-CAPSTONE.html`; `docs/CHALLENGE-DEPLOY.md` to author). Every apprentice deploys the app | ✅ Covered via capstone track |
 | Capstone | *(OJL)* | Capstone & Integration | C-CAP-1 | R-CAP-1 | Wk6: self-scoped extension — PII / reranking / multimodal / new data source / custom MCP tool (`docs/WEEK6-CAPSTONE.html`), 40–80 OJL hrs | ✅ Full |
 
 ## Assignment-to-competency alignment review
 
-**Summary:** of the **13** competencies, **7 are fully covered** by a graded
-student deliverable (6 of the 12 RTI-module competencies, plus the capstone), and
-**6 RTI-module competencies have coverage gaps** because the corresponding code is
-shipped pre-built (instructor branch) rather than assigned as student work. The
-capstone can backfill most gaps, but C-APP-1 and C-DEP-1 should be addressed
-before registration.
+**Summary:** of the **13** competencies, **9 are fully covered** by a graded
+deliverable, and **4 RTI-module competencies remain partial** because the
+corresponding code is shipped pre-built (instructor branch) rather than assigned
+as student work. The two previously-open gaps — **C-APP-1 (app build)** and
+**C-DEP-1 (deployment)** — are now formal capstone tracks (Options 5 & 6); per
+sponsor, every apprentice builds and deploys the app, so both are demonstrated.
 
-### Fully aligned (✅) — 7
-C-FND-1, C-RET-2, C-RET-3, C-AGT-1, C-SEC-2, C-SEC-3, C-CAP-1. Each has a
+### Fully aligned (✅) — 9
+C-FND-1, C-RET-2, C-RET-3, C-AGT-1, C-SEC-2, C-SEC-3, C-CAP-1, **C-APP-1**
+(capstone Option 5), **C-DEP-1** (capstone Option 6). Each has a
 TODO/challenge/capstone deliverable and, where applicable, a passing test suite.
 
-### Gaps & partials (⚠️ / ❌) — 6, with recommended fixes
+### Resolved (was ❌, now ✅) via capstone tracks
+
+| Competency | Resolution |
+|------------|-----------|
+| C-APP-1 (chat UI / routes) | Capstone **Option 5: App Layer Build** added to `docs/WEEK6-CAPSTONE.html`. Every apprentice builds the app, so the competency is demonstrated. `docs/CHALLENGE-APP-BUILD.md` still to author. |
+| C-DEP-1 (deployment) | Capstone **Option 6: Deployment & Hosted Inference** added. Every apprentice deploys the app. `docs/CHALLENGE-DEPLOY.md` still to author. |
+
+### Remaining partials (⚠️) — 4, with recommended fixes
 
 | Competency | Issue | Recommended fix (curriculum change) |
 |------------|-------|-------------------------------------|
 | C-RET-1 (corpus sourcing/prep) | ⚠️ Corpus is pre-ingested; Wk1 is read-only exploration | Add a small data-prep deliverable, or require the **“new data source”** capstone track. Already a listed capstone option. |
 | C-SEC-1 (relational modeling) | ⚠️ Schema pre-built; students only provision/migrate | Add a TODO to model 1–2 entities (or a relation) themselves, then migrate. |
-| C-APP-1 (chat UI / routes) | ❌ App ships complete; nothing for students to build | Convert one route or UI piece (e.g., source-attribution rendering or `/api/chat`) into a Wk6/applications TODO, **or** reclassify C-APP-1 as provided infrastructure that is *demonstrated* (walkthrough) rather than *built*. |
 | C-AGT-2 (safe SQL agent) | ⚠️ Scoped SQL pre-built; students do orchestration only | Have students author ≥1 parameterized, scoped query (incl. an injection-resistance check) instead of all pre-built. |
 | C-EVL-1 (eval & observability) | ⚠️ Retrieval eval exists; no observability deliverable | Add an observability TODO (instrument one trace via `lib/langsmith.ts`) **or** make eval/observability an eligible capstone track. |
-| C-DEP-1 (deployment) | ❌ No graded deliverable at all | Add a deployment assignment (deploy + smoke-check) **or** make deployment an eligible capstone track. Highest-priority gap. |
 
 > These are **recommendations for the curriculum**, surfaced by the alignment
 > review — they are not yet implemented in the course. None block the standards
@@ -69,7 +75,7 @@ above are *assignment* gaps, tracked separately for the curriculum to close.
 | Every competency has a rubric | ✅ 13/13 |
 | Every rubric maps back to a competency | ✅ 13/13 |
 | Every RTI entry contributes to the hours ledger | ✅ 12/12 |
-| Every competency has a graded student assignment | ⚠️ 7/13 full, 6 partial/gap (see review above) |
+| Every competency has a graded student assignment | ⚠️ 9/13 full, 4 partial (see review above) |
 
 ### Notes on cardinality
 
@@ -83,8 +89,11 @@ above are *assignment* gaps, tracked separately for the curriculum to close.
 
 ## Open Items
 
-- [ ] Decide each gap fix above (add assignment vs. make capstone-eligible vs.
-      reclassify as demonstrated-not-built) — affects whether all 12 RTI-module
-      competencies have a dedicated graded deliverable (the capstone already does).
+- [x] **C-APP-1 and C-DEP-1 resolved** as capstone tracks (Options 5 & 6).
+- [ ] Author the two referenced challenge files: `docs/CHALLENGE-APP-BUILD.md` and
+      `docs/CHALLENGE-DEPLOY.md` (currently referenced by the capstone page but not
+      yet written — same status as the other unwritten capstone challenge files).
+- [ ] Decide each remaining partial fix above (4: C-RET-1, C-SEC-1, C-AGT-2,
+      C-EVL-1) — add assignment vs. make capstone-eligible.
 - [ ] If NextGen/DAS requires **competency → RTI hour attribution**, extend the
       master table with an hours column sourced from `hours-ledger.md`.

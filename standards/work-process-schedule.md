@@ -112,11 +112,13 @@ skills into a working deliverable they did not receive as a TODO skeleton.
 > (see `hours-ledger.md`), not added to the RTI total.
 >
 > **Integrative coverage.** Each capstone track also demonstrates an existing
-> competency at the **Advanced (4)** level, and can serve as the graded
-> deliverable for competencies that the weekly sequence covers only thinly:
+> competency at the **Advanced (4)** level, and serves as the graded deliverable
+> for competencies the weekly sequence covers only thinly:
+> *app layer build* → C-APP-1, *deployment & hosted inference* → C-DEP-1,
 > *new data source* → C-RET-1, *reranking* → C-RET-3, *multimodal ingestion* →
 > C-RET-2, *custom MCP tool* → C-AGT-1, *PII/privacy control* → C-SEC-3,
-> *deployment/eval extension* → C-DEP-1 / C-EVL-1.
+> *eval/observability extension* → C-EVL-1. Per sponsor, **every apprentice
+> builds and deploys the app**, so C-APP-1 and C-DEP-1 are demonstrated by all.
 
 ## Competency index
 
