@@ -5,15 +5,33 @@ export const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY!,
 });
 
-export const INDEX_NAME = process.env.PINECONE_INDEX || "medical-records";
+export const INDEX_NAME = process.env.PINECONE_INDEX || "medical-notes";
 
-// Backwards compatibility
-function getPinecone(): Pinecone {
-  return pinecone;
-}
+/**
+ * Ensure the Pinecone index exists, create if not
+ */
+export async function ensureIndexExists(): Promise<void> {
+  const existingIndexes = await pinecone.listIndexes();
+  const indexExists = existingIndexes.indexes?.some((idx) => idx.name === INDEX_NAME);
 
-function getIndexName(): string {
-  return INDEX_NAME;
+  if (!indexExists) {
+    console.log(`Creating Pinecone index: ${INDEX_NAME}`);
+    await pinecone.createIndex({
+      name: INDEX_NAME,
+      dimension: 1536,
+      metric: "cosine",
+      spec: {
+        serverless: {
+          cloud: "aws",
+          region: "us-east-1",
+        },
+      },
+      waitUntilReady: true,
+    });
+    console.log(`Index ${INDEX_NAME} created successfully`);
+  } else {
+    console.log(`Index ${INDEX_NAME} already exists`);
+  }
 }
 
 export interface MedicalChunk {
@@ -38,7 +56,7 @@ export interface SearchResult {
 }
 
 export async function upsertChunks(chunks: MedicalChunk[]): Promise<number> {
-  const index = getPinecone().Index(getIndexName());
+  const index = pinecone.Index(INDEX_NAME);
 
   const batchSize = 100;
   let totalUpserted = 0;
@@ -68,7 +86,7 @@ export async function searchChunks(
   query: string,
   topK: number = 10
 ): Promise<SearchResult[]> {
-  const index = getPinecone().Index(getIndexName());
+  const index = pinecone.Index(INDEX_NAME);
   const queryEmbedding = await createEmbedding(query);
 
   const results = await index.query({
@@ -86,6 +104,6 @@ export async function searchChunks(
 }
 
 export async function deleteAllChunks(): Promise<void> {
-  const index = getPinecone().Index(getIndexName());
+  const index = pinecone.Index(INDEX_NAME);
   await index.deleteAll();
 }
