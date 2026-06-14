@@ -2,6 +2,24 @@
 
 Project-specific patterns and conventions for AI assistance.
 
+## Apprenticeship Standards (keep in sync)
+
+This repo is also the source for a DOL **Registered Apprenticeship Program**
+Standards package (grant FAIN 24A60AP000081). The artifacts live in
+[`/standards`](standards/) and are governed by the build guide at
+[`docs/apprenticeship-standards.md`](docs/apprenticeship-standards.md).
+
+**Whenever you add or change a curriculum module, update the standards in the
+same branch/PR** by applying the mapping rules:
+
+1. Module → one RTI entry (`standards/rti-outline.md`): objectives + hours.
+2. Hands-on capability → one observable WPS competency (`standards/work-process-schedule.md`).
+3. Competency → one assessment method (`standards/competency-map.md`) + one rubric
+   (`standards/assessment-rubrics.md`). No competency without a rubric.
+4. Update `standards/crosswalk.md`; report any orphans.
+5. Recompute `standards/hours-ledger.md`; flag in the PR if total RTI < 144 hrs/yr.
+6. Leave `standards/wage-and-governance.md` as placeholders unless told otherwise.
+
 ## OpenAI Structured Outputs with Zod
 
 **Always use the Responses API pattern** for structured outputs:
