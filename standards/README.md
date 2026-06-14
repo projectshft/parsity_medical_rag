@@ -36,11 +36,18 @@ When the curriculum changes, apply the mapping rules from the build guide:
 
 ## Status at a glance (last sync)
 
+- **Approach:** **Hybrid** — competency-based progression + **144 hr/yr RTI floor**
+  (both confirmed by sponsor).
 - **Curriculum basis:** 6-week instructor-led pilot (`docs/CURRICULUM-PLAN.md`),
   formalized into a 12-module RTI outline for the registered term.
-- **RTI total:** 156 hours/yr — **meets** the ~144 hr/yr minimum.
-- **Competencies:** 11, all mapped to an assessment method and a rubric.
-- **Orphans:** none (see `crosswalk.md`).
-- **Open items:** occupation code, registration pathway, approach/term length,
-  RTI hours target, and boilerplate template — all pending NextGen/DAS
-  confirmation (see each file's *Open Items* section).
+- **RTI total:** 156 hours/yr — **meets** the 144 hr/yr target (+12 margin).
+- **Capstone:** tracked as **40–80 OJL/project hours** (competency C-CAP-1),
+  separate from the RTI floor.
+- **Competencies:** 13 across 8 domains (12 RTI-module + 1 capstone), all mapped
+  to an assessment method and a rubric.
+- **Structural orphans:** none. **Assignment coverage:** 7/13 competencies fully
+  covered by a graded deliverable; 6 partial/gap with recommended fixes (see the
+  alignment review in `crosswalk.md`).
+- **Open items remaining:** occupation/RAPIDS code, registration pathway, term
+  length, agency hour-counting rules, boilerplate template, and the 4 assignment
+  gaps — see each file's *Open Items* section.

@@ -1,53 +1,90 @@
-# Crosswalk: Module ↔ RTI ↔ Competency ↔ Rubric
+# Crosswalk: Module ↔ RTI ↔ Competency ↔ Rubric ↔ Assignment
 
 Traceability across all standards artifacts so **nothing is orphaned**: every
-curriculum module ties to an RTI entry, one or more WPS competencies, an
-assessment method, and a rubric.
+curriculum module ties to an RTI entry, a WPS competency, an assessment method, a
+rubric, and the **actual graded assignment** we give. The final column is the
+assignment-to-competency **alignment review** requested for the hybrid program.
+
+> **Program:** Hybrid approach · 144 hr/yr RTI floor · capstone tracked as 40–80
+> OJL/project hours (see `hours-ledger.md`).
 
 ## Master crosswalk
 
-| Module | RTI entry | Domain | Competency | Assessment method | Rubric |
-|--------|-----------|--------|------------|-------------------|--------|
-| 1 — LLM Fundamentals & Prompting | RTI-1 | Foundations | C-FND-1 | Code review + prompt-variant write-up | R-FND-1 |
-| 2 — Data Sourcing & Preparation | RTI-2 | Retrieval | C-RET-1 | Artifact review + readiness checklist | R-RET-1 |
-| 3 — Relational Data & SQL Setup | RTI-3 | Data & Security | C-SEC-1 | Schema/migration review + queries | R-SEC-1 |
-| 4 — RAG Ingestion (chunk/embed/upsert) | RTI-4 | Retrieval | C-RET-2 | Pipeline demo + tests | R-RET-2 |
-| 5 — Retrieval & Hybrid Search | RTI-5 | Retrieval | C-RET-3 | Retrieval-metrics report | R-RET-3 |
-| 6 — Chat Interface & App Routes | RTI-6 | Application | C-APP-1 | Live demo + route review | R-APP-1 |
-| 7 — MCP Server Design | RTI-7 | Agents & Tooling | C-AGT-1 | Schema review + MCP demo | R-AGT-1 |
-| 8 — SQL Agent Design | RTI-8 | Agents & Tooling | C-AGT-2 | Adversarial query test + review | R-AGT-2 |
-| 9 — RBAC | RTI-9 | Data & Security | C-SEC-2 | Permission-matrix test + audit inspection | R-SEC-2 |
-| 10 — PII Handling | RTI-10 | Data & Security | C-SEC-3 | PII + content-validator tests | R-SEC-3 |
-| 11 — Evaluation & Observability | RTI-11 | Eval & Observability | C-EVL-1 | Eval run + interpretation + trace | R-EVL-1 |
-| 12 — Model Hosting & Deployment | RTI-12 | Deployment | C-DEP-1 | Deployment demo + config review | R-DEP-1 |
+| Module | RTI | Domain | Competency | Rubric | Actual assignment / deliverable | Alignment |
+|--------|-----|--------|------------|--------|---------------------------------|-----------|
+| 1 — LLM Fundamentals & Prompting | RTI-1 | Foundations | C-FND-1 | R-FND-1 | Wk4 TODOs: `analyzeQuery()` w/ Zod structured output + system-prompt authoring (`lib/query-analyzer.ts`, `lib/prompts.ts`) | ✅ Full |
+| 2 — Data Sourcing & Preparation | RTI-2 | Retrieval | C-RET-1 | R-RET-1 | Wk1 challenge: explore FHIR data (read-only). Corpus is **pre-ingested** via `scripts/process-fhir.ts` | ⚠️ Gap — provided, not student-built |
+| 3 — Relational Data & SQL Setup | RTI-3 | Data & Security | C-SEC-1 | R-SEC-1 | Wk1 TODOs: connect Neon, run Prisma migration. Schema (`prisma/schema.prisma`) **pre-built** | ⚠️ Partial — provisions/migrates only; no modeling |
+| 4 — RAG Ingestion (chunk/embed/upsert) | RTI-4 | Retrieval | C-RET-2 | R-RET-2 | Wk2 `chunkDocument()` (`lib/chunking.ts`) + Wk3 `createEmbedding()`/`upsertChunks()` (`lib/embeddings.ts`, `lib/pinecone.ts`) | ✅ Full |
+| 5 — Retrieval & Hybrid Search | RTI-5 | Retrieval | C-RET-3 | R-RET-3 | Wk3 `searchClinicalNotes()` (`lib/vector-search.ts`); eval via `lib/evals/retrieval.test.ts`; reranking as capstone track (`lib/reranker.ts`) | ✅ Full (rerank = capstone-optional) |
+| 6 — Chat Interface & App Routes | RTI-6 | Application | C-APP-1 | R-APP-1 | UI + API routes shipped **complete for students** (`app/`) | ❌ Gap — no student build assignment |
+| 7 — MCP Server Design | RTI-7 | Agents & Tooling | C-AGT-1 | R-AGT-1 | Wk5 TODOs: define MCP tools + handlers; add a new tool (`mcp-server/`) | ✅ Full |
+| 8 — SQL Agent Design | RTI-8 | Agents & Tooling | C-AGT-2 | R-AGT-2 | Wk4: `executeQuery()` orchestration (`lib/query-executor.ts`). Scoped SQL (`lib/sql-queries.ts`) **pre-built** | ⚠️ Partial — orchestration only; safe-SQL pre-built |
+| 9 — RBAC | RTI-9 | Data & Security | C-SEC-2 | R-SEC-2 | `docs/CHALLENGE-MCP-AUTH.md`: API keys, scopes, audit (`mcp-server/auth.ts`, `audit.ts`, `auth.test.ts`) | ✅ Full (challenge / capstone track) |
+| 10 — PII Handling | RTI-10 | Data & Security | C-SEC-3 | R-SEC-3 | `docs/CHALLENGE-PII.md` (`lib/pii.ts`, `pii.test.ts`) + `docs/CHALLENGE-POISONED-DOCS.md` (`lib/security/content-validator.ts`) | ✅ Full (challenge / capstone track) |
+| 11 — Evaluation & Observability | RTI-11 | Eval & Observability | C-EVL-1 | R-EVL-1 | `lib/evals/retrieval.test.ts` (retrieval eval, has student TODO); `lib/langsmith.ts` observability **pre-wired** | ⚠️ Partial — retrieval eval only; no observability deliverable |
+| 12 — Model Hosting & Deployment | RTI-12 | Deployment | C-DEP-1 | R-DEP-1 | `.env.example` only — no deployment assignment in the 6-week sequence | ❌ Gap — no graded deliverable |
+| Capstone | *(OJL)* | Capstone & Integration | C-CAP-1 | R-CAP-1 | Wk6: self-scoped extension — PII / reranking / multimodal / new data source / custom MCP tool (`docs/WEEK6-CAPSTONE.html`), 40–80 OJL hrs | ✅ Full |
+
+## Assignment-to-competency alignment review
+
+**Summary:** of the **13** competencies, **7 are fully covered** by a graded
+student deliverable (6 of the 12 RTI-module competencies, plus the capstone), and
+**6 RTI-module competencies have coverage gaps** because the corresponding code is
+shipped pre-built (instructor branch) rather than assigned as student work. The
+capstone can backfill most gaps, but C-APP-1 and C-DEP-1 should be addressed
+before registration.
+
+### Fully aligned (✅) — 7
+C-FND-1, C-RET-2, C-RET-3, C-AGT-1, C-SEC-2, C-SEC-3, C-CAP-1. Each has a
+TODO/challenge/capstone deliverable and, where applicable, a passing test suite.
+
+### Gaps & partials (⚠️ / ❌) — 6, with recommended fixes
+
+| Competency | Issue | Recommended fix (curriculum change) |
+|------------|-------|-------------------------------------|
+| C-RET-1 (corpus sourcing/prep) | ⚠️ Corpus is pre-ingested; Wk1 is read-only exploration | Add a small data-prep deliverable, or require the **“new data source”** capstone track. Already a listed capstone option. |
+| C-SEC-1 (relational modeling) | ⚠️ Schema pre-built; students only provision/migrate | Add a TODO to model 1–2 entities (or a relation) themselves, then migrate. |
+| C-APP-1 (chat UI / routes) | ❌ App ships complete; nothing for students to build | Convert one route or UI piece (e.g., source-attribution rendering or `/api/chat`) into a Wk6/applications TODO, **or** reclassify C-APP-1 as provided infrastructure that is *demonstrated* (walkthrough) rather than *built*. |
+| C-AGT-2 (safe SQL agent) | ⚠️ Scoped SQL pre-built; students do orchestration only | Have students author ≥1 parameterized, scoped query (incl. an injection-resistance check) instead of all pre-built. |
+| C-EVL-1 (eval & observability) | ⚠️ Retrieval eval exists; no observability deliverable | Add an observability TODO (instrument one trace via `lib/langsmith.ts`) **or** make eval/observability an eligible capstone track. |
+| C-DEP-1 (deployment) | ❌ No graded deliverable at all | Add a deployment assignment (deploy + smoke-check) **or** make deployment an eligible capstone track. Highest-priority gap. |
+
+> These are **recommendations for the curriculum**, surfaced by the alignment
+> review — they are not yet implemented in the course. None block the standards
+> artifacts from being internally consistent; they flag where the *delivered*
+> course does not yet exercise a competency a registering agency would expect.
 
 ## Orphan check
 
-Run this each time the curriculum or standards change. Current status: **PASS —
-no orphans.**
+Run each time the curriculum or standards change. Current status: **PASS — no
+structural orphans** (every module → RTI → competency → rubric). Coverage gaps
+above are *assignment* gaps, tracked separately for the curriculum to close.
 
 | Check | Result |
 |-------|--------|
 | Every module has an RTI entry | ✅ 12/12 |
 | Every module has ≥1 competency | ✅ 12/12 |
-| Every competency has an assessment method | ✅ 11/11 |
-| Every competency has a rubric | ✅ 11/11 |
-| Every rubric maps back to a competency | ✅ 11/11 |
+| Every competency has an assessment method | ✅ 13/13 |
+| Every competency has a rubric | ✅ 13/13 |
+| Every rubric maps back to a competency | ✅ 13/13 |
 | Every RTI entry contributes to the hours ledger | ✅ 12/12 |
+| Every competency has a graded student assignment | ⚠️ 7/13 full, 6 partial/gap (see review above) |
 
 ### Notes on cardinality
 
-- Modules **3, 9, 10** all live in the **Data & Security** domain and each maps to
-  its own distinct competency (C-SEC-1 / C-SEC-2 / C-SEC-3) — no merging.
-- The mapping is currently **1 module → 1 competency**. If a future module yields
-  multiple distinct hands-on capabilities, split into multiple competencies and
-  add rows here (keep the 1 competency → 1 rubric rule).
-- Auxiliary code present in the repo but **not** part of the registered scope
-  (e.g., `lib/calendar.ts`, `lib/scheduling.ts`, `app/api/schedule`) is
-  intentionally **not** mapped — it is not part of the apprenticeship curriculum.
-  Revisit if a scheduling module is later added to the curriculum.
+- Modules **3, 9, 10** all live in **Data & Security** and each maps to a distinct
+  competency (C-SEC-1 / C-SEC-2 / C-SEC-3) — no merging.
+- The mapping is **1 module → 1 competency**, plus one integrative capstone
+  competency (C-CAP-1) that is **OJL**, not an RTI module.
+- Auxiliary code in the repo but **not** in registered scope (`lib/calendar.ts`,
+  `lib/scheduling.ts`, `app/api/schedule`) is intentionally unmapped — not part of
+  the apprenticeship curriculum. Revisit if a scheduling module is added.
 
 ## Open Items
 
+- [ ] Decide each gap fix above (add assignment vs. make capstone-eligible vs.
+      reclassify as demonstrated-not-built) — affects whether all 12 RTI-module
+      competencies have a dedicated graded deliverable (the capstone already does).
 - [ ] If NextGen/DAS requires **competency → RTI hour attribution**, extend the
       master table with an hours column sourced from `hours-ledger.md`.

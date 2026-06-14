@@ -174,6 +174,25 @@ variant quality quantitatively.
 
 ---
 
+## R-CAP-1 — Integrative capstone deliverable *(C-CAP-1, Capstone, 40–80 OJL hrs)*
+
+| Criterion | Proficient (3) evidence |
+|-----------|-------------------------|
+| Scoping | Apprentice independently scopes a viable extension (one of the capstone tracks or an approved alternative) with stated goals. |
+| Build | Working deliverable, authored by the apprentice (not a provided skeleton), integrated into the system. |
+| Integration | Deliverable correctly composes with existing retrieval/app/security layers without regressing them. |
+| Demonstration | Live demo plus a short written design rationale explaining choices and trade-offs. |
+
+**Advanced (4):** ships tests for the new work, handles edge cases, and the
+chosen track also meets the Advanced bar of its underlying competency (e.g., a
+reranking capstone meets R-RET-3 Advanced).
+
+> **Note:** When a capstone track is the *only* graded deliverable for an
+> otherwise thinly-covered competency (see the alignment review in
+> `crosswalk.md`), assess it against **both** R-CAP-1 and that competency's rubric.
+
+---
+
 ## Open Items
 
 - [ ] Confirm whether NextGen/DAS supplies a **standard rubric format** these must

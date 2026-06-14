@@ -136,13 +136,20 @@ estimated instructional hours.
 | 12 | Model Hosting & Deployment | Deployment | 14 |
 | | **Total** | | **156** |
 
-Total RTI = **156 hrs/yr**, which **meets** the ~144 hr/yr minimum. Detailed
-accounting and the threshold check live in `hours-ledger.md`.
+Total RTI = **156 hrs/yr**, which **meets** the confirmed **144 hr/yr** target
+(hybrid approach). Detailed accounting and the threshold check live in
+`hours-ledger.md`.
+
+> **Capstone is not an RTI module.** The Week 6 capstone is the hybrid program's
+> hands-on integrative work and is tracked as **40–80 OJL/project hours**,
+> separate from the RTI total above (competency C-CAP-1; see
+> `work-process-schedule.md` and `hours-ledger.md`).
 
 ## Open Items
 
-- [ ] **RTI hours target for the registered term.** Per-module hours above are
-      estimates; confirm the official target with NextGen/DAS so the ledger has a
-      real threshold (≥144/yr assumed).
+- [x] **RTI hours target confirmed: 144 hrs/yr** (hybrid). Per-module hours remain
+      planning estimates and may shift with the agency's hour-counting rules.
 - [ ] Confirm whether NextGen provides a **boilerplate RTI template** these
       entries must conform to.
+- [ ] **Term length** still open (per sponsor); if multi-year, restate the 144/yr
+      check per program year.

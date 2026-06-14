@@ -11,8 +11,8 @@
 
 | Field | Value |
 |-------|-------|
-| Program approach | **[PLACEHOLDER]** — recommended: competency-based or hybrid |
-| Program term | **[PLACEHOLDER]** — ≥ 12 months if competency-based |
+| Program approach | **Hybrid** (competency-based progression + 144 hr/yr RTI floor) — confirmed by sponsor |
+| Program term | **[PLACEHOLDER — open item]** (≥ 12 months recommended for the competency dimension) |
 
 ## Progressive wage scale
 

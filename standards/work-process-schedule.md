@@ -97,6 +97,27 @@ drive iteration.
 application to a runnable hosted environment with managed secrets/config.
 *Evaluated by:* successful deployment demo + environment/secrets configuration review. *(Module 12)*
 
+## Domain 8 — Capstone & Integration
+
+### C-CAP-1
+**The apprentice can** independently scope, build, and demonstrate an extension to
+the RAG system — integrating retrieval, application, security, and/or evaluation
+skills into a working deliverable they did not receive as a TODO skeleton.
+*Evaluated by:* capstone demo + code review + a short written design rationale.
+*(Capstone — see `docs/WEEK6-CAPSTONE.html`)*
+
+> **Hours basis: OJL / project, not RTI.** The capstone is the hybrid program's
+> hands-on integrative work, estimated at **40–80 hours**. It is tracked as
+> on-the-job-learning / project hours **separate from** the 144 hr/yr RTI floor
+> (see `hours-ledger.md`), not added to the RTI total.
+>
+> **Integrative coverage.** Each capstone track also demonstrates an existing
+> competency at the **Advanced (4)** level, and can serve as the graded
+> deliverable for competencies that the weekly sequence covers only thinly:
+> *new data source* → C-RET-1, *reranking* → C-RET-3, *multimodal ingestion* →
+> C-RET-2, *custom MCP tool* → C-AGT-1, *PII/privacy control* → C-SEC-3,
+> *deployment/eval extension* → C-DEP-1 / C-EVL-1.
+
 ## Competency index
 
 | ID | Domain | Module | Short title |
@@ -113,14 +134,18 @@ application to a runnable hosted environment with managed secrets/config.
 | C-SEC-3 | Data & Security | 10 | PII handling & injection defense |
 | C-EVL-1 | Eval & Observability | 11 | Eval harness & observability |
 | C-DEP-1 | Deployment | 12 | Hosted inference & deployment |
+| C-CAP-1 | Capstone & Integration | Capstone | Integrative capstone deliverable |
 
-**11 competencies across 7 domains.** All are mapped in `crosswalk.md`; none are
-orphaned.
+**13 competencies across 8 domains** (12 tied to RTI modules + 1 integrative
+capstone). All are mapped in `crosswalk.md`; none are orphaned. The
+assignment-to-competency alignment review (and flagged coverage gaps) also lives
+in `crosswalk.md`.
 
 ## Open Items
 
 - [ ] Confirm whether the registering agency requires **approximate OJL hours**
       per competency (some WPS templates do). If so, derive from the employer's
-      work schedule — these are employer-set, not curriculum-derived.
-- [ ] Confirm the **approach** (competency-based vs. hybrid); this determines
-      whether progression is by demonstrated competency, elapsed hours, or both.
+      work schedule — these are employer-set, not curriculum-derived. (The
+      capstone's 40–80 OJL hours are recorded in `hours-ledger.md`.)
+- [x] **Approach confirmed: hybrid** (competency-based progression with a 144
+      hr/yr RTI floor). Term length remains an open item.

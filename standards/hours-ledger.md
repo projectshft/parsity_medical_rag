@@ -9,8 +9,14 @@ module's hours change in `rti-outline.md`.
 | Item | Value |
 |------|-------|
 | Minimum RTI (benchmark) | **144 hrs/yr** |
-| Confirmed target (NextGen/DAS) | *Pending — see Open Items* |
-| Program term assumption | 12 months (competency-based minimum) |
+| Confirmed target (sponsor) | **144 hrs/yr** (hybrid approach) |
+| Approach | **Hybrid** (competency-based progression + RTI hours floor) |
+| Program term assumption | *Open item — pending NextGen/DAS* |
+
+> The RTI ledger below counts **classroom / related instruction only**. The
+> capstone's hands-on hours are tracked separately as OJL/project hours (see the
+> *OJL / project hours* section) and are **not** added to the RTI total — they are
+> the hybrid program's on-the-job portion.
 
 ## Ledger
 
@@ -41,6 +47,20 @@ module's hours change in `rti-outline.md`.
 > **No flag raised.** Total RTI (156) ≥ 144. If a future edit drops the total
 > below 144, raise it in the PR description per the agent checklist.
 
+## OJL / project hours (hybrid — tracked separately from RTI)
+
+The capstone is the hybrid program's hands-on integrative work. Its hours count
+as on-the-job-learning / project hours, **not** toward the 144 RTI floor.
+
+| Item | Competency | Est. hours |
+|------|-----------|-----------:|
+| Capstone — self-scoped RAG extension (`docs/WEEK6-CAPSTONE.html`) | C-CAP-1 | **40–80** |
+| **Total OJL / project hours** | | **40–80** |
+
+> Per-competency OJL hours for the remaining competencies are **employer-set** and
+> not derived from the curriculum; left to the employer's work schedule (see
+> `wage-and-governance.md`).
+
 ## Hours basis & honesty note
 
 These are **RTI estimates for the registered program term**, not the pilot's
@@ -53,9 +73,11 @@ and the registering agency's hour-counting rules before finalizing.
 
 ## Open Items
 
-- [ ] **Confirm the official RTI hours target** for the registered term with
-      NextGen/DAS so this ledger checks against a real threshold (≥144 assumed).
+- [x] **RTI hours target confirmed: 144 hrs/yr**, hybrid approach. Total of 156
+      meets it with +12 margin.
 - [ ] Confirm how the agency **counts RTI hours** (lecture only vs. lecture +
       supervised lab) — this may change per-module figures.
-- [ ] Confirm **term length** (≥12 months if competency-based); if the term is
-      multi-year, restate the 144/yr check per program year.
+- [ ] Confirm **term length**; if the term is multi-year, restate the 144/yr check
+      per program year. *(Left open per sponsor.)*
+- [ ] Confirm whether the agency wants the **capstone OJL hours** reflected in a
+      formal OJL schedule alongside the employer-set OJL hours.

@@ -10,7 +10,7 @@ The single apprenticeable occupation this program registers under.
 | **O*NET-SOC code** | **15-1252.00 — Software Developers** |
 | **Occupational family** | Software developer family (DOL apprenticeable occupations list) |
 | **RAPIDS / state occupation code** | *To confirm with NextGen / California DAS* |
-| **Type of program (approach)** | Hybrid (competency-based with a related-instruction hours floor) — *confirm; see Open Items* |
+| **Type of program (approach)** | **Hybrid** — competency-based progression + a 144 hr/yr RTI floor (confirmed by sponsor) |
 
 ## Justification
 
@@ -55,6 +55,6 @@ database, an MCP tool server, a SQL agent, and security/evaluation layers).
 - [ ] **Registration pathway** (affects which occupation list governs): California
       DAS, federal DOL Office of Apprenticeship, or DAS with NextGen technical
       assistance.
-- [ ] **Approach** (time-based / competency-based / hybrid) and **term length**
-      (≥12 months if competency-based). See `wage-and-governance.md` and
+- [x] **Approach confirmed: hybrid** (competency-based progression + 144 hr/yr RTI
+      floor). **Term length** remains open — see `wage-and-governance.md` and
       `hours-ledger.md`.

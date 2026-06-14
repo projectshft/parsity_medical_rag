@@ -20,6 +20,7 @@ grades it. A competency with no rubric is incomplete; none are incomplete here.
 | C-SEC-3 | 10 | Automated PII + content-validator tests | `lib/pii.test.ts`, `lib/security/content-validator.test.ts` | R-SEC-3 |
 | C-EVL-1 | 11 | Eval-harness run + written interpretation + trace | `lib/evals/` output; LangSmith trace | R-EVL-1 |
 | C-DEP-1 | 12 | Deployment demo + config review | Running hosted deployment; secrets/env configuration | R-DEP-1 |
+| C-CAP-1 | Capstone | Capstone demo + code review + written design rationale | Self-scoped RAG extension (`docs/WEEK6-CAPSTONE.html` tracks); 40–80 OJL hrs | R-CAP-1 |
 
 ## Assessment method notes
 
