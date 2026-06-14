@@ -187,6 +187,9 @@ Full worked solution. Never inline-visible.
 | https://www.anthropic.com/news/contextual-retrieval | Days 1, 10, 17 |
 | https://modelcontextprotocol.io/ | Days 25–27 |
 | https://arxiv.org/abs/2005.11401 — RAG paper | Day 1 |
+| https://www.youtube.com/watch?v=yMQPQuz5WpA — 3B1B "But what is a GPT?" (verified 2026-06-14) | Day 1 |
+| https://www.youtube.com/watch?v=fNk_zzaMoSs — 3B1B "Vectors, what even are they?" LA Ch.1 (verified 2026-06-14) | Day 13 |
+| https://www.youtube.com/watch?v=LyGKycYT2v0 — 3B1B "Dot products and duality" LA Ch.9 (verified 2026-06-14) | Day 13 |
 
 Verify any NEW link with WebFetch before adding it to a day file, then record it here.
 
@@ -197,3 +200,4 @@ Verify any NEW link with WebFetch before adding it to a day file, then record it
 - 2026-06-06 · Text-based markdown, GitHub-rendered mermaid, screenshot placeholders for later capture.
 - 2026-06-07 · Moved to the `instructor` branch (was a standalone `curriculum` branch, now deleted). Repo is storage only — content ships via another platform; students never see `curriculum/` in the repo.
 - 2026-06-06 · Chunking taught on the KJV Bible (corpus that needs it) precisely because the medical notes don't — the contrast IS the lesson (decide from data, not habit).
+- 2026-06-14 · Brian: mechanism/under-the-hood understanding is REQUIRED, not optional theory. Added Day 14 Step 1 "Build the search by hand first" (text→vectors→cosine/dot-product ranking = a vector DB's core op, in the main Implementation flow, not further reading) — answers "how vector DBs work under the hood" by having students BE one before using Pinecone. Fits the existing build-naive-by-hand motif (Days 8, 16). Also: Day 13 gained a dot-product note (cosine = normalized dot product) + 3B1B linear-algebra videos in further reading; Day 1 gained 3B1B "But what is a GPT?" for the LLM-internals "why". 3B1B videos are further-reading (can't gate on a YouTube watch); the hands-on exercise is the required part.

@@ -140,6 +140,7 @@ You're done when you can answer these without scrolling up:
 
 </details>
 
-## Further reading (optional)
+## Further reading
 
+- [3Blue1Brown — But what is a GPT? Visual intro to transformers](https://www.youtube.com/watch?v=yMQPQuz5WpA) — the best high-level picture of what an LLM actually *is* under the hood. You don't need this to build the system, but if "the model predicts the next token" has always been a black box, 27 minutes here fixes that.
 - [The original RAG paper (Lewis et al.)](https://arxiv.org/abs/2005.11401) — skim the abstract; the ideas aged well
