@@ -50,6 +50,5 @@ When the curriculum changes, apply the mapping rules from the build guide:
   tracks); 4 partial with recommended fixes (see the alignment review in
   `crosswalk.md`).
 - **Open items remaining:** occupation/RAPIDS code, registration pathway, term
-  length, agency hour-counting rules, boilerplate template, authoring the two new
-  capstone challenge files, and the 4 partial-coverage competencies — see each
-  file's *Open Items* section.
+  length, agency hour-counting rules, boilerplate template, and the 4
+  partial-coverage competencies — see each file's *Open Items* section.
