@@ -1,0 +1,46 @@
+// LMS database — SEPARATE Neon project from the medical-rag DB.
+//
+// WARNING: never run `prisma db push --force-reset` against this schema.
+// The medical-rag DB (prisma/schema.prisma) gets force-reset during class;
+// this one holds student progress and must never be reset that way.
+// Use the `lms:*` npm scripts, which target this --schema explicitly.
+
+generator client {
+  provider = "prisma-client-js"
+  // Isolated output so this client never overwrites the default
+  // medical-rag client at node_modules/@prisma/client.
+  output   = "../../node_modules/.prisma/lms-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("LMS_DATABASE_URL")
+}
+
+// One row per enrolled student. Identity/invites/bans live in Clerk;
+// this mirrors only what the admin progress matrix needs. The id IS the
+// Clerk userId, so progress joins to it directly.
+model Student {
+  id          String           @id // Clerk userId (user_xxx)
+  email       String           @unique // cached from Clerk for the matrix
+  invitedAt   DateTime         @default(now())
+  firstSeenAt DateTime? // set on first authenticated /learn hit
+  progress    LessonProgress[]
+
+  @@map("students")
+}
+
+// One row per (student, lesson) that the student has marked done.
+// Absence of a row = not done. lessonDay is the day number 1..36.
+model LessonProgress {
+  id          String   @id @default(uuid())
+  studentId   String
+  lessonDay   Int
+  completedAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, lessonDay]) // idempotent mark-done
+  @@index([studentId])
+  @@map("lesson_progress")
+}

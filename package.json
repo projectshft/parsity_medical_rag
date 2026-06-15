@@ -10,10 +10,14 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:evals": "RUN_EVALS=1 vitest run lib/evals",
+    "postinstall": "prisma generate && prisma generate --schema prisma/lms/schema.prisma",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:migrate": "prisma migrate dev",
+    "lms:generate": "prisma generate --schema prisma/lms/schema.prisma",
+    "lms:push": "prisma db push --schema prisma/lms/schema.prisma",
+    "lms:studio": "prisma studio --schema prisma/lms/schema.prisma",
     "ingest": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/ingest-coherent.ts"
   },
   "dependencies": {
