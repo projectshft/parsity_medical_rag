@@ -35,3 +35,10 @@ next-env.d.ts
 
 # FHIR data (can be regenerated)
 fhir/
+
+# Curriculum authoring scratch drafts (never ship)
+curriculum/Untitled
+curriculum/*.txt
+
+# gstack browser session artifacts
+.gstack/

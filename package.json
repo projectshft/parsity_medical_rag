@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.2.0",
+    "@clerk/nextjs": "^6.39.5",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@neondatabase/serverless": "^0.10.0",
     "@pinecone-database/pinecone": "^4.0.0",
@@ -28,11 +29,14 @@
     "cohere-ai": "^7.17.0",
     "jose": "^6.2.3",
     "langsmith": "^0.7.5",
-    "next": "15.1.6",
+    "mermaid": "^11.15.0",
+    "next": "^15.5.19",
     "openai": "^4.77.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^9.0.1",
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.1",
     "uuid": "^11.0.5",
     "zod": "^3.24.0"
   },
