@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Week 1 — Foundations · RAG &amp; AI Agents</title>
+<style>
+  :root {
+    --ink: #1b2330;
+    --muted: #5b6675;
+    --line: #e3e7ec;
+    --bg: #ffffff;
+    --panel: #f6f8fa;
+    --accent: #2563eb;       /* calm blue, no purple */
+    --code-bg: #f4f6f8;
+    /* engagement-mode accents, all muted */
+    --discuss: #b45309;      /* amber */
+    --code: #2563eb;         /* blue */
+    --challenge: #15803d;    /* green */
+    --research: #475569;     /* slate */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .deck { height: 100vh; position: relative; }
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 5vh 9vw 9vh;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .slide.active { display: flex; }
+  h1 { font-size: 2.6rem; line-height: 1.15; letter-spacing: -0.02em; }
+  h2 { font-size: 2rem; line-height: 1.2; letter-spacing: -0.01em; margin-bottom: 1.2rem; }
+  p, li { font-size: 1.25rem; line-height: 1.6; color: var(--ink); }
+  ul { padding-left: 1.3rem; }
+  li { margin: 0.5rem 0; }
+  .sub { color: var(--muted); font-size: 1.15rem; }
+  .lead { font-size: 1.45rem; color: var(--muted); margin-top: 0.8rem; }
+  strong { font-weight: 650; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.3rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: 1rem; line-height: 1.5; }
+
+  /* engagement-mode banner */
+  .mode { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.35rem 0.7rem; border-radius: 999px; margin-bottom: 1.4rem; align-self: flex-start; }
+  .mode.discuss { color: var(--discuss); background: #fef3e2; }
+  .mode.code { color: var(--code); background: #e8f0fe; }
+  .mode.challenge { color: var(--challenge); background: #e7f6ec; }
+  .mode.research { color: var(--research); background: #eef1f5; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 0.6rem; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem 1.4rem; background: var(--panel); }
+  .card h3 { font-size: 1.15rem; margin-bottom: 0.4rem; }
+  .card p { font-size: 1.05rem; color: var(--muted); }
+
+  /* instructor cue */
+  .cue { margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
+  .cue b { color: var(--ink); }
+
+  .title-wrap { gap: 0.4rem; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.95rem; }
+
+  /* footer / nav */
+  .bar { position: fixed; bottom: 0; left: 0; right: 0; height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 1.2rem; border-top: 1px solid var(--line); background: var(--bg); font-size: 0.85rem; color: var(--muted); }
+  .bar .name { font-weight: 600; color: var(--ink); }
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); transition: width 0.2s ease; }
+  .hint { font-size: 0.8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+  <!-- 1 — Title -->
+  <section class="slide active title-wrap">
+    <div class="kicker">Week 1 of 6 — Foundations</div>
+    <h1>What RAG is, and the two halves of the system you'll build</h1>
+    <p class="lead">By Friday: a running app that answers real questions about patient records — from a database you stood up and queried yourself.</p>
+  </section>
+
+  <!-- 2 — The week -->
+  <section class="slide">
+    <h2>This week</h2>
+    <ul>
+      <li><b>Mon</b> — What RAG actually is, and why an LLM can't answer questions about your data</li>
+      <li><b>Tue</b> — Setup: accounts, keys, the app running locally</li>
+      <li><b>Wed</b> — The data: FHIR bundles, 1,278 synthetic patients</li>
+      <li><b>Thu</b> — Postgres + Prisma: the structured half</li>
+      <li><b>Fri</b> — The SQL query layer, then a build day</li>
+    </ul>
+    <p class="sub" style="margin-top:1rem">Deliverable Friday: a 2–3 min video — explain why this system needs <em>both</em> a database and a meaning-based search.</p>
+  </section>
+
+  <!-- 3 — Concept: the problem -->
+  <section class="slide">
+    <h2>The problem RAG solves</h2>
+    <p>Ask any LLM "what medications is this patient taking?" — it has no idea. The records were never in its training data, and never will be.</p>
+    <p class="lead">The fix is almost embarrassingly simple: <strong>fetch the relevant records at question time and paste them into the prompt.</strong> The model doesn't need to <em>know</em> your data — it needs to <em>read</em> it.</p>
+    <div class="cue"><b>Say it plainly:</b> the hard part isn't the "generation." It's the <b>retrieval</b> — and retrieval is a search problem, which is where the engineering lives.</div>
+  </section>
+
+  <!-- 4 — Concept: two kinds of questions -->
+  <section class="slide">
+    <h2>Two kinds of questions → two engines</h2>
+    <div class="two">
+      <div class="card">
+        <h3>Structured</h3>
+        <p>"How many patients have diabetes?" An exact answer — a <code>COUNT(*)</code>. This is a <strong>database</strong> job.</p>
+      </div>
+      <div class="card">
+        <h3>Semantic</h3>
+        <p>"Patients whose notes mention trouble sleeping." No shared keywords with "difficulty falling asleep" — same meaning. A <strong>meaning-based search</strong> job.</p>
+      </div>
+    </div>
+    <p class="sub" style="margin-top:1rem">Most real questions are one — or a <strong>hybrid</strong> of both. That's why the system has two storage engines.</p>
+  </section>
+
+  <!-- 5 — Discussion break -->
+  <section class="slide">
+    <span class="mode discuss">💬 Discussion</span>
+    <h2>Sort these five into structured / semantic / hybrid</h2>
+    <ul>
+      <li>"How many patients are on insulin?"</li>
+      <li>"Which patients describe chest pain at night?"</li>
+      <li>"Do any diabetics mention medication side effects in their notes?"</li>
+      <li>"Summarize this patient's health history."</li>
+      <li>"What's a normal blood pressure?" <span class="sub">(trick — should this even be answered?)</span></li>
+    </ul>
+    <div class="cue"><b>Facilitate:</b> let them argue the hybrid ones. The last one seeds the "refuse what the system isn't for" thread we return to in Week 4.</div>
+  </section>
+
+  <!-- 6 — Concept: architecture -->
+  <section class="slide">
+    <h2>The system, in one diagram</h2>
+    <pre><code>          user question
+                │
+        ┌───────▼────────┐
+        │ Query Analyzer │  (LLM decides: which engine?)
+        └───┬────────┬───┘
+   structured│        │semantic
+        ┌────▼───┐ ┌──▼───────────────┐
+        │Postgres│ │ Vector database  │
+        │ rows   │ │ (clinical notes) │
+        └────┬───┘ └──┬───────────────┘
+             └────┬───┘
+            grounded LLM answer</code></pre>
+    <p class="sub">You'll build it left-to-right over six weeks. This week: the data and the Postgres half.</p>
+  </section>
+
+  <!-- 7 — Code walkthrough: the data -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>Read one clinical note before writing any code</h2>
+    <pre><code># Chief Complaint
+No complaints.
+
+# Social History
+Patient has never smoked.
+
+# Medications
+No Active Medications.</code></pre>
+    <p class="sub">Two things to point out live: it has <strong>structure</strong> (headed sections) and it's <strong>short</strong> (~450 chars). That second fact decides a major architecture choice later — and it's a measurement, not a vibe.</p>
+  </section>
+
+  <!-- 8 — Concept: Postgres + Prisma -->
+  <section class="slide">
+    <h2>The structured half: Postgres + Prisma</h2>
+    <p>One schema file becomes both the database tables <em>and</em> a typed client.</p>
+    <ul>
+      <li><code>Patient</code> — name, birth/death date, phone, location</li>
+      <li><code>Condition</code> — "Type 2 Diabetes Mellitus", status, onset</li>
+      <li><code>Observation</code> — labs &amp; vitals with numeric values</li>
+      <li><code>Medication</code> — name, status, dosage</li>
+    </ul>
+    <div class="cue"><b>Design point to land:</b> the FHIR id is the primary key → re-running ingestion <b>updates</b> a patient instead of duplicating. That property carries all the way to Week 6's upload API.</div>
+  </section>
+
+  <!-- 9 — Code walkthrough: ingest -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>Load the structured data, look at it</h2>
+    <pre><code>npm run db:push                    # create the tables
+npm run ingest -- --limit 50 --skip-vectors   # Postgres only
+npm run db:studio                  # browse the rows</code></pre>
+    <p class="sub"><code>--skip-vectors</code> loads only Postgres — we haven't built the search half yet. Open Studio live and show real patients/conditions landing.</p>
+  </section>
+
+  <!-- 10 — Concept: the SQL layer + mapping problem -->
+  <section class="slide">
+    <h2>"diabetes" isn't in the data — "Type 2 Diabetes Mellitus" is</h2>
+    <p>A naive <code>WHERE display = 'diabetes'</code> returns <strong>nothing</strong>. Real medical vocabulary is messy.</p>
+    <pre><code>diabetes: ['diabetes', 'diabetic', 'diabetes mellitus',
+           'type 2 diabetes', 'prediabetes']</code></pre>
+    <p class="sub">One user word → many database phrasings. Blunt, hand-maintained — and it works <em>because</em> someone wrote the synonyms down. Contrast this with what the meaning-based search does automatically (Week 3).</p>
+  </section>
+
+  <!-- 11 — Mini-challenge -->
+  <section class="slide">
+    <span class="mode challenge">🛠 Mini-challenge</span>
+    <h2>Add a condition the dictionary is missing</h2>
+    <ul>
+      <li>Pick a condition not yet mapped (asthma, COPD, depression…)</li>
+      <li>Query the data first — <em>what does it actually call this?</em></li>
+      <li>Add the real phrasings; re-run the count</li>
+      <li><strong>Record the before/after number.</strong> "It seems better" is not done; "matched 0, now matches 14" is done.</li>
+    </ul>
+    <div class="cue"><b>The point isn't SQL</b> — it's the loop: find a gap → fill it → verify with a number. That's the whole course in miniature.</div>
+  </section>
+
+  <!-- 12 — Research -->
+  <section class="slide">
+    <span class="mode research">🔍 Research</span>
+    <h2>Go find out</h2>
+    <ul>
+      <li>Why not just <strong>fine-tune</strong> a model on the patient data instead of doing RAG? When would fine-tuning actually be the right call?</li>
+      <li>Vector databases can store and filter metadata — so why keep <strong>Postgres</strong> at all? Find one query each engine is bad at.</li>
+    </ul>
+    <p class="sub">Bring one finding to the next session. No single right answer — defend your reasoning.</p>
+  </section>
+
+  <!-- 13 — Recap -->
+  <section class="slide">
+    <h2>Where you are</h2>
+    <ul>
+      <li>You can explain <strong>why</strong> RAG exists and the two-engine split</li>
+      <li>You stood up Postgres and loaded real structured data</li>
+      <li>You queried it — counts, filters, lookups — and saw the mapping problem firsthand</li>
+    </ul>
+    <p class="lead">Friday's deliverable: the 2–3 min video. Next week: documents that are too big to use as-is — <strong>chunking</strong>.</p>
+  </section>
+
+</div>
+
+<div class="bar">
+  <span class="name">RAG &amp; AI Agents · Week 1 — Foundations</span>
+  <span class="hint">← → to navigate · <span id="counter">1 / 13</span></span>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let i = 0;
+  const counter = document.getElementById('counter');
+  const progress = document.getElementById('progress');
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+    counter.textContent = (i + 1) + ' / ' + slides.length;
+    progress.style.width = ((i + 1) / slides.length * 100) + '%';
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(i + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+  });
+  document.getElementById('deck').addEventListener('click', (e) => {
+    show(i + (e.clientX < window.innerWidth / 2 ? -1 : 1));
+  });
+  show(0);
+</script>
+</body>
+</html>
