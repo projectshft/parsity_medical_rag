@@ -23,21 +23,21 @@ const NumericFilterSchema = z.object({
  * Schema for date ranges
  */
 const DateRangeSchema = z.object({
-  from: z.string().optional().describe('Start date in ISO format'),
-  to: z.string().optional().describe('End date in ISO format'),
+  from: z.string().nullable().describe('Start date in ISO format'),
+  to: z.string().nullable().describe('End date in ISO format'),
 });
 
 /**
  * Schema for extracted entities
  */
 const EntitiesSchema = z.object({
-  patientName: z.string().optional().describe('Patient name if searching for specific patient'),
-  patientId: z.string().optional().describe('Patient ID if provided'),
-  conditions: z.array(z.string()).optional().describe('Medical conditions mentioned'),
-  medications: z.array(z.string()).optional().describe('Medications mentioned'),
-  labCodes: z.array(z.string()).optional().describe('Lab test names (e.g., "A1C", "glucose")'),
-  dateRange: DateRangeSchema.optional().describe('Time filters if mentioned'),
-  numericFilters: z.array(NumericFilterSchema).optional().describe('Numeric comparisons'),
+  patientName: z.string().nullable().describe('Patient name if searching for specific patient'),
+  patientId: z.string().nullable().describe('Patient ID if provided'),
+  conditions: z.array(z.string()).nullable().describe('Medical conditions mentioned'),
+  medications: z.array(z.string()).nullable().describe('Medications mentioned'),
+  labCodes: z.array(z.string()).nullable().describe('Lab test names (e.g., "A1C", "glucose")'),
+  dateRange: DateRangeSchema.nullable().describe('Time filters if mentioned'),
+  numericFilters: z.array(NumericFilterSchema).nullable().describe('Numeric comparisons'),
 });
 
 /**
@@ -58,7 +58,7 @@ const QueryAnalysisSchema = z.object({
 
   entities: EntitiesSchema.describe('Extracted entities from the query'),
 
-  semanticQuery: z.string().optional().describe(
+  semanticQuery: z.string().nullable().describe(
     'Optimized search query for vector search - expand with related terms'
   ),
 
