@@ -1,9 +1,8 @@
 import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { searchChunks, SearchResult } from "./pinecone";
-import { rerankResults } from "./reranker";
+import { executeQuery, formatResultsForLLM } from "./query-executor";
 import { traced } from "./langsmith";
-import { detectSchedulingIntent, formatSchedulingAction } from "./scheduling";
+import { detectSchedulingIntent } from "./scheduling";
 
 const SYSTEM_PROMPT = `You are a helpful medical records assistant. You help users query and understand medical records from FHIR data.
 
@@ -21,7 +20,8 @@ Important guidelines:
 When presenting medical information:
 - Group related information together (e.g., all medications, all conditions)
 - Note any potentially concerning findings
-- Provide context for lab values when available`;
+- Provide context for lab values when available
+- When the records include a population statistic or count, report that number directly`;
 
 const SCHEDULING_SYSTEM_PROMPT = `You are a helpful medical records assistant that can also help schedule patient appointments.
 
@@ -31,62 +31,6 @@ When the user asks to schedule an appointment:
 3. Let them know a scheduling form will appear for them to confirm
 
 Keep your response brief when scheduling - the UI will handle the actual booking.`;
-
-function buildContext(results: SearchResult[]): string {
-  if (results.length === 0) {
-    return "No relevant medical records found.";
-  }
-
-  const byPatient = new Map<string, SearchResult[]>();
-  const noPatient: SearchResult[] = [];
-
-  for (const result of results) {
-    const patientId = result.metadata.patientId;
-    if (patientId) {
-      const existing = byPatient.get(patientId) || [];
-      existing.push(result);
-      byPatient.set(patientId, existing);
-    } else {
-      noPatient.push(result);
-    }
-  }
-
-  let context = "=== Retrieved Medical Records ===\n\n";
-
-  Array.from(byPatient.entries()).forEach(([patientId, patientResults]) => {
-    const patientName = patientResults[0]?.metadata.patientName || "Unknown";
-    context += `--- Patient: ${patientName} (ID: ${patientId}) ---\n\n`;
-
-    const byType = new Map<string, SearchResult[]>();
-    for (const result of patientResults) {
-      const type = result.metadata.resourceType;
-      const existing = byType.get(type) || [];
-      existing.push(result);
-      byType.set(type, existing);
-    }
-
-    Array.from(byType.entries()).forEach(([type, typeResults]) => {
-      context += `[${type}]\n`;
-      for (const result of typeResults) {
-        context += result.content + "\n";
-        if (result.metadata.recordDate) {
-          context += `(Recorded: ${result.metadata.recordDate})\n`;
-        }
-        context += "\n";
-      }
-    });
-  });
-
-  if (noPatient.length > 0) {
-    context += "--- Additional Records ---\n\n";
-    for (const result of noPatient) {
-      context += `[${result.metadata.resourceType}]\n`;
-      context += result.content + "\n\n";
-    }
-  }
-
-  return context;
-}
 
 export interface Message {
   role: "user" | "assistant";
@@ -110,22 +54,22 @@ export async function runAgent(
   // Check for scheduling intent first (pass conversation history for context)
   const schedulingIntent = await detectSchedulingIntent(query, conversationHistory);
 
-  // Search for relevant records (with optional tracing)
-  const searchResults = await traced(
-    'vector_search',
-    () => searchChunks(query, 20),
-    { runType: 'retriever', inputs: { query, topK: 20 } }
+  // Run the hybrid query system: analyze the query, route it to SQL and/or
+  // vector search, and format the combined result for the LLM. This is the
+  // same executeQuery the /api/query endpoint uses — so the chat answers
+  // structured questions (counts, filters) AND semantic ones.
+  const queryResult = await traced(
+    "execute_query",
+    () => executeQuery(query, { vectorTopK: 10 }),
+    { runType: "chain", inputs: { query } }
   );
 
-  // Rerank results (with optional tracing)
-  const rerankedResults = await traced(
-    'rerank',
-    () => rerankResults(query, searchResults, 10),
-    { runType: 'chain', inputs: { query, resultsCount: searchResults.length } }
-  );
+  const context = formatResultsForLLM(queryResult);
 
-  // Build context from results
-  const context = buildContext(rerankedResults);
+  const analysisInfo = `Query Analysis:
+- Intent: ${queryResult.analysis.intent}
+- Requires SQL: ${queryResult.analysis.requiresSQL}
+- Requires Vector Search: ${queryResult.analysis.requiresVector}`;
 
   // Choose system prompt based on scheduling intent
   const systemPrompt = schedulingIntent.isSchedulingRequest
@@ -140,7 +84,7 @@ export async function runAgent(
     })),
     {
       role: "user" as const,
-      content: `Context from medical records:\n\n${context}\n\nUser question: ${query}`,
+      content: `${analysisInfo}\n\nRetrieved Data:\n${context}\n\nUser question: ${query}`,
     },
   ];
 
@@ -154,14 +98,15 @@ export async function runAgent(
   // Return stream with scheduling action if applicable
   return {
     stream,
-    schedulingAction: schedulingIntent.isSchedulingRequest && schedulingIntent.patientName
-      ? {
-          patientName: schedulingIntent.patientName,
-          suggestedDate: schedulingIntent.suggestedDate || getDefaultDate(),
-          suggestedTime: schedulingIntent.suggestedTime || '09:00',
-          reason: schedulingIntent.reason,
-        }
-      : undefined,
+    schedulingAction:
+      schedulingIntent.isSchedulingRequest && schedulingIntent.patientName
+        ? {
+            patientName: schedulingIntent.patientName,
+            suggestedDate: schedulingIntent.suggestedDate || getDefaultDate(),
+            suggestedTime: schedulingIntent.suggestedTime || "09:00",
+            reason: schedulingIntent.reason,
+          }
+        : undefined,
   };
 }
 
@@ -171,5 +116,5 @@ function getDefaultDate(): string {
   while (date.getDay() === 0 || date.getDay() === 6) {
     date.setDate(date.getDate() + 1);
   }
-  return date.toISOString().split('T')[0];
+  return date.toISOString().split("T")[0];
 }
