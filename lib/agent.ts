@@ -1,6 +1,7 @@
 import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { executeQuery, formatResultsForLLM } from "./query-executor";
+import { findPatientByName } from "./sql-queries";
 import { traced } from "./langsmith";
 import { detectSchedulingIntent } from "./scheduling";
 
@@ -54,6 +55,17 @@ export async function runAgent(
   // Check for scheduling intent first (pass conversation history for context)
   const schedulingIntent = await detectSchedulingIntent(query, conversationHistory);
 
+  // Only schedule if the named patient actually exists in the records.
+  // A request with no name, or a name that matches no patient, must NOT
+  // produce a scheduling card.
+  let matchedPatient: { firstName: string | null; lastName: string | null } | null = null;
+  if (schedulingIntent.isSchedulingRequest && schedulingIntent.patientName) {
+    const matches = await findPatientByName(schedulingIntent.patientName);
+    matchedPatient = matches[0] ?? null;
+  }
+  const willSchedule =
+    schedulingIntent.isSchedulingRequest && matchedPatient !== null;
+
   // Run the hybrid query system: analyze the query, route it to SQL and/or
   // vector search, and format the combined result for the LLM. This is the
   // same executeQuery the /api/query endpoint uses — so the chat answers
@@ -71,10 +83,17 @@ export async function runAgent(
 - Requires SQL: ${queryResult.analysis.requiresSQL}
 - Requires Vector Search: ${queryResult.analysis.requiresVector}`;
 
-  // Choose system prompt based on scheduling intent
-  const systemPrompt = schedulingIntent.isSchedulingRequest
-    ? SCHEDULING_SYSTEM_PROMPT
-    : SYSTEM_PROMPT;
+  // If the user asked to schedule but no patient matched, tell the model to
+  // say so and book nothing (the UI will show no scheduling card).
+  const schedulingNote =
+    schedulingIntent.isSchedulingRequest && !matchedPatient
+      ? `\n\nNote: The user asked to schedule an appointment${
+          schedulingIntent.patientName ? ` for "${schedulingIntent.patientName}"` : ""
+        }, but no matching patient was found in the records. Tell the user you could not find that patient and ask them to verify the name. Do NOT confirm or suggest an appointment.`
+      : "";
+
+  // Use the scheduling prompt only when we'll actually offer to schedule.
+  const systemPrompt = willSchedule ? SCHEDULING_SYSTEM_PROMPT : SYSTEM_PROMPT;
 
   // Build messages array
   const messages = [
@@ -84,7 +103,7 @@ export async function runAgent(
     })),
     {
       role: "user" as const,
-      content: `${analysisInfo}\n\nRetrieved Data:\n${context}\n\nUser question: ${query}`,
+      content: `${analysisInfo}\n\nRetrieved Data:\n${context}\n\nUser question: ${query}${schedulingNote}`,
     },
   ];
 
@@ -95,13 +114,15 @@ export async function runAgent(
     messages,
   });
 
-  // Return stream with scheduling action if applicable
+  // Return a scheduling action only when a real patient was matched.
   return {
     stream,
     schedulingAction:
-      schedulingIntent.isSchedulingRequest && schedulingIntent.patientName
+      willSchedule && matchedPatient
         ? {
-            patientName: schedulingIntent.patientName,
+            patientName: [matchedPatient.firstName, matchedPatient.lastName]
+              .filter(Boolean)
+              .join(" "),
             suggestedDate: schedulingIntent.suggestedDate || getDefaultDate(),
             suggestedTime: schedulingIntent.suggestedTime || "09:00",
             reason: schedulingIntent.reason,
