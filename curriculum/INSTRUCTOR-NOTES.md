@@ -63,3 +63,42 @@ records as-is.
   records").
 - An explicit HIPAA sentence inside Day 33 connecting RBAC + audit to
   "minimum necessary" and the audit-trail requirement.
+
+---
+
+## Known runnable-state gaps (when demoing the full instructor build)
+
+These surface only when you actually run the finished system (the test
+suite passes because it mocks external services). They are *intended
+consequences of the build order*, not bugs — but know them before a live
+demo.
+
+### Scheduling from the chat UI returns "Authentication required" (expected)
+- **Why:** Day 29 builds the human-in-the-loop scheduling flow against an
+  open `/api/schedule`. Day 33 (RBAC) then gates that route to
+  `requireAuth(['STAFF'])`. But the chat UI has no sign-in, the `users`
+  table is empty, and there's no `seed-users.ts` on instructor — so the
+  Confirm button POSTs with no session and gets a 401 (shown in the card).
+- **This is correct post-RBAC behavior.** Decision (2026-06-17): leave it.
+  Scheduling *should* require a STAFF login; the UI just doesn't provide one
+  yet.
+- **To make the flow work end-to-end later:** write + run a `seed-users.ts`
+  (a STAFF + a DOCTOR user) and add a minimal sign-in to the UI that POSTs
+  to the existing `/api/auth/login` (sets the httpOnly cookie; same-origin
+  schedule calls then carry it). STAFF can schedule, DOCTOR is 403 — the
+  Day 33 behavior, now visible in the product. Teaching point: the RBAC
+  block produces a login *API* but no login *UI* — closing that gap is a
+  natural exercise/discussion.
+
+### Medication queries return nothing useful
+- "Which patients take lisinopril?" — the analyzer extracts the medication,
+  but `executeStructuredQuery` (`lib/sql-queries.ts`) only filters on
+  conditions and lab thresholds, not medications, so the LLM gets no data
+  and improvises. Genuine feature gap; not yet wired. Steer demos toward
+  condition counts, patient lookups, and semantic note search.
+
+### Semantic/notes answers are thin locally
+- Pinecone bulk writes intermittently EPIPE from some networks, so a local
+  ingest may only partially populate the vector index (Postgres loads
+  fully). Counts and lookups are unaffected; notes-based answers improve
+  after a complete ingest (works cleanly from Vercel / a stable network).
