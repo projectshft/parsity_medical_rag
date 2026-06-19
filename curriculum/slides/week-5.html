@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Week 5 — MCP, observability, human-in-the-loop · RAG &amp; AI Agents</title>
+<style>
+  :root {
+    --ink: #1b2330;
+    --muted: #5b6675;
+    --line: #e3e7ec;
+    --bg: #ffffff;
+    --panel: #f6f8fa;
+    --accent: #2563eb;       /* calm blue, no purple */
+    --code-bg: #f4f6f8;
+    /* engagement-mode accents, all muted */
+    --discuss: #b45309;      /* amber */
+    --code: #2563eb;         /* blue */
+    --challenge: #15803d;    /* green */
+    --research: #475569;     /* slate */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .deck { height: 100vh; position: relative; }
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 5vh 9vw 9vh;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .slide.active { display: flex; }
+  h1 { font-size: 2.6rem; line-height: 1.15; letter-spacing: -0.02em; }
+  h2 { font-size: 2rem; line-height: 1.2; letter-spacing: -0.01em; margin-bottom: 1.2rem; }
+  p, li { font-size: 1.25rem; line-height: 1.6; color: var(--ink); }
+  ul { padding-left: 1.3rem; }
+  li { margin: 0.5rem 0; }
+  .sub { color: var(--muted); font-size: 1.15rem; }
+  .lead { font-size: 1.45rem; color: var(--muted); margin-top: 0.8rem; }
+  strong { font-weight: 650; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.3rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: 1rem; line-height: 1.5; }
+
+  /* engagement-mode banner */
+  .mode { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.35rem 0.7rem; border-radius: 999px; margin-bottom: 1.4rem; align-self: flex-start; }
+  .mode.discuss { color: var(--discuss); background: #fef3e2; }
+  .mode.code { color: var(--code); background: #e8f0fe; }
+  .mode.challenge { color: var(--challenge); background: #e7f6ec; }
+  .mode.research { color: var(--research); background: #eef1f5; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 0.6rem; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem 1.4rem; background: var(--panel); }
+  .card h3 { font-size: 1.15rem; margin-bottom: 0.4rem; }
+  .card p { font-size: 1.05rem; color: var(--muted); }
+
+  /* instructor cue */
+  .cue { margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
+  .cue b { color: var(--ink); }
+
+  .title-wrap { gap: 0.4rem; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.95rem; }
+
+  /* footer / nav */
+  .bar { position: fixed; bottom: 0; left: 0; right: 0; height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 1.2rem; border-top: 1px solid var(--line); background: var(--bg); font-size: 0.85rem; color: var(--muted); }
+  .bar .name { font-weight: 600; color: var(--ink); }
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); transition: width 0.2s ease; }
+  .hint { font-size: 0.8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+  <!-- 1 — Title -->
+  <section class="slide active title-wrap">
+    <div class="kicker">Week 5 of 6 — MCP, observability, human-in-the-loop</div>
+    <h1>Your RAG stops being an app and becomes infrastructure</h1>
+    <p class="lead">By Friday: a new tool that other AIs can call, locked behind a key with the right permissions, and a record of who used it.</p>
+  </section>
+
+  <!-- 2 — The week -->
+  <section class="slide">
+    <h2>This week</h2>
+    <ul>
+      <li><b>Mon</b> — MCP: turn your RAG into a tool other AI assistants can call</li>
+      <li><b>Tue</b> — Wire it into Claude Desktop and Cursor; watch them use it</li>
+      <li><b>Wed</b> — Secure it: API keys + permission scopes (read / read_pii / admin)</li>
+      <li><b>Thu</b> — Observability: tracing — a debugger for the past</li>
+      <li><b>Fri</b> — Human-in-the-loop scheduling, then a build day: a new tool with an audit trail</li>
+    </ul>
+    <p class="sub" style="margin-top:1rem">Deliverable Friday: a 2–3 min video demoing a <em>new</em> tool you added — and its audit trail.</p>
+  </section>
+
+  <!-- 3 — Problem statement -->
+  <section class="slide">
+    <h2>The problem this week solves</h2>
+    <p>Everything you've built answers questions through <em>your</em> chat box. But the people you'd build this for already live in other AI tools — Claude Desktop, Cursor, a dozen assistants.</p>
+    <p class="lead">Do you write a separate integration for each one? Or expose your system <strong>once</strong>, in a way any of them can discover and use?</p>
+    <div class="cue"><b>Say it plainly:</b> the question isn't "how do I add a feature." It's "how does my system become something <b>other software</b> plugs into."</div>
+  </section>
+
+  <!-- 4 — How it's solved: MCP -->
+  <section class="slide">
+    <h2>MCP: USB-C for AI</h2>
+    <p>The <strong>Model Context Protocol</strong> is an open standard for connecting AI apps to outside systems. You write <em>one</em> MCP <strong>server</strong> that exposes your RAG as <strong>tools</strong>; any MCP <strong>client</strong> can discover and call them.</p>
+    <pre><code>  Claude Desktop ─┐
+        Cursor ───┼──▶  YOUR MCP server  ──▶  your pipeline
+  any MCP client ─┘     (mcp-server/index.ts)   (search, notes, summary)</code></pre>
+    <p class="sub">A REST API needs a human to read docs and write glue code per client. MCP's contract is machine-readable: the client <em>discovers</em> your tools, schemas and all, at connect time. REST serves programmers; MCP serves models.</p>
+  </section>
+
+  <!-- 5 — Concept: a tool is a prompt -->
+  <section class="slide">
+    <h2>A tool description is a prompt for a model you don't control</h2>
+    <pre><code>server.tool(
+  'query_notes',
+  'Search clinical notes using semantic search',
+  { query: z.string().describe('e.g. "chest pain", "breathing problems"'),
+    patientId: z.string().optional(),
+    topK: z.number().optional().default(5) },
+  async ({ query, patientId, topK }) =&gt; { /* call your pipeline */ }
+);</code></pre>
+    <p class="sub">The client's LLM reads your name + description + parameter schema and <em>decides</em> when to call it. Vague description → wrong tool at the wrong time — and you can't fix it by editing their prompt. <strong>The description <em>is</em> your interface.</strong></p>
+  </section>
+
+  <!-- 6 — Code walkthrough: smoke-test the server -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>Talk to the server before any AI does</h2>
+    <pre><code># the server speaks JSON-RPC over stdin/stdout — pipe to it, no AI required
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
+  | npx ts-node mcp-server/index.ts</code></pre>
+    <p class="sub">Back comes a JSON listing of your tools with their schemas — proof the contract is <em>discoverable</em>. One rule that bites everyone: <strong>never <code>console.log</code> in this server.</strong> Stdout <em>is</em> the protocol channel; a stray log line corrupts the stream and the client disconnects.</p>
+  </section>
+
+  <!-- 7 — Code walkthrough: wire into a client -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>Wire it into Claude Desktop, watch a foreign model use it</h2>
+    <pre><code>// ~/Library/Application Support/Claude/claude_desktop_config.json
+"mcpServers": {
+  "medical-rag": {
+    "command": "npx",
+    "args": ["ts-node", "/ABSOLUTE/path/to/mcp-server/index.ts"],
+    "env": { "DATABASE_URL": "...", "PINECONE_API_KEY": "...", "OPENAI_API_KEY": "..." }
+  }
+}</code></pre>
+    <p class="sub">Restart fully. Ask in plain words — "how many patients have high blood pressure?" — and watch it pick a tool, show its arguments, and wait for your approval. <strong>Path must be absolute</strong> (relative paths are the #1 failure). And notice: you just pasted database credentials into a desktop app's config file.</p>
+  </section>
+
+  <!-- 8 — Discussion break -->
+  <section class="slide">
+    <span class="mode discuss">💬 Discussion</span>
+    <h2>You shipped a patient database with no front door</h2>
+    <p>Anyone who can launch that server has unrestricted access to every tool — no identity, no permissions, no record of who asked what.</p>
+    <ul>
+      <li>What's the worst thing a stranger could do with your three tools right now?</li>
+      <li>Which credentials are sitting in plaintext, and where?</li>
+      <li>For medical data, is this a missing feature — or a missing wall?</li>
+    </ul>
+    <div class="cue"><b>Facilitate:</b> don't rescue them yet. Let the discomfort land — that discomfort <em>is</em> Wednesday.</div>
+  </section>
+
+  <!-- 9 — Concept: the three security layers -->
+  <section class="slide">
+    <h2>"Secured" means three layers</h2>
+    <div class="two">
+      <div class="card">
+        <h3>Authentication — who's calling?</h3>
+        <p>API keys. The caller presents one; the server validates it. The caller is a <em>process</em>, not a person — so keys, not logins.</p>
+      </div>
+      <div class="card">
+        <h3>Authorization — what may they do?</h3>
+        <p><strong>Scopes</strong> on the key, checked per tool: <code>read</code> (PII obscured), <code>read_pii</code> (real names &amp; dates), <code>admin</code>.</p>
+      </div>
+    </div>
+    <p class="sub" style="margin-top:1rem"><strong>Audit — who did what, when?</strong> A log entry for every call, allowed <em>or denied</em>. The module is provided (<code>mcp-server/auth.ts</code>); you integrate it.</p>
+  </section>
+
+  <!-- 10 — Concept: least privilege -->
+  <section class="slide">
+    <h2>Least privilege: one key per client, smallest scope that works</h2>
+    <p>A key for an analytics dashboard shouldn't be able to pull a named patient chart. A <code>['read']</code> key calls <code>search_patients</code> but gets <em>denied</em> <code>get_patient</code>'s full detail.</p>
+    <p class="lead">When a key leaks — and keys leak — the blast radius is the <strong>scope</strong>, not the database. And the key is revocable on its own, without rotating your infrastructure.</p>
+    <div class="cue"><b>Design point to land:</b> wire auth through one <code>withAuth</code> wrapper, not tool-by-tool. The fourth tool you add next month ships protected because it <em>can't</em> skip the wrapper.</div>
+  </section>
+
+  <!-- 11 — Concept: observability -->
+  <section class="slide">
+    <h2>You can't fix what you can't see</h2>
+    <p>The real question in production isn't "why did <em>my</em> query just do that" — it's <strong>"why did query #4,217 yesterday return nonsense, how slow are we, and what did it cost?"</strong></p>
+    <pre><code>trace: one user request — 3.2s
+ ├─ analyze_query   0.8s   out: hybrid, conditions=[diabetes]
+ ├─ execute_query   1.1s   out: 4 patients, 10 notes
+ └─ llm_answer      1.3s   in: rendered context  out: prose</code></pre>
+    <p class="sub">LLM failures are <em>statistical and silent</em> — you can't attach a debugger to yesterday. <strong>A trace is a debugger for the past.</strong></p>
+  </section>
+
+  <!-- 12 — Code walkthrough: traced() -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>Implement <code>traced()</code> — the flight recorder</h2>
+    <pre><code>// lib/langsmith.ts
+if (!isLangSmithEnabled()) return fn();   // observability never breaks the pipeline
+const run = new RunTree({ name, run_type, inputs, project_name });
+await run.postRun();
+try   { const r = await fn(); await run.end({ outputs: { r } }); return r; }
+catch (e) { await run.end({ error: String(e) }); throw e; }  // record, THEN re-throw</code></pre>
+    <p class="sub">The one trace field that pays for everything: <strong>what did the model actually receive?</strong> Half of "the AI hallucinated!" reports die in 30 seconds once you can read the exact context it was handed — usually the <em>context</em> was wrong, not the model.</p>
+  </section>
+
+  <!-- 13 — Concept: human-in-the-loop -->
+  <section class="slide">
+    <h2>The moment a system can <em>act</em>: does it act, or propose?</h2>
+    <p>Reads are safe. Today the system gets its first <em>write</em> — booking a real appointment. So the design question that outranks all others:</p>
+    <pre><code>"schedule Smith ──▶ detect intent ──▶ confirmation card ──▶ confirm ──▶ POST /api/schedule
+ for Tue at 2"     (LLM, structured)   (human reviews)    │           (code calls Cal.com)
+                                                          └─ cancel ─▶ nothing happens</code></pre>
+    <p class="sub"><strong>The model never holds the trigger.</strong> Its authority ends at <em>proposing</em> structured parameters; a human reviews the actual values and clicks confirm; only then does deterministic code act.</p>
+  </section>
+
+  <!-- 14 — Discussion: the reversibility grid -->
+  <section class="slide">
+    <span class="mode discuss">💬 Discussion</span>
+    <h2>Which actions are safe to automate — and which need a human?</h2>
+    <p>Sort these onto two axes: <strong>reversibility</strong> and <strong>cost of being wrong</strong>.</p>
+    <ul>
+      <li>Search a patient's records</li>
+      <li>Book an appointment on a real calendar</li>
+      <li>Send a refill request to a pharmacist</li>
+      <li>Send a referral letter under a doctor's name</li>
+    </ul>
+    <div class="cue"><b>Facilitate:</b> the question is never "can the model do it" — it's "what does wrong cost, and <b>who absorbs it</b>?" That's what decides the gate.</div>
+  </section>
+
+  <!-- 15 — Code together / mini-challenge: build day -->
+  <section class="slide">
+    <span class="mode challenge">🛠 Mini-challenge</span>
+    <h2>Build day: a fourth tool, end to end</h2>
+    <ul>
+      <li><strong>Spec first</strong> — name + description-as-prompt + zod params (the colleague-prediction test applies)</li>
+      <li><strong>Scope decision, written down</strong> — which scopes, one sentence why → add to <code>TOOL_SCOPES</code></li>
+      <li><strong>Auth + audit</strong> — same wrapper as the other three; structural, not bolted on</li>
+      <li><strong>Tracing</strong> — if it calls an LLM or retrieval, the recorder doesn't skip new aircraft</li>
+    </ul>
+    <div class="cue"><b>Land this:</b> don't show it <em>working</em> — show it <b>refusing, recording, and recovering</b>. The refusals are the deliverable.</div>
+  </section>
+
+  <!-- 16 — Research -->
+  <section class="slide">
+    <span class="mode research">🔍 Research</span>
+    <h2>Go find out</h2>
+    <ul>
+      <li>Your <code>read</code> key can't pull a named chart — but it <em>can</em> walk the whole database politely, one call at a time. Auth doesn't stop that. What does? (Look up rate limiting and anomaly detection.)</li>
+      <li>"next Tuesday" needs today's date, and the model doesn't reliably know it. Why resolve dates in <strong>code</strong>, not in the prompt — even though the model can <em>usually</em> do the math?</li>
+    </ul>
+    <p class="sub">Bring one finding back. The first question is a door nobody guards yet — you'll meet an attacker at it in the final block.</p>
+  </section>
+
+  <!-- 17 — Recap -->
+  <section class="slide">
+    <h2>Where you are</h2>
+    <ul>
+      <li>Your system is now <strong>infrastructure</strong> — tools any AI client can call</li>
+      <li>With <strong>identity and least privilege</strong> — keys + scopes, one per client</li>
+      <li>A <strong>flight recorder</strong> — every request traceable, replayable, priced</li>
+      <li>And one <strong>human-gated write path</strong> — the model proposes, a person confirms</li>
+    </ul>
+    <p class="lead">Friday's deliverable: the 2–3 min video — your new tool <em>and</em> its audit trail. Next week, the final block: the system gets locked down for <strong>people</strong>, attacked through its data, and judged end to end against the standard you've built all course — no metric, no decision.</p>
+  </section>
+
+</div>
+
+<div class="bar">
+  <span class="name">RAG &amp; AI Agents · Week 5 — MCP, observability, human-in-the-loop</span>
+  <span class="hint">← → to navigate · <span id="counter">1 / 17</span></span>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let i = 0;
+  const counter = document.getElementById('counter');
+  const progress = document.getElementById('progress');
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+    counter.textContent = (i + 1) + ' / ' + slides.length;
+    progress.style.width = ((i + 1) / slides.length * 100) + '%';
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(i + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+  });
+  document.getElementById('deck').addEventListener('click', (e) => {
+    show(i + (e.clientX < window.innerWidth / 2 ? -1 : 1));
+  });
+  show(0);
+</script>
+</body>
+</html>

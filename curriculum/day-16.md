@@ -85,10 +85,37 @@ Spend **no more than 45 minutes** here.
 2. Build two more hybrids from your own Day 1 query list (you labeled some `hybrid` — cash them in). For each: conditions, semantic query, and the top-3 results.
 3. Write the one-sentence rule for *where each constraint goes*, in your own words, in your notes. You'll reuse it when the system starts routing queries automatically.
 
+## Going further (optional): the *other* meaning of "hybrid search"
+
+Search the term "hybrid search" outside this course and you'll mostly find a **different** technique than the one you just built — worth knowing, because an interviewer or a vendor doc will assume you mean theirs.
+
+**What we mean by hybrid:** two *engines* — Postgres for exact facts, the vector index for meaning — picked per question. Two stores.
+
+**What the literature usually means:** two *signals* fused inside one search — **dense** vectors (the meaning-based scores you've been using) combined with **sparse** vectors (a keyword score, classically BM25, where each dimension is roughly a word). One store, two scores added together, because each catches what the other misses:
+
+- Dense search blurs rare exact tokens — a specific drug name, a lab code like `HbA1c`, an acronym — into "close enough," and can rank a near-synonym above the literal term you typed.
+- Sparse/keyword search nails the exact token but is blind to meaning — it can't connect "shortness of breath" to "dyspnea."
+
+```mermaid
+flowchart LR
+    Q[query] --> D["dense score<br/>(meaning)"]
+    Q --> S["sparse score<br/>(exact words)"]
+    D --> F[combine scores]
+    S --> F
+    F --> R[ranked results]
+```
+
+**So should you add sparse vectors here? Mostly no — and the reason is the whole architecture.** The job sparse search is famous for — matching exact terms like a drug name or a diagnosis code — is the job you've been handing to **Postgres**. Exact facts live in structured columns and get a `WHERE` clause; meaning-based prose lives in the vector index and gets dense search. The two-engine split already gives you the "exact token" half, cleanly, with a store that can also count and join. Bolting BM25 onto the vector side would re-solve a problem SQL already owns — and it isn't free: sparse-dense indexes force a specific distance metric, need a keyword encoder kept in sync with the corpus, and make scores harder to reason about.
+
+There's one honest seam where sparse *would* earn its place: a term that appears **only in free-text notes and never as structured data** — a symptom phrase, or a drug mentioned in a note but never coded into the medications table. SQL can't see it (not a column), and dense search can fuzz the exact string. That's the real home for sparse+dense fusion, and where reranking (coming up next) is the lighter-weight alternative most teams reach for first.
+
+The transferable judgment: **"hybrid" is two-of-something — but whether the second thing is another engine or another score depends on where your exact-match signal already lives.** Here it lives in Postgres, so we don't need sparse vectors. Name that tradeoff and you understand hybrid search better than most people shipping it.
+
 ## Check yourself
 
 - Why does the exact step run first? Give both the math reason and the correctness reason.
 - A colleague's hybrid for "anxiety patients mentioning chest pain" returns notes from patients with no anxiety diagnosis. List the two most likely bugs, in the order you'd check them.
+- "Hybrid search" can mean two engines or two scores (dense + sparse). In one sentence each, say what problem each version solves — and why this system uses the engine version.
 
 <details>
 <summary>Solution / discussion</summary>

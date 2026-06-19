@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Week 2 — Chunking · RAG &amp; AI Agents</title>
+<style>
+  :root {
+    --ink: #1b2330;
+    --muted: #5b6675;
+    --line: #e3e7ec;
+    --bg: #ffffff;
+    --panel: #f6f8fa;
+    --accent: #2563eb;       /* calm blue, no purple */
+    --code-bg: #f4f6f8;
+    /* engagement-mode accents, all muted */
+    --discuss: #b45309;      /* amber */
+    --code: #2563eb;         /* blue */
+    --challenge: #15803d;    /* green */
+    --research: #475569;     /* slate */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .deck { height: 100vh; position: relative; }
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 5vh 9vw 9vh;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .slide.active { display: flex; }
+  h1 { font-size: 2.6rem; line-height: 1.15; letter-spacing: -0.02em; }
+  h2 { font-size: 2rem; line-height: 1.2; letter-spacing: -0.01em; margin-bottom: 1.2rem; }
+  p, li { font-size: 1.25rem; line-height: 1.6; color: var(--ink); }
+  ul { padding-left: 1.3rem; }
+  li { margin: 0.5rem 0; }
+  .sub { color: var(--muted); font-size: 1.15rem; }
+  .lead { font-size: 1.45rem; color: var(--muted); margin-top: 0.8rem; }
+  strong { font-weight: 650; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.3rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: 1rem; line-height: 1.5; }
+
+  /* engagement-mode banner */
+  .mode { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.35rem 0.7rem; border-radius: 999px; margin-bottom: 1.4rem; align-self: flex-start; }
+  .mode.discuss { color: var(--discuss); background: #fef3e2; }
+  .mode.code { color: var(--code); background: #e8f0fe; }
+  .mode.challenge { color: var(--challenge); background: #e7f6ec; }
+  .mode.research { color: var(--research); background: #eef1f5; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 0.6rem; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem 1.4rem; background: var(--panel); }
+  .card h3 { font-size: 1.15rem; margin-bottom: 0.4rem; }
+  .card p { font-size: 1.05rem; color: var(--muted); }
+
+  /* instructor cue */
+  .cue { margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
+  .cue b { color: var(--ink); }
+
+  .title-wrap { gap: 0.4rem; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.95rem; }
+
+  /* footer / nav */
+  .bar { position: fixed; bottom: 0; left: 0; right: 0; height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 1.2rem; border-top: 1px solid var(--line); background: var(--bg); font-size: 0.85rem; color: var(--muted); }
+  .bar .name { font-weight: 600; color: var(--ink); }
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); transition: width 0.2s ease; }
+  .hint { font-size: 0.8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+  <!-- 1 — Title -->
+  <section class="slide active title-wrap">
+    <div class="kicker">Week 2 of 6 — Chunking</div>
+    <h1>Chunking: how big is one piece of text — and how we'll prove it</h1>
+    <p class="lead">By Friday: a 2–3 min video where you chunk a document you've never seen and defend your choices with numbers, not vibes.</p>
+  </section>
+
+  <!-- 2 — The week -->
+  <section class="slide">
+    <h2>This week</h2>
+    <ul>
+      <li><b>Mon</b> — Why chunking exists, and why our medical notes <em>don't</em> need it</li>
+      <li><b>Tue</b> — Bible lab I: naive chunking, and where it breaks</li>
+      <li><b>Wed</b> — Bible lab II: boundaries and overlap</li>
+      <li><b>Thu</b> — Metadata: the part everyone skips</li>
+      <li><b>Fri</b> — The five failure modes, then a solo build day (the Constitution)</li>
+    </ul>
+    <p class="sub" style="margin-top:1rem">Deliverable Friday: a 2–3 min video — chunk a brand-new document and defend your chunk size, boundaries, and overlap with measurements.</p>
+  </section>
+
+  <!-- 3 — Problem statement -->
+  <section class="slide">
+    <h2>The question every corpus forces on you</h2>
+    <p>Meaning-based search matches a user's question against stored <strong>pieces of text</strong>, and hands the best pieces to the LLM. So someone has to answer, for every corpus:</p>
+    <p class="lead"><strong>What is one piece?</strong></p>
+    <p class="sub">Too big: a 40-page document "mentions" diabetes, sleep, surgery, and billing — a mediocre match for all of them. Too small: <code>"And he said unto them"</code> matches confidently and tells you nothing. Said what? Who? To whom?</p>
+    <div class="cue"><b>Say it plainly:</b> chunking is just splitting documents into retrieval-sized pieces. The whole week is "how big, and where do you cut?"</div>
+  </section>
+
+  <!-- 4 — How it's solved / the twist -->
+  <section class="slide">
+    <h2>The move: decide from the data, not from habit</h2>
+    <p>Most tutorials make chunking "step 2 of every pipeline." That's the trap. Whether you chunk <em>at all</em> is a property of your corpus — and you find it by measuring.</p>
+    <div class="two">
+      <div class="card">
+        <h3>Our clinical notes</h3>
+        <p>~144,000 notes · ~450 chars each · one note = one topic, one date. <strong>Already a piece.</strong> Chunking it would only break it.</p>
+      </div>
+      <div class="card">
+        <h3>The King James Bible</h3>
+        <p>1 document · 4.3 <strong>million</strong> chars. Unusable as one piece. <strong>Must</strong> be chunked.</p>
+      </div>
+    </div>
+    <div class="cue"><b>Design point to land:</b> we learn chunking on the Bible <b>because</b> our notes don't need it. The contrast <em>is</em> the lesson — "no metric, no decision," applied to architecture.</div>
+  </section>
+
+  <!-- 5 — Discussion: measure first -->
+  <section class="slide">
+    <span class="mode discuss">💬 Discussion</span>
+    <h2>Chunk it or not? Decide from the number</h2>
+    <ul>
+      <li>Clinical notes — avg 450 chars, max ~3,000</li>
+      <li>Support-ticket transcripts — avg 80,000 chars</li>
+      <li>Tweets — avg 120 chars</li>
+      <li>Notes again — but one in a thousand is a 40,000-char discharge summary</li>
+    </ul>
+    <div class="cue"><b>Facilitate:</b> push them off "the average." The last one is the trap — an average can hide a monster. The rule isn't "is the average small," it's "is <em>every</em> document an acceptable piece."</div>
+  </section>
+
+  <!-- 6 — Concept: too big vs too small -->
+  <section class="slide">
+    <h2>The two ways a piece is wrong</h2>
+    <pre><code>TOO BIG                          TOO SMALL
+─────────────────────            ─────────────────────
+one chunk covers                 "And he said unto them"
+many topics                      → complete sentence,
+→ matches everything             → zero standalone meaning
+  a little, nothing well         → confident match, useless
+
+       the sweet spot: one self-contained thought,
+       big enough to mean something on its own</code></pre>
+    <p class="sub">There is no universal right answer. "Just use 512 with 50 overlap" is reciting a default, not making a decision. The week is about <em>how to make the decision</em>.</p>
+  </section>
+
+  <!-- 7 — Code walkthrough: download + shape -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>Get the corpus, read its shape</h2>
+    <pre><code>mkdir -p data/bible
+curl -o data/bible/kjv.txt \
+  https://www.gutenberg.org/cache/epub/10/pg10.txt
+head -120 data/bible/kjv.txt</code></pre>
+    <p class="sub">Three things to point at live: a <strong>Gutenberg license header</strong> that is NOT scripture (must be stripped), book titles as plain lines, and every verse prefixed <code>chapter:verse</code> like <code>1:1 In the beginning…</code> — built-in structure that pays off Wednesday.</p>
+  </section>
+
+  <!-- 8 — Code walkthrough: naive chunker -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>The simplest chunker: slice every 500 chars</h2>
+    <pre><code>npm run bible:fixed
+
+Corpus: 4,307,701 characters
+Chunks: 8,616 (size=500, overlap=0)</code></pre>
+    <p>Start of chunk 1000: <code>uses of the cities of the Levites…</code></p>
+    <p class="sub">A fixed window doesn't know what a word is. Chunk 999 ended on <code>ho</code>; chunk 1000 starts on <code>uses</code> — the word <strong>"houses"</strong> torn in half. Neither side owns it.</p>
+  </section>
+
+  <!-- 9 — Concept: measure the damage -->
+  <section class="slide">
+    <h2>Don't squint — measure</h2>
+    <pre><code>npm run bible:audit -- data/bible/chunks-fixed.jsonl
+
+chunks:               8,616
+size min/median/max:  201 / 500 / 500 chars
+starts mid-word:      7,634 (88.6%)
+ends mid-sentence:    8,339 (96.8%)
+has metadata:         0 (0.0%)</code></pre>
+    <p class="sub">"The chunks feel bad" starts arguments. <strong>"88.6% start mid-word"</strong> ends them. And <code>metadata: 0%</code> — a bill that comes due Thursday.</p>
+    <div class="cue"><b>Say it plainly:</b> a chunk is what gets <em>matched</em> AND what gets <em>read</em>. A broken edge doesn't just rank worse — the model fills in the torn-off half and <em>misleads</em>.</div>
+  </section>
+
+  <!-- 10 — Discussion: the size knob -->
+  <section class="slide">
+    <span class="mode discuss">💬 Discussion</span>
+    <h2>"I'll just pick a better size." Will that fix it?</h2>
+    <p>We can re-run at <code>--size 200</code> or <code>--size 2000</code>. Predict before we run: what happens to the 88.6% mid-word rate?</p>
+    <div class="cue"><b>Facilitate:</b> let them bet, then run it. The percentages barely move — 85–90% at every size. The flaw isn't the number; it's that <b>character positions don't align with meaning</b>, at any size. The knob you were given doesn't control the thing that's broken.</div>
+  </section>
+
+  <!-- 11 — Concept: cut on structure -->
+  <section class="slide">
+    <h2>The fix: let the document tell you where it bends</h2>
+    <p>The Bible arrives pre-jointed — verses are marked, books are titled. So instead of cutting every 500 chars, <strong>pack whole verses</strong>:</p>
+    <ul>
+      <li>add verses until the chunk reaches a target (~500 chars)</li>
+      <li><strong>never split a verse</strong> — overshooting the target is fine</li>
+      <li><strong>never cross a book boundary</strong> — Malachi's end and Matthew's start aren't one piece</li>
+    </ul>
+    <div class="cue"><b>Design point to land:</b> use the <b>strongest structure the corpus actually has</b>. Generic separator-splitting is for corpora with no real joints — this one declares its own.</div>
+  </section>
+
+  <!-- 12 — Concept: overlap -->
+  <section class="slide">
+    <h2>Overlap: insurance for the seams</h2>
+    <pre><code>chunk 0:  verses 1:1 … 1:6
+                       └── 1:6 repeated ──┐
+chunk 1:                  verses 1:6 … 1:11
+
+A question about "the firmament dividing the waters"
+might need 1:6 AND 1:7 together. Repeat the seam verse
+so whichever chunk is retrieved, the thought is whole.</code></pre>
+    <p class="sub">Cost is real: overlap duplicates text → more storage, more near-duplicates crowding results. It's a <strong>dial, not a virtue</strong>. We set it to 1 verse and let the audit say what we bought.</p>
+  </section>
+
+  <!-- 13 — Code together: smart chunker + compare -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>Chunk on structure, then compare the audits</h2>
+    <pre><code>npm run bible:smart        # Verses: 31,081 · Chunks: 9,737</code></pre>
+    <div class="two">
+      <div class="card">
+        <h3>fixed (Tue)</h3>
+        <p>mid-word starts <strong>88.6%</strong><br/>ends mid-sentence <strong>96.8%</strong><br/>has metadata <strong>0%</strong></p>
+      </div>
+      <div class="card">
+        <h3>structure-aware (Wed)</h3>
+        <p>mid-word starts <strong>0.0%</strong><br/>ends mid-sentence <strong>3.5%</strong><br/>has metadata <strong>100%</strong></p>
+      </div>
+    </div>
+    <p class="sub">We paid for it: max chunk is now <strong>1,675 chars</strong> (the longest verse, Esther 8:9, ships whole). We bought integrity and citability with size variance. Perfection isn't on the menu — <em>measured improvement</em> is.</p>
+  </section>
+
+  <!-- 14 — Concept: metadata -->
+  <section class="slide">
+    <h2>Metadata: the part everyone skips</h2>
+    <p>A chunk without metadata is a quote without a source. The <code>text</code> gets matched; the <code>metadata</code> does the three jobs text alone can't:</p>
+    <pre><code>Cite    "Where did this come from?"   → reference: "Psalms 48:10"
+Filter  "Search only in Psalms"       → book == "..." (a field)
+Debug   "Why did THIS chunk match?"   → find it in the source</code></pre>
+    <div class="cue"><b>Design point to land:</b> in our system <code>book</code> is <code>patientId</code>. Getting the filter wrong isn't a bad result — it's showing one patient's chart inside another patient's answer. <b>Decide metadata at chunking time</b>; afterward, provenance is gone.</div>
+  </section>
+
+  <!-- 15 — The five failure modes -->
+  <section class="slide">
+    <h2>The five chunking failure modes — each with a number</h2>
+    <ul>
+      <li><strong>1. Fragmentation</strong> — cuts mid-word/sentence → % starting mid-word</li>
+      <li><strong>2. Context orphaning</strong> — whole sentence, no meaning alone → min size, sampling</li>
+      <li><strong>3. Boundary straddling</strong> — answer spans a seam → overlap setting</li>
+      <li><strong>4. Anonymity</strong> — can't cite / filter / trace → % with metadata</li>
+      <li><strong>5. Wrong granularity</strong> — too big or too small → size vs the corpus's unit</li>
+    </ul>
+    <p class="sub">They <strong>trade against each other</strong>: never-split-a-verse killed fragmentation but created size variance. You don't solve chunking — you balance dials, for this corpus, with measurements.</p>
+  </section>
+
+  <!-- 16 — Mini-challenge: break it -->
+  <section class="slide">
+    <span class="mode challenge">🛠 Mini-challenge</span>
+    <h2>Make a failure mode appear on demand</h2>
+    <ul>
+      <li>Rebuild the smart chunks with <strong>zero overlap</strong>: <code>npm run bible:smart -- --overlap-verses 0</code></li>
+      <li>Look at two adjacent chunks at a seam — they now share no verse</li>
+      <li><strong>Write a question whose answer needs the last verse of one AND the first verse of the next.</strong> That question is now unanswerable from any single chunk.</li>
+      <li>Restore overlap to 1 afterward — and audit to prove the seam coverage came back</li>
+    </ul>
+    <div class="cue"><b>The point isn't the Bible</b> — it's holding boundary-straddling in your hands so you recognize it in any corpus.</div>
+  </section>
+
+  <!-- 17 — Research -->
+  <section class="slide">
+    <span class="mode research">🔍 Research</span>
+    <h2>Go find out</h2>
+    <ul>
+      <li>The most common general-purpose chunker splits on a cascade of separators (paragraphs → sentences → words). When is that the <strong>right</strong> choice — and why did we reject it for the Bible?</li>
+      <li>Some teams <strong>prepend generated context</strong> to each chunk before storing it. What problem is that solving that metadata fields alone can't?</li>
+    </ul>
+    <p class="sub">Bring one finding back. No single right answer — defend your reasoning with the five-mode vocabulary.</p>
+  </section>
+
+  <!-- 18 — Recap + deliverable -->
+  <section class="slide">
+    <h2>Where you are</h2>
+    <ul>
+      <li>You can decide <strong>whether to chunk at all</strong> from a measurement — and you proved one corpus that needed it and one that didn't</li>
+      <li>You mangled a corpus naively, <strong>measured</strong> the damage, then fixed it by respecting structure</li>
+      <li>You attached metadata, and you can name the <strong>five failure modes</strong> — each tied to a number</li>
+    </ul>
+    <p class="lead">Friday: chunk the <strong>US Constitution</strong> solo and defend it on camera. Next week: what actually happens to these chunks — how text becomes searchable by <em>meaning</em>.</p>
+  </section>
+
+</div>
+
+<div class="bar">
+  <span class="name">RAG &amp; AI Agents · Week 2 — Chunking</span>
+  <span class="hint">← → to navigate · <span id="counter">1 / 18</span></span>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let i = 0;
+  const counter = document.getElementById('counter');
+  const progress = document.getElementById('progress');
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+    counter.textContent = (i + 1) + ' / ' + slides.length;
+    progress.style.width = ((i + 1) / slides.length * 100) + '%';
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(i + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+  });
+  document.getElementById('deck').addEventListener('click', (e) => {
+    show(i + (e.clientX < window.innerWidth / 2 ? -1 : 1));
+  });
+  show(0);
+</script>
+</body>
+</html>
