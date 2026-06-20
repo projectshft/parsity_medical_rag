@@ -50,8 +50,9 @@ The break-it/extend step is non-negotiable — it's the difference between "watc
 - **Copy the `<style>` and `<script>` blocks from `week-1.html` verbatim** — same CSS variables, same nav. Decks must be visually identical across weeks; do not restyle.
 - Plain palette: white bg, ink text, **calm blue accent — NO purple**. The four engagement pills and their muted colors are fixed: `.discuss` amber, `.code` blue, `.challenge` green, `.research` slate.
 - Diagrams are **inline** — ASCII-art in a `<pre>` (like the week-1 architecture slide) or simple CSS cards. No external images, no `.excalidraw` files, no mermaid runtime.
-- Instructor cues live on slides in the `.cue` block ("Facilitate:", "Say it plainly:", "Design point to land:") — short, in-the-moment prompts. The *full* script is the runbook, not the slide.
-- Slide budget ~13–18. Title slide → "this week" day map → the arc → recap. At least one of each pill per deck.
+- Instructor cues use the `.cue` block ("Facilitate:", "Say it plainly:", "Design point to land:") — short, in-the-moment prompts. They are **presenter notes: hidden by default, NOT public-facing**, revealed only when the facilitator presses `N` (toggles `.notes` on `#deck`). Never put anything on a `.cue` that's fine for the room to read by default — the room never sees it unless toggled. The *full* script is the runbook, not the slide.
+- Slide budget ~13–18. Title slide → "this week" overview → the arc → recap. At least one of each pill per deck.
+- **The "this week" overview lists the block's topics in order — do NOT pin them to weekdays** (no "Mon — …", "Fri — …"). Students self-pace; the cohort may not run Mon–Fri. Same for the deliverable: say "by the end of the week" / "this week's deliverable", never "by Friday".
 - Slide text stays in the student-facing register (household meds, plain language).
 
 ## Runbook conventions (match `week-1-runbook.md`)

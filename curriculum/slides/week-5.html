@@ -62,8 +62,10 @@
   .card p { font-size: 1.05rem; color: var(--muted); }
 
   /* instructor cue */
-  .cue { margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
+  .cue { display: none; margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
   .cue b { color: var(--ink); }
+  .cue::before { content: "PRESENTER NOTE"; display: block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.35rem; }
+  .deck.notes .cue { display: block; background: #fbfbe8; }
 
   .title-wrap { gap: 0.4rem; }
   .kicker { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.95rem; }
@@ -83,20 +85,20 @@
   <section class="slide active title-wrap">
     <div class="kicker">Week 5 of 6 — MCP, observability, human-in-the-loop</div>
     <h1>Your RAG stops being an app and becomes infrastructure</h1>
-    <p class="lead">By Friday: a new tool that other AIs can call, locked behind a key with the right permissions, and a record of who used it.</p>
+    <p class="lead">By the end of the week: a new tool that other AIs can call, locked behind a key with the right permissions, and a record of who used it.</p>
   </section>
 
   <!-- 2 — The week -->
   <section class="slide">
     <h2>This week</h2>
     <ul>
-      <li><b>Mon</b> — MCP: turn your RAG into a tool other AI assistants can call</li>
-      <li><b>Tue</b> — Wire it into Claude Desktop and Cursor; watch them use it</li>
-      <li><b>Wed</b> — Secure it: API keys + permission scopes (read / read_pii / admin)</li>
-      <li><b>Thu</b> — Observability: tracing — a debugger for the past</li>
-      <li><b>Fri</b> — Human-in-the-loop scheduling, then a build day: a new tool with an audit trail</li>
+      <li>MCP: turn your RAG into a tool other AI assistants can call</li>
+      <li>Wire it into Claude Desktop and Cursor; watch them use it</li>
+      <li>Secure it: API keys + permission scopes (read / read_pii / admin)</li>
+      <li>Observability: tracing — a debugger for the past</li>
+      <li>Human-in-the-loop scheduling, then a build day: a new tool with an audit trail</li>
     </ul>
-    <p class="sub" style="margin-top:1rem">Deliverable Friday: a 2–3 min video demoing a <em>new</em> tool you added — and its audit trail.</p>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video demoing a <em>new</em> tool you added — and its audit trail.</p>
   </section>
 
   <!-- 3 — Problem statement -->
@@ -274,14 +276,14 @@ catch (e) { await run.end({ error: String(e) }); throw e; }  // record, THEN re-
       <li>A <strong>flight recorder</strong> — every request traceable, replayable, priced</li>
       <li>And one <strong>human-gated write path</strong> — the model proposes, a person confirms</li>
     </ul>
-    <p class="lead">Friday's deliverable: the 2–3 min video — your new tool <em>and</em> its audit trail. Next week, the final block: the system gets locked down for <strong>people</strong>, attacked through its data, and judged end to end against the standard you've built all course — no metric, no decision.</p>
+    <p class="lead">This week's deliverable: the 2–3 min video — your new tool <em>and</em> its audit trail. Next week, the final block: the system gets locked down for <strong>people</strong>, attacked through its data, and judged end to end against the standard you've built all course — no metric, no decision.</p>
   </section>
 
 </div>
 
 <div class="bar">
   <span class="name">RAG &amp; AI Agents · Week 5 — MCP, observability, human-in-the-loop</span>
-  <span class="hint">← → to navigate · <span id="counter">1 / 17</span></span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 17</span></span>
 </div>
 
 <script>
@@ -300,6 +302,7 @@ catch (e) { await run.end({ error: String(e) }); throw e; }  // record, THEN re-
     if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
     if (e.key === 'Home') show(0);
     if (e.key === 'End') show(slides.length - 1);
+    if (e.key === 'n' || e.key === 'N') document.getElementById('deck').classList.toggle('notes');
   });
   document.getElementById('deck').addEventListener('click', (e) => {
     show(i + (e.clientX < window.innerWidth / 2 ? -1 : 1));

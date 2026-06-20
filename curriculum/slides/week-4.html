@@ -62,8 +62,10 @@
   .card p { font-size: 1.05rem; color: var(--muted); }
 
   /* instructor cue */
-  .cue { margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
+  .cue { display: none; margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
   .cue b { color: var(--ink); }
+  .cue::before { content: "PRESENTER NOTE"; display: block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.35rem; }
+  .deck.notes .cue { display: block; background: #fbfbe8; }
 
   .title-wrap { gap: 0.4rem; }
   .kicker { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.95rem; }
@@ -83,20 +85,20 @@
   <section class="slide active title-wrap">
     <div class="kicker">Week 4 of 6 — Query understanding &amp; agents</div>
     <h1>Teaching the system to read the question — and to refuse the ones it can't answer</h1>
-    <p class="lead">By Friday: you've stopped routing queries by hand. An LLM reads each question, picks the engine, and answers only from the records — or says it can't.</p>
+    <p class="lead">By the end of the week: you've stopped routing queries by hand. An LLM reads each question, picks the engine, and answers only from the records — or says it can't.</p>
   </section>
 
   <!-- 2 — The week -->
   <section class="slide">
     <h2>This week</h2>
     <ul>
-      <li><b>Mon</b> — Structured outputs: make the LLM return <em>data</em>, not prose</li>
-      <li><b>Tue</b> — The query analyzer: pull intent + entities out of a question</li>
-      <li><b>Wed</b> — Orchestration: three paths through one system (a reading day)</li>
-      <li><b>Thu</b> — The chat agent: streaming, the grounding contract, tone</li>
-      <li><b>Fri</b> — Failure day (feed it bait), then a build day: eval your analyzer</li>
+      <li>Structured outputs: make the LLM return <em>data</em>, not prose</li>
+      <li>The query analyzer: pull intent + entities out of a question</li>
+      <li>Orchestration: three paths through one system (a reading day)</li>
+      <li>The chat agent: streaming, the grounding contract, tone</li>
+      <li>Failure day (feed it bait), then a build day: eval your analyzer</li>
     </ul>
-    <p class="sub" style="margin-top:1rem">Deliverable Friday: a 2–3 min video walking through your analyzer eval — what cases it covers, and what it caught.</p>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video walking through your analyzer eval — what cases it covers, and what it caught.</p>
   </section>
 
   <!-- 3 — Problem statement -->
@@ -317,14 +319,14 @@ vectorOk += a.requiresVector === c.expectVector ? 1 : 0;
       <li>You've attacked it with bait and turned each failure into a regression case</li>
       <li>The analyzer has a baseline number — judgment is now measured, not felt</li>
     </ul>
-    <p class="lead">Friday's deliverable: the 2–3 min analyzer-eval video. Next block: your system stops being an app and becomes <strong>infrastructure</strong> — a tool other AI assistants can call.</p>
+    <p class="lead">This week's deliverable: the 2–3 min analyzer-eval video. Next block: your system stops being an app and becomes <strong>infrastructure</strong> — a tool other AI assistants can call.</p>
   </section>
 
 </div>
 
 <div class="bar">
   <span class="name">RAG &amp; AI Agents · Week 4 — Query understanding &amp; agents</span>
-  <span class="hint">← → to navigate · <span id="counter">1 / 17</span></span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 17</span></span>
 </div>
 
 <script>
@@ -343,6 +345,7 @@ vectorOk += a.requiresVector === c.expectVector ? 1 : 0;
     if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
     if (e.key === 'Home') show(0);
     if (e.key === 'End') show(slides.length - 1);
+    if (e.key === 'n' || e.key === 'N') document.getElementById('deck').classList.toggle('notes');
   });
   document.getElementById('deck').addEventListener('click', (e) => {
     show(i + (e.clientX < window.innerWidth / 2 ? -1 : 1));

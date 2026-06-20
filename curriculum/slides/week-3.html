@@ -62,8 +62,10 @@
   .card p { font-size: 1.05rem; color: var(--muted); }
 
   /* instructor cue */
-  .cue { margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
+  .cue { display: none; margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
   .cue b { color: var(--ink); }
+  .cue::before { content: "PRESENTER NOTE"; display: block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.35rem; }
+  .deck.notes .cue { display: block; background: #fbfbe8; }
 
   .title-wrap { gap: 0.4rem; }
   .kicker { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.95rem; }
@@ -83,20 +85,20 @@
   <section class="slide active title-wrap">
     <div class="kicker">Week 3 of 6 — Embeddings &amp; vector search</div>
     <h1>Meaning as geometry — and how to search by it</h1>
-    <p class="lead">By Friday: a retrieval eval set you built from your own corpus — the instrument that turns "the search feels better" into a number.</p>
+    <p class="lead">By the end of the week: a retrieval eval set you built from your own corpus — the instrument that turns "the search feels better" into a number.</p>
   </section>
 
   <!-- 2 — The week -->
   <section class="slide">
     <h2>This week</h2>
     <ul>
-      <li><b>Mon</b> — Embeddings: meaning as geometry (turn text into numbers, measure similarity)</li>
-      <li><b>Tue</b> — Your first vector index: build the search by hand, then meet Pinecone</li>
-      <li><b>Wed</b> — Semantic search over real clinical notes</li>
-      <li><b>Thu</b> — Hybrid queries: SQL filters meet vector search</li>
-      <li><b>Fri</b> — When cosine lies (reranking), then a build day</li>
+      <li>Embeddings: meaning as geometry (turn text into numbers, measure similarity)</li>
+      <li>Your first vector index: build the search by hand, then meet Pinecone</li>
+      <li>Semantic search over real clinical notes</li>
+      <li>Hybrid queries: SQL filters meet vector search</li>
+      <li>When cosine lies (reranking), then a build day</li>
     </ul>
-    <p class="sub" style="margin-top:1rem">Deliverable Friday: a 2–3 min video walking through the retrieval eval set you built — and what it measured.</p>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video walking through the retrieval eval set you built — and what it measured.</p>
   </section>
 
   <!-- 3 — Problem statement -->
@@ -155,7 +157,7 @@ SOB vs earnings:   0.163   ← unrelated</code></pre>
       <li>A gibberish query still returns its "top" matches — at what score? What should the system <em>do</em> with that?</li>
       <li>If you can't trust an absolute threshold, how would you ever know your search is any good?</li>
     </ul>
-    <div class="cue"><b>Facilitate:</b> drive them to "scores are only meaningful relative to other candidates for the same query." That third bullet is Friday's deliverable in disguise — don't resolve it, let it ache.</div>
+    <div class="cue"><b>Facilitate:</b> drive them to "scores are only meaningful relative to other candidates for the same query." That third bullet is This week's deliverable in disguise — don't resolve it, let it ache.</div>
   </section>
 
   <!-- 8 — Under the hood: build by hand -->
@@ -308,14 +310,14 @@ const reranked  = await rerankResults(query, candidates, 5);</code></pre>
       <li>You built the search by hand, then stood up real semantic search over clinical notes</li>
       <li>You wired the hybrid pattern, added a reranker, and — above all — built the <strong>instrument</strong> that turns retrieval opinions into facts</li>
     </ul>
-    <p class="lead">Friday's deliverable: the 2–3 min video on your eval set and what it measured. Next: the system learns to read the <strong>user's</strong> question and route it to the right engine automatically.</p>
+    <p class="lead">This week's deliverable: the 2–3 min video on your eval set and what it measured. Next: the system learns to read the <strong>user's</strong> question and route it to the right engine automatically.</p>
   </section>
 
 </div>
 
 <div class="bar">
   <span class="name">RAG &amp; AI Agents · Week 3 — Embeddings &amp; vector search</span>
-  <span class="hint">← → to navigate · <span id="counter">1 / 19</span></span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 19</span></span>
 </div>
 
 <script>
@@ -334,6 +336,7 @@ const reranked  = await rerankResults(query, candidates, 5);</code></pre>
     if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
     if (e.key === 'Home') show(0);
     if (e.key === 'End') show(slides.length - 1);
+    if (e.key === 'n' || e.key === 'N') document.getElementById('deck').classList.toggle('notes');
   });
   document.getElementById('deck').addEventListener('click', (e) => {
     show(i + (e.clientX < window.innerWidth / 2 ? -1 : 1));

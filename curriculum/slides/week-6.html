@@ -62,8 +62,10 @@
   .card p { font-size: 1.05rem; color: var(--muted); }
 
   /* instructor cue */
-  .cue { margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
+  .cue { display: none; margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
   .cue b { color: var(--ink); }
+  .cue::before { content: "PRESENTER NOTE"; display: block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.35rem; }
+  .deck.notes .cue { display: block; background: #fbfbe8; }
 
   .title-wrap { gap: 0.4rem; }
   .kicker { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.95rem; }
@@ -83,20 +85,20 @@
   <section class="slide active title-wrap">
     <div class="kicker">Week 6 of 6 — Production gates &amp; capstone</div>
     <h1>Turning a demo into a system you can defend</h1>
-    <p class="lead">By Friday: one extension shipped and measured, plus the postmortem — the artifact that proves you built this, not just watched it work.</p>
+    <p class="lead">By the end of the week: one extension shipped and measured, plus the postmortem — the artifact that proves you built this, not just watched it work.</p>
   </section>
 
   <!-- 2 — The week -->
   <section class="slide">
     <h2>This week — the last one</h2>
     <ul>
-      <li><b>Mon</b> — The upload API: adding data without ever destroying it</li>
-      <li><b>Tue</b> — Login &amp; sessions: who is this caller?</li>
-      <li><b>Wed</b> — Roles: front-desk vs doctor see different things</li>
-      <li><b>Thu</b> — The poisoned document: a note that tries to hijack the model</li>
-      <li><b>Fri</b> — Evals as the spine, then ship the capstone</li>
+      <li>The upload API: adding data without ever destroying it</li>
+      <li>Login &amp; sessions: who is this caller?</li>
+      <li>Roles: front-desk vs doctor see different things</li>
+      <li>The poisoned document: a note that tries to hijack the model</li>
+      <li>Evals as the spine, then ship the capstone</li>
     </ul>
-    <p class="sub" style="margin-top:1rem">Deliverable Friday: a 3–5 min video + a written postmortem. This is the portfolio piece the whole course was building toward.</p>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 3–5 min video + a written postmortem. This is the portfolio piece the whole course was building toward.</p>
   </section>
 
   <!-- 3 — Problem statement: demo vs system -->
@@ -296,14 +298,14 @@ npm run test:evals   # LLM evals — paid, noisy, read as TRENDS not gates</code
     <h2>Where you are — and what you can now build</h2>
     <p>Week 1 you couldn't answer "what meds is this patient on?" and you learned why it needed <strong>two engines</strong>. Six weeks later that system routes its own queries, refuses what it shouldn't, knows who's asking and shapes what they see, can't corrupt its own data, and defends against documents trying to hijack it.</p>
     <p class="lead">You can build it, stress it, and <strong>defend every decision with a number</strong> — including the failures. That's the difference between describing RAG and having built one.</p>
-    <p class="sub" style="margin-top:1rem">Friday: the capstone video + postmortem. Make it the one where you sound like someone who built, broke, and measured a real system — because you did.</p>
+    <p class="sub" style="margin-top:1rem">By the end of the week: the capstone video + postmortem. Make it the one where you sound like someone who built, broke, and measured a real system — because you did.</p>
   </section>
 
 </div>
 
 <div class="bar">
   <span class="name">RAG &amp; AI Agents · Week 6 — Production gates &amp; capstone</span>
-  <span class="hint">← → to navigate · <span id="counter">1 / 18</span></span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 18</span></span>
 </div>
 
 <script>
@@ -322,6 +324,7 @@ npm run test:evals   # LLM evals — paid, noisy, read as TRENDS not gates</code
     if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
     if (e.key === 'Home') show(0);
     if (e.key === 'End') show(slides.length - 1);
+    if (e.key === 'n' || e.key === 'N') document.getElementById('deck').classList.toggle('notes');
   });
   document.getElementById('deck').addEventListener('click', (e) => {
     show(i + (e.clientX < window.innerWidth / 2 ? -1 : 1));

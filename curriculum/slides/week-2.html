@@ -62,8 +62,10 @@
   .card p { font-size: 1.05rem; color: var(--muted); }
 
   /* instructor cue */
-  .cue { margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
+  .cue { display: none; margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
   .cue b { color: var(--ink); }
+  .cue::before { content: "PRESENTER NOTE"; display: block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.35rem; }
+  .deck.notes .cue { display: block; background: #fbfbe8; }
 
   .title-wrap { gap: 0.4rem; }
   .kicker { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.95rem; }
@@ -83,20 +85,20 @@
   <section class="slide active title-wrap">
     <div class="kicker">Week 2 of 6 — Chunking</div>
     <h1>Chunking: how big is one piece of text — and how we'll prove it</h1>
-    <p class="lead">By Friday: a 2–3 min video where you chunk a document you've never seen and defend your choices with numbers, not vibes.</p>
+    <p class="lead">By the end of the week: a 2–3 min video where you chunk a document you've never seen and defend your choices with numbers, not vibes.</p>
   </section>
 
   <!-- 2 — The week -->
   <section class="slide">
     <h2>This week</h2>
     <ul>
-      <li><b>Mon</b> — Why chunking exists, and why our medical notes <em>don't</em> need it</li>
-      <li><b>Tue</b> — Bible lab I: naive chunking, and where it breaks</li>
-      <li><b>Wed</b> — Bible lab II: boundaries and overlap</li>
-      <li><b>Thu</b> — Metadata: the part everyone skips</li>
-      <li><b>Fri</b> — The five failure modes, then a solo build day (the Constitution)</li>
+      <li>Why chunking exists, and why our medical notes <em>don't</em> need it</li>
+      <li>Bible lab I: naive chunking, and where it breaks</li>
+      <li>Bible lab II: boundaries and overlap</li>
+      <li>Metadata: the part everyone skips</li>
+      <li>The five failure modes, then a solo build day (the Constitution)</li>
     </ul>
-    <p class="sub" style="margin-top:1rem">Deliverable Friday: a 2–3 min video — chunk a brand-new document and defend your chunk size, boundaries, and overlap with measurements.</p>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video — chunk a brand-new document and defend your chunk size, boundaries, and overlap with measurements.</p>
   </section>
 
   <!-- 3 — Problem statement -->
@@ -296,14 +298,14 @@ Debug   "Why did THIS chunk match?"   → find it in the source</code></pre>
       <li>You mangled a corpus naively, <strong>measured</strong> the damage, then fixed it by respecting structure</li>
       <li>You attached metadata, and you can name the <strong>five failure modes</strong> — each tied to a number</li>
     </ul>
-    <p class="lead">Friday: chunk the <strong>US Constitution</strong> solo and defend it on camera. Next week: what actually happens to these chunks — how text becomes searchable by <em>meaning</em>.</p>
+    <p class="lead">By the end of the week: chunk the <strong>US Constitution</strong> solo and defend it on camera. Next week: what actually happens to these chunks — how text becomes searchable by <em>meaning</em>.</p>
   </section>
 
 </div>
 
 <div class="bar">
   <span class="name">RAG &amp; AI Agents · Week 2 — Chunking</span>
-  <span class="hint">← → to navigate · <span id="counter">1 / 18</span></span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 18</span></span>
 </div>
 
 <script>
@@ -322,6 +324,7 @@ Debug   "Why did THIS chunk match?"   → find it in the source</code></pre>
     if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
     if (e.key === 'Home') show(0);
     if (e.key === 'End') show(slides.length - 1);
+    if (e.key === 'n' || e.key === 'N') document.getElementById('deck').classList.toggle('notes');
   });
   document.getElementById('deck').addEventListener('click', (e) => {
     show(i + (e.clientX < window.innerWidth / 2 ? -1 : 1));
