@@ -21,7 +21,13 @@
   - macOS Claude Desktop config: `~/Library/Application Support/Claude/claude_desktop_config.json`
   - Cursor: `.cursor/mcp.json` at the repo root
 - [ ] **A LangSmith project with at least one real trace already in it.** Run a few chat queries against the app before class so the tracing segment has something to open — don't generate the first trace live and hope it lands.
-- [ ] Two API keys minted ahead of time for the scopes demo: one with `['read']`, one with `['read', 'read_pii']`. Per `docs/CHALLENGE-MCP-AUTH.md`. Keep them in a scratch file you can paste from.
+- [ ] **Scope-demo keys set in `.env`** — there is no key-minting step; the keys are just strings you choose, and the server reads them from the environment (`mcp-server/auth.ts` → `checkEnvironmentKeys`):
+  ```bash
+  MCP_API_KEY=mcp_demo_read       # auth.ts maps this to read + read_pii
+  MCP_ADMIN_KEY=mcp_demo_admin    # → read + read_pii + admin
+  MCP_REQUIRE_AUTH=true           # turn the gate ON (unset/false = open server)
+  ```
+  The scope layout you're demoing (from `TOOL_SCOPES`): `search_patients`/`query_notes` need `read`; `get_patient`/`find_patient_by_name` need `read_pii`; `list_patients_by_condition` needs `admin`. So `MCP_API_KEY` can search *and* read patient detail but is **refused on the admin tool** — that's your clean boundary. (There's no env var for a `read`-only key; to demo the read→read_pii line specifically you'd register one in-process — optional, see the break-it bank.)
 - [ ] Terminals open: one for the MCP pipe/inspector, one tailing the client's MCP log:
   ```bash
   tail -f ~/Library/Logs/Claude/mcp-server-medical-rag.log
@@ -111,17 +117,18 @@ Then, in a fresh client conversation, ask in plain words (no tool names): *"How 
 - **Expected output:** the assistant picks `search_patients` (or `query_notes`), shows arguments, you approve, your code runs, and the answer is *their* model reading *your* formatted text.
 - **Most likely live failure:** tool *hangs*. First suspect is **stdout pollution** — a code path under the client's call pattern wrote to stdout and corrupted the JSON-RPC stream. Look in `~/Library/Logs/Claude/mcp-server-medical-rag.log` for the malformed line; fix is `console.error`. Second: invalid config JSON or a non-absolute path → server never appears at all (check the log's first lines). When in doubt, drop back to the pipe — "is it my server or the integration?" is one `tools/call` away.
 
-### Part 2 — the two-keys boundary (slides 9–10)
+### Part 2 — the scope boundary (slides 9–10)
 
-This is the security demo; it earns its slot. With the two pre-minted keys:
+This is the security demo; it earns its slot. The two env keys give you two callers:
 
 ```bash
-# read-only key — can search, but get_patient's full detail is denied
-# read + read_pii key — same call, full named detail comes back
+# MCP_API_KEY   → read + read_pii: can search AND read full patient detail,
+#                 but is DENIED on the admin tool
+# MCP_ADMIN_KEY → read + read_pii + admin: the same admin call succeeds
 ```
-Connect / call the same tool with each key (swap the key in the client's `env` block, or hit the server via the inspector with each key). Ask the *same* question through both.
-- **Narrate:** same system, two callers, two worlds. The `['read']` key gets results with PII obscured or a clean denial on `get_patient`; the `['read','read_pii']` key gets real names and dates. The denial is **readable text the model can relay to its human** — not a crash. That's scopes working, and it's a HIPAA technical control (minimum-necessary access + per-call audit) even though the slides don't say "HIPAA."
-- **Most likely live failure:** you edited the client config but didn't fully restart it — both clients read config at *startup*. Edit → full restart → test.
+Call the **admin-scoped** tool `list_patients_by_condition` with each key (swap the key in the client's `env` block, or hit the server via the inspector). Same tool, two callers, two outcomes.
+- **Narrate:** same system, two callers, two worlds. `MCP_API_KEY` gets a clean **denial** — "this key lacks the `admin` scope" — readable text the model relays to its human, not a crash. `MCP_ADMIN_KEY` gets the data. That's scopes working, and it's a HIPAA technical control (minimum-necessary access + per-call audit) even though the slides don't say "HIPAA."
+- **Most likely live failure:** you edited the client config but didn't fully restart it — both clients read config at *startup*. Edit → full restart → test. (Second suspect: `MCP_REQUIRE_AUTH` not `true`, so every call sails through and nothing is ever denied.)
 
 ### Part 3 — read a trace (slide 12)
 
@@ -140,10 +147,10 @@ Open one real hybrid-query trace and read it end to end. Point at, in order: the
 Run at least one live (the under-scoped key is the headline), then turn the room loose.
 
 **1. Call the server with no API key — or an under-scoped one (the headline).**
-- **Sabotage:** connect / call `get_patient` with no key at all, then with a `['read']`-only key.
-- **Expected failure:** no key → refused, "no API key presented." Under-scoped key → refused, "this key lacks the `read_pii` scope." Crucially, *both refusals are clean readable text the calling model receives* — not a thrown crash — **and both land in the audit log.**
-- **Fix:** present a key with the required scope; the same call now succeeds.
-- **Extend:** `grep`/`jq` the audit log and answer *"who tried to access patient X today, and were they denied?"* with a one-liner. A denial that isn't logged is a security bug — failed access is the most interesting access.
+- **Sabotage:** call `list_patients_by_condition` (the admin tool) with no key at all, then with `MCP_API_KEY` (read + read_pii, but *not* admin).
+- **Expected failure:** no key → refused, "API key is required." `MCP_API_KEY` → refused, "this key lacks the `admin` scope." Crucially, *both refusals are clean readable text the calling model receives* — not a thrown crash — **and both land in the audit log.**
+- **Fix:** present a key with the required scope (`MCP_ADMIN_KEY`); the same call now succeeds.
+- **Extend:** `grep`/`jq` the audit log and answer *"who tried to access patient X today, and were they denied?"* with a one-liner. A denial that isn't logged is a security bug — failed access is the most interesting access. (Want the read→read_pii denial too? Register a `['read']`-only key in the *same process* and call `get_patient` — registered keys live only in that process, so this is a small script, not an env var.)
 
 **2. Make the model "just book it" — bypass the human gate.**
 - **Sabotage:** wire the confirm action to post the *model's* extracted values directly to `/api/schedule` instead of the confirmation card's current (human-editable) values.
