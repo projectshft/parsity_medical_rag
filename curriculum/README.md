@@ -72,6 +72,9 @@ A hybrid RAG system over ~1,278 synthetic patients (Synthea Coherent dataset). Y
 
 ## Day index
 
+**Day Zero — Foundations (optional pre-work)**
+0. [Foundations: LLMs and vector math](day-00.md) — do this *before* Day 1 if "embedding," "vector," or "cosine similarity" are new to you. The course proves these by hand later; this is the map.
+
 **Days 1–6 — Foundations**
 1. [What RAG actually is (and why your LLM needs it)](day-01.md)
 2. [Setup: accounts, keys, and a running app](day-02.md)

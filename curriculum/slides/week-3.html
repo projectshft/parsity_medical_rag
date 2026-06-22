@@ -101,7 +101,29 @@
     <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video walking through the retrieval eval set you built — and what it measured.</p>
   </section>
 
-  <!-- 3 — Problem statement -->
+  <!-- 3 — Foundations recap (Day Zero) -->
+  <section class="slide">
+    <h2>Foundations recap</h2>
+    <p>Two ideas from the Day Zero pre-work that everything this week stands on. If they're fresh, skim; if not, do Day Zero first.</p>
+    <ul>
+      <li><strong>An LLM is a next-token predictor.</strong> It answers by predicting what comes next — which is why it can <em>read</em> records you hand it, but can't <em>search</em> them on its own.</li>
+      <li><strong>The missing piece is search by meaning.</strong> That's what we build this week — and it runs entirely on turning text into numbers.</li>
+    </ul>
+    <div class="cue"><b>Facilitate:</b> quick hands — who did Day Zero? Calibrate how long to linger on the next slide.</div>
+  </section>
+
+  <!-- 4 — Concept: what a vector is -->
+  <section class="slide">
+    <h2>A vector is just a list of numbers — a location</h2>
+    <p>Turn a piece of text into a list of numbers and you've placed it at a point in space. Do it for every note, and <strong>similar meanings land near each other</strong>:</p>
+    <pre><code>   "trouble breathing"  •   • "shortness of breath"
+                                 • "dyspnea"
+
+                                              • "quarterly earnings"</code></pre>
+    <p class="sub">Our model returns <strong>1,536 numbers</strong> per text — a point in 1,536-dimensional space. You can't picture 1,536 dimensions; two is enough for the intuition. <em>How</em> we measure "near" comes next.</p>
+  </section>
+
+  <!-- 5 — Problem statement -->
   <section class="slide">
     <h2>The promise we've been deferring</h2>
     <p>Since Week 1 we've said "a search that understands meaning." A user types <em>trouble breathing</em>; the note only says <em>shortness of breath</em>. Zero shared words — and we promised the system would still find it.</p>
@@ -109,7 +131,7 @@
     <div class="cue"><b>Say it plainly:</b> the hand-maintained synonym dictionary from Week 1 was the stand-in. This week we replace it with geometry learned from data.</div>
   </section>
 
-  <!-- 4 — Concept: embeddings + cosine -->
+  <!-- 6 — Concept: embeddings + cosine -->
   <section class="slide">
     <h2>An embedding turns text into a point in space</h2>
     <p>One sentence: <strong>an embedding turns text into a list of numbers, so that texts with similar meaning get nearby lists.</strong> Our model outputs <strong>1,536 numbers</strong> per text — a point in 1,536-dim space. Picture two dims instead:</p>
@@ -123,7 +145,7 @@
     <div class="cue"><b>Design point to land:</b> the geometry <em>is</em> the synonym dictionary — learned from data, not hand-typed.</div>
   </section>
 
-  <!-- 5 — Code walkthrough: the ladder -->
+  <!-- 7 — Code walkthrough: the ladder -->
   <section class="slide">
     <span class="mode code">💻 Code walkthrough</span>
     <h2>Measure the ladder yourself</h2>
@@ -136,7 +158,7 @@ SOB vs earnings:   0.163   ← unrelated</code></pre>
     <p class="sub">Synonyms ~0.70, same-domain ~0.33, unrelated ~0.16. The zero-shared-keyword pair scored <strong>0.701</strong> — that number is the entire reason the second half of this system exists.</p>
   </section>
 
-  <!-- 6 — Concept: the lie -->
+  <!-- 8 — Concept: the lie -->
   <section class="slide">
     <h2>Now watch it lie</h2>
     <p>Re-run with full sentences instead of bare phrases:</p>
@@ -147,7 +169,7 @@ SOB vs earnings:   0.163   ← unrelated</code></pre>
     <div class="cue"><b>Plant it:</b> not a bug to fix today. Two later pieces — filtering <em>before</em> the geometry, a second opinion <em>after</em> it — exist for exactly this.</div>
   </section>
 
-  <!-- 7 — Discussion -->
+  <!-- 9 — Discussion -->
   <section class="slide">
     <span class="mode discuss">💬 Discussion</span>
     <h2>"Is 0.6 a good score?"</h2>
@@ -160,7 +182,7 @@ SOB vs earnings:   0.163   ← unrelated</code></pre>
     <div class="cue"><b>Facilitate:</b> drive them to "scores are only meaningful relative to other candidates for the same query." That third bullet is This week's deliverable in disguise — don't resolve it, let it ache.</div>
   </section>
 
-  <!-- 8 — Under the hood: build by hand -->
+  <!-- 10 — Under the hood: build by hand -->
   <section class="slide">
     <span class="mode code">💻 Code walkthrough</span>
     <h2>Be the vector database — by hand, first</h2>
@@ -173,7 +195,7 @@ const ranked = corpus
     <p class="sub">Query <em>"caring for the people around you"</em> ranks <em>"Love your neighbour as yourself"</em> first — zero shared words. That <code>map → sort → take top</code> loop <strong>is what a vector database does.</strong> No extra magic in the box.</p>
   </section>
 
-  <!-- 9 — Concept: so why pay for Pinecone -->
+  <!-- 11 — Concept: so why pay for Pinecone -->
   <section class="slide">
     <h2>So why pay for a vector database?</h2>
     <p>If search is just that loop — two reasons, and only two:</p>
@@ -190,7 +212,7 @@ const ranked = corpus
     <div class="cue"><b>Land it:</b> everything else — metadata filtering, the API, the dashboard — is convenience around those two. Two index params are permanent: <b>dimensions 1536</b> (must match the model) and <b>metric cosine</b>.</div>
   </section>
 
-  <!-- 10 — Code walkthrough: real notes -->
+  <!-- 12 — Code walkthrough: real notes -->
   <section class="slide">
     <span class="mode code">💻 Code walkthrough</span>
     <h2>Real cargo: clinical notes, one note = one vector</h2>
@@ -201,7 +223,7 @@ const ranked = corpus
     <p class="sub">The promise from the first days of the course is now <em>your</em> code.</p>
   </section>
 
-  <!-- 11 — Concept: metadata filter / privacy -->
+  <!-- 13 — Concept: metadata filter / privacy -->
   <section class="slide">
     <h2>One new idea: filter inside the search</h2>
     <p>Pinecone can restrict the nearest-neighbor search to vectors whose metadata matches — searching one patient's 40 notes instead of all 144,000.</p>
@@ -210,7 +232,7 @@ const ranked = corpus
     <div class="cue"><b>Design point to land:</b> <code>patientId</code> is the privacy boundary, and this <code>filter</code> is where it's enforced — quality reason <em>and</em> safety reason.</div>
   </section>
 
-  <!-- 12 — Concept: hybrid -->
+  <!-- 14 — Concept: hybrid -->
   <section class="slide">
     <h2>Hybrid: facts narrow the world, meaning ranks what's left</h2>
     <p><em>"Sleep problems in patients with depression."</em> Neither engine alone: SQL's <code>LIKE '%sleep%'</code> misses "insomnia"; vector search finds sleep notes for <em>anyone</em>. Run them in order:</p>
@@ -225,7 +247,7 @@ const ranked = corpus
     <p class="sub"><strong>Exact filters narrow the world; semantic search ranks what's left.</strong> The exact step runs first — the math is quiet otherwise, and a fact is a <code>WHERE</code>, not a similarity score.</p>
   </section>
 
-  <!-- 13 — Mini-challenge: hybrid controls -->
+  <!-- 15 — Mini-challenge: hybrid controls -->
   <section class="slide">
     <span class="mode challenge">🛠 Mini-challenge</span>
     <h2>Prove the hybrid earns its keep</h2>
@@ -238,7 +260,7 @@ const ranked = corpus
     <div class="cue"><b>The point isn't the query</b> — it's the control. Plausible-looking results are the most dangerous kind; you beat them with counts, not by staring harder.</div>
   </section>
 
-  <!-- 14 — Concept: reranking -->
+  <!-- 16 — Concept: reranking -->
   <section class="slide">
     <h2>When cosine lies: a second opinion</h2>
     <p>Remember the lie — knee pain out-scored dyspnea. The root cause: <strong>an embedding summarizes each text separately, before any query exists.</strong> At search time you're comparing two blind summaries.</p>
@@ -248,7 +270,7 @@ const ranked = corpus
     <p class="sub">Cheap-and-broad finds candidates; expensive-and-careful orders them. Same logic as skimming 200 résumés and interviewing 6.</p>
   </section>
 
-  <!-- 15 — Code walkthrough: the funnel -->
+  <!-- 17 — Code walkthrough: the funnel -->
   <section class="slide">
     <span class="mode code">💻 Code walkthrough</span>
     <h2>Wire the funnel — and resist concluding anything</h2>
@@ -262,7 +284,7 @@ const reranked  = await rerankResults(query, candidates, 5);</code></pre>
     <div class="cue"><b>Heads up (it'll bite live):</b> no <code>COHERE_API_KEY</code> → the wrapper returns the <em>original</em> order, no error. If reranked == original always, suspect the key before the model.</div>
   </section>
 
-  <!-- 16 — Concept: no metric, no decision -->
+  <!-- 18 — Concept: no metric, no decision -->
   <section class="slide">
     <h2>"It felt better" is not evidence</h2>
     <p>You watched the order change and it <em>felt</em> like an improvement. But "the order changed" and "the results got better" are different claims — and the second needs <strong>ground truth</strong>: which notes are actually relevant? Nothing you've built knows that yet.</p>
@@ -270,7 +292,7 @@ const reranked  = await rerankResults(query, candidates, 5);</code></pre>
     <div class="cue"><b>Say it plainly:</b> plenty of real systems measure and drop the reranker; plenty keep it as their best upgrade. Today we build the instrument that tells you which kind yours is.</div>
   </section>
 
-  <!-- 17 — Build day: the eval set -->
+  <!-- 19 — Build day: the eval set -->
   <section class="slide">
     <span class="mode challenge">🛠 Mini-challenge</span>
     <h2>Build day: your retrieval eval set</h2>
@@ -284,7 +306,7 @@ const reranked  = await rerankResults(query, candidates, 5);</code></pre>
     <div class="cue"><b>Land it:</b> "is 73% good?" → the only honest answer is <em>compared to what?</em> Evals create differences, not grades. Keep a few pairs you never tune on.</div>
   </section>
 
-  <!-- 18 — Research: two meanings of hybrid -->
+  <!-- 20 — Research: two meanings of hybrid -->
   <section class="slide">
     <span class="mode research">🔍 Research</span>
     <h2>"Hybrid" can mean two engines — or two scores</h2>
@@ -302,7 +324,7 @@ const reranked  = await rerankResults(query, candidates, 5);</code></pre>
     <p class="sub">Go find out: why does <em>this</em> system get its exact-match half from Postgres instead of sparse vectors? Where's the one seam where sparse <em>would</em> earn its place? (Hint: a term that lives only in free-text notes, never as structured data.)</p>
   </section>
 
-  <!-- 19 — Recap -->
+  <!-- 21 — Recap -->
   <section class="slide">
     <h2>Where you are</h2>
     <ul>
@@ -317,7 +339,7 @@ const reranked  = await rerankResults(query, candidates, 5);</code></pre>
 
 <div class="bar">
   <span class="name">RAG &amp; AI Agents · Week 3 — Embeddings &amp; vector search</span>
-  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 19</span></span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 21</span></span>
 </div>
 
 <script>
