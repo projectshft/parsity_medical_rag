@@ -1,6 +1,6 @@
 # AI Engineering Certificate Program
 
-> **Reference copy.** This is a cleaned-up, reformatted version of the *Form B — Program Proposal for New Certificate Program* (May 2026) for the AI Engineering Certificate. It is a governance/accreditation document, kept here for reference. Note: the codebase and module breakdown described below correspond to the **`mini_rag`** course (vector-math, fine-tuning, agent architecture, text-to-SQL, etc.), not this `parsity_medical_rag` repo. OCR artifacts in the source (e.g. "deci0", "Missednnot", a merged salary line) have been corrected.
+> **Reference copy.** Cleaned-up, reformatted version of the *Form B — Program Proposal for New Certificate Program* (May 2026) for the AI Engineering Certificate that this repository's curriculum supports. This is the governance/accreditation document, kept here for reference. OCR artifacts in the source (e.g. "deci0", "Missednnot", a merged salary line) have been corrected.
 
 ---
 
