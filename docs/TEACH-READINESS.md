@@ -20,16 +20,14 @@
 
 ## Fix plan (prioritized)
 
-### P1 — teach-blockers (fix before the relevant block)
+### P1 — teach-blockers — ✅ FIXED 2026-06-28
 
-- [ ] **Upload challenge not teachable on `student`/`main`.** The failing spec `app/api/upload/route.test.ts` exists **only on `instructor`**; `student` and `main` carry the *old chunking-based* `app/api/upload/route.ts` (a working impl, not a stub) and **no failing test**. A student following Day 31 / `docs/CHALLENGE-UPLOAD-API.md` finds a mismatched route and nothing to drive.
-  - **Fix:** source of truth = `instructor`. Port `app/api/upload/route.test.ts` to `student` **and** `main`; replace the old route on `student` with a proper **stub** (fails on assertion, not import — per `docs/CHALLENGE-UPLOAD-API.md`); set `main`'s route to the **new solution** (match `instructor`, the dominant `main==instructor` pattern). Verify: spec **fails** on student, **passes** on instructor/main.
-- [ ] **MCP keys undocumented in `.env.example`.** `MCP_API_KEY` + `MCP_ADMIN_KEY` are read by `mcp-server/auth.ts:202,212` (gate read/read_pii vs admin scope) but absent from `.env.example`. Students doing the MCP security work (Day 27) hit a silent missing-key wall.
-  - **Fix:** add an MCP section to `.env.example` on all teaching branches (descriptions mirror `scripts/security/demo-mcp-auth.ts`).
+- [x] **Upload challenge now teachable on `student`/`main`.** `student` (73dc5f5): added the reference spec `app/api/upload/route.test.ts` + replaced the old chunking route with a 501 stub → **5 fail / 1 pass** (assignment red, fails on assertions not imports). `main` (60cd05e): adopted the prisma solution + spec → **6/6 pass**. `instructor` already correct.
+- [x] **MCP keys documented in `.env.example`** on all three branches (instructor 019a9e2, main 60cd05e, student 73dc5f5): `MCP_API_KEY` / `MCP_ADMIN_KEY` / `MCP_REQUIRE_AUTH`.
 
 ### P2 — polish
 
-- [ ] **`scripts/ingest-coherent.ts` whitespace drift.** `instructor` differs from `main`/`student` by tabs-vs-spaces only (zero logic). Reformat instructor to match (`git checkout main -- scripts/ingest-coherent.ts`).
+- [x] **`scripts/ingest-coherent.ts` whitespace drift** — fixed on instructor (019a9e2); now matches `main`/`student`.
 - [ ] **Bible lab missing on `main`.** `scripts/bible/*` + the `bible:*` npm scripts are on `instructor`/`student` but absent on `main`. No student impact (teaching branches agree), but the canonical branch lacks a released lab — forward-merge when convenient.
 - [ ] **6 Typeform deliverable links** still `PLACEHOLDER-DAYNN` (Days 6/12/18/24/30/36). Brian-owned; replace before each block's deliverable day.
 - [ ] **3 screenshots** flagged `<!-- TODO: capture screenshot -->`. Brian-owned (authenticated dashboards / live-class ingest).
@@ -44,7 +42,9 @@
 
 ## Cleanup (approved 2026-06-28)
 
-**Removed:** `.gstack/` (untracked scratch), `docs/WEEK1-INTRO.html`…`WEEK6-CAPSTONE.html` (6, superseded by `curriculum/slides/`), `scripts/process-fhir.ts` (dead), `docs/CURRICULUM-PLAN.md`, `docs/IMPLEMENTATION_PLAN.md` (stale planning). README references to the WEEK*.html updated.
+**Removed (on `instructor`, commit 019a9e2):** `.gstack/` (untracked scratch), `docs/WEEK1-INTRO.html`…`WEEK6-CAPSTONE.html` (6, superseded by `curriculum/slides/`), `scripts/process-fhir.ts` (dead), `docs/CURRICULUM-PLAN.md`, `docs/IMPLEMENTATION_PLAN.md` (stale planning). README references to the WEEK*.html updated.
+
+> **Consistency note:** these stale files were removed on `instructor` only — `main` still carries them (it's dev/canonical, not student-facing, so non-blocking). Propagate the same deletions to `main` when convenient.
 
 **Kept (intentional):** `scripts/generate-fhir.ts`, `scripts/create-subset.ts` (data-prep — may be used live with the class); `curriculum/assets/.gitkeep`.
 
