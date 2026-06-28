@@ -1,59 +1,76 @@
-import { z } from "zod";
-import { processBundle } from "@/lib/chunking";
-import { upsertChunks, MedicalChunk } from "@/lib/pinecone";
+/**
+ * Upload API — INSTRUCTOR REFERENCE SOLUTION (docs/CHALLENGE-UPLOAD-API.md)
+ *
+ * Ingests a single FHIR bundle through the new pipeline:
+ * - structured rows -> Postgres (additive, idempotent on re-upload)
+ * - clinical notes -> Pinecone, one note = one vector (no chunking)
+ *
+ * Stretch (CHALLENGE-RBAC.md): make this DOCTOR-only with
+ * `await requireAuth(request, ['DOCTOR'])`.
+ */
 
-const UploadRequestSchema = z.object({
-  records: z.array(
-    z.object({
-      name: z.string(),
-      content: z
-        .object({ resourceType: z.string() })
-        .passthrough(),
-    })
-  ),
-});
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { processBundle, FHIRBundle } from '@/lib/fhir-extract';
+import { upsertChunks } from '@/lib/pinecone';
+import { prisma } from '@/lib/prisma';
+
+const FHIRBundleSchema = z
+  .object({
+    resourceType: z.literal('Bundle'),
+    entry: z
+      .array(z.object({ resource: z.object({ resourceType: z.string() }).passthrough() }))
+      .optional(),
+  })
+  .passthrough();
 
 export async function POST(request: Request) {
   try {
-    const { records } = UploadRequestSchema.parse(await request.json());
+    const bundle = FHIRBundleSchema.parse(await request.json()) as FHIRBundle;
 
-    const allChunks: MedicalChunk[] = [];
-
-    for (const record of records) {
-      try {
-        const chunks = processBundle(
-          record.content as Parameters<typeof processBundle>[0],
-          record.name
-        );
-        allChunks.push(...chunks);
-      } catch (err) {
-        console.error(`Error processing ${record.name}:`, err);
-      }
-    }
-
-    if (allChunks.length === 0) {
-      return Response.json(
-        { error: "No valid FHIR resources found in uploaded files" },
+    const extracted = processBundle(bundle);
+    if (!extracted) {
+      return NextResponse.json(
+        { error: 'Bundle does not contain a Patient resource' },
         { status: 400 }
       );
     }
 
-    const upsertedCount = await upsertChunks(allChunks);
+    const { patient, conditions, observations, medications, notes } = extracted;
 
-    return Response.json({
+    // Additive + idempotent: upsert the patient, skip duplicate child rows.
+    // No deleteMany / deleteAllChunks here - clearing is the ingest script's job.
+    await prisma.patient.upsert({
+      where: { id: patient.id },
+      create: patient,
+      update: patient,
+    });
+    const [conditionResult, observationResult, medicationResult] = await Promise.all([
+      prisma.condition.createMany({ data: conditions, skipDuplicates: true }),
+      prisma.observation.createMany({ data: observations, skipDuplicates: true }),
+      prisma.medication.createMany({ data: medications, skipDuplicates: true }),
+    ]);
+
+    // Pinecone upserts are idempotent by vector id (the DocumentReference id)
+    const noteCount = notes.length > 0 ? await upsertChunks(notes) : 0;
+
+    return NextResponse.json({
       success: true,
-      recordsProcessed: records.length,
-      chunksCreated: upsertedCount,
+      patientId: patient.id,
+      inserted: {
+        conditions: conditionResult.count,
+        observations: observationResult.count,
+        medications: medicationResult.count,
+        notes: noteCount,
+      },
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return Response.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    console.error("Upload error:", error);
-    return Response.json(
-      {
-        error: error instanceof Error ? error.message : "Upload failed",
-      },
+    console.error('Upload error:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Upload failed' },
       { status: 500 }
     );
   }
