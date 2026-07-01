@@ -157,13 +157,12 @@ account: z.string()              →   "88341003"  ❌ invented</code></pre>
   <section class="slide">
     <h2>Point that pattern at the routing decision</h2>
     <p>The query analyzer is the same four steps aimed at a harder target: instead of extracting urgency from an email, it extracts a <strong>retrieval strategy</strong> from a question.</p>
-    <pre><code>     "how many diabetics take insulin?"
+    <pre><code>     "how many patients have diabetes?"
                     │
             analyzeQuery (LLM + schema)
                     │
    intent:        population_analytics
    conditions:    ['diabetes']
-   medications:   ['insulin']
    requiresSQL:   true
    requiresVector: false</code></pre>
     <p class="sub"><code>lib/query-analyzer.ts</code> — the schema's already written. The system prompt and few-shot examples are what you write. Your Day 1 query taxonomy, now executable.</p>
@@ -186,7 +185,7 @@ account: z.string()              →   "88341003"  ❌ invented</code></pre>
     <span class="mode discuss">💬 Discussion</span>
     <h2>Route each — and flag the ones to refuse</h2>
     <ul>
-      <li>"How many patients are on insulin?"</li>
+      <li>"How many patients have high blood pressure?"</li>
       <li>"Which patients mention dizziness when they stand up?"</li>
       <li>"What do the notes say about sleep for patients with depression?"</li>
       <li>"Did the patient improve?" <span class="sub">(which patient?)</span></li>

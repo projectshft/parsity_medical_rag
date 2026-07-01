@@ -25,21 +25,22 @@ If a laptop can't reach Pinecone or OpenAI, pair up — the by-hand and ladder d
 
 | Time | Arc segment | Slides | What to do |
 |---|---|---|---|
-| 0:00 | **Problem statement** | 1–3 | Cold open on the promise we've deferred since Week 1: "trouble breathing" must find a note that says "shortness of breath," zero shared words. No synonym table did that. Sit in the gap before naming embeddings. |
-| 0:08 | **High-level concept** | 4 | Embedding = text → point in space; cosine = "do they point the same way?" Land that cosine is a normalized dot product, and the geometry *is* the learned synonym dictionary. |
-| 0:18 | **Practical example** | 5 | The ladder, with the real numbers (0.701 / 0.327 / 0.163). The zero-shared-keyword pair at 0.701 is the whole reason engine two exists. |
-| 0:25 | **The honest limit** | 6 | Watch it lie: knee-pain sentence (0.622) beats dyspnea (0.597) on a shared template. Plant that two later pieces — filter-before, second-opinion-after — exist for this. |
-| 0:32 | **Discussion / breakout** | 7 | "Is 0.6 a good score?" Breakout if >8 people. Debrief with the answer key below — drive to *relative, not absolute*. |
-| 0:45 | **Code together (by hand)** | 8 | Be the vector database: embed a tiny corpus, embed a query, `map → sort → take top`. "Caring for the people around you" ranks "Love your neighbour" first. *This loop is what Pinecone does.* |
-| 0:58 | **Concept: why pay for it** | 9 | Only two reasons: persistence + speed at scale. Two permanent index params: dims 1536, metric cosine. |
-| 1:05 | **Code together (real notes)** | 10–11 | `npm run ingest -- --limit 50` (already done in pre-flight — show the log), then `searchClinicalNotes`. Run the Day 1 payoff queries live. Land the in-query filter = privacy boundary. |
-| 1:18 | **Concept + break-it: hybrid** | 12 | Facts narrow the world, meaning ranks what's left — SQL first, vectors second. Run the empty-filter privacy break (bank #2) live. |
-| 1:28 | **Mini-challenge: controls** | 13 | Turn them loose: hybrid + vector-only control, count the strangers in the global top-10. |
-| 1:38 | **Concept + code: reranking** | 14–15 | The funnel. Wire it live; trip the silent Cohere fallback (bank #1) so they see it once. |
-| 1:48 | **Spine rule + deliverable** | 16–17 | "No metric, no decision." Frame the eval set as the instrument; "is 73% good?" → *compared to what?* |
-| 1:55 | **Recap + send-off** | 18–19 | The two-meanings-of-hybrid research question (dense+sparse) + Friday deliverable framing + light forward ref: next block the LLM routes questions automatically. |
+| 0:00 | **Foundations recap** | 1–4 | Title + the week, then the two Day-Zero recap slides: an LLM is a next-token predictor; a vector is a list of numbers = a point in space (1,536 dims). Quick hands — who did Day Zero? — calibrate depth. |
+| 0:08 | **Problem statement** | 5 | Cold open on the promise we've deferred since Week 1: "trouble breathing" must find a note that says "shortness of breath," zero shared words. No synonym table did that. Sit in the gap before naming embeddings. |
+| 0:15 | **High-level concept** | 6 | Embedding = text → point in space; cosine = "do they point the same way?" Land that cosine is a normalized dot product, and the geometry *is* the learned synonym dictionary. |
+| 0:23 | **Practical example** | 7 | The ladder, with the real numbers (0.701 / 0.327 / 0.163). The zero-shared-keyword pair at 0.701 is the whole reason engine two exists. |
+| 0:30 | **The honest limit** | 8 | Watch it lie: knee-pain sentence (0.622) beats dyspnea (0.597) on a shared template. Plant that two later pieces — filter-before, second-opinion-after — exist for this. |
+| 0:36 | **Discussion / breakout** | 9 | "Is 0.6 a good score?" Breakout if >8 people. Debrief with the answer key below — drive to *relative, not absolute*. |
+| 0:48 | **Code together (by hand)** | 10 | Be the vector database: embed a tiny corpus, embed a query, `map → sort → take top`. *This loop is what Pinecone does.* |
+| 1:00 | **Concept: why pay for it** | 11 | Only two reasons: persistence + speed at scale. Two permanent index params: dims 1536, metric cosine. |
+| 1:06 | **Code together (real notes)** | 12–13 | `npm run ingest -- --limit 50` (already done in pre-flight — show the log), then `searchClinicalNotes`. Run the Day 1 payoff queries live. Land the in-query filter = privacy boundary. |
+| 1:18 | **Concept + break-it: hybrid** | 14 | Facts narrow the world, meaning ranks what's left — SQL first, vectors second. Run the empty-filter privacy break (bank #2) live. |
+| 1:28 | **Mini-challenge: controls** | 15 | Turn them loose: hybrid + vector-only control, count the strangers in the global top-10. |
+| 1:38 | **Concept + code: reranking** | 16–17 | The funnel. Wire it live; trip the silent Cohere fallback (bank #1) so they see it once. |
+| 1:48 | **Spine rule + deliverable** | 18–19 | "No metric, no decision." Frame the eval set as the instrument; "is 73% good?" → *compared to what?* |
+| 1:55 | **Recap + send-off** | 20–21 | The two-meanings-of-hybrid research slide (dense+sparse), then the recap: where you are + the deliverable framing. Light forward ref: next block the LLM routes questions automatically. |
 
-Runs long? The compressible segments are the ladder (0:18) and the why-pay concept (0:58) — **never** the by-hand code-together (0:45) or the eval-set spine landing (1:48). If you must cut a break-it, keep the empty-filter privacy one.
+Runs long? The compressible segments are the ladder (0:23) and the why-pay concept (1:00) — **never** the by-hand code-together (0:48) or the eval-set spine landing (1:48). If you must cut a break-it, keep the empty-filter privacy one.
 
 ---
 
@@ -129,9 +130,9 @@ Run at least the silent-fallback and the empty-filter privacy bug live — both 
 
 **1. The silent rerank fallback (the headline one).**
 - **Sabotage:** comment out / unset `COHERE_API_KEY`, then run the funnel (`searchChunks(query, 25)` → `rerankResults(query, candidates, 5)`).
-- **Expected failure:** **no error.** The reranked list comes back *identical* to the vector order. `rerankResults` in `lib/reranker.ts` deliberately returns the original order if the call fails — degraded search beats no search — so a missing key fails into a silent no-op.
+- **Expected failure:** the caller gets a list **identical** to the vector order. `rerankResults` in `lib/reranker.ts` catches the failed Cohere call, logs `Reranking failed, using original order`, and returns the original top-N — degraded search beats no search. The catch: nothing the *caller or the user* sees signals reranking stopped working (a red line in the server log is easy to miss).
 - **Fix:** restore the key. Reranked order now differs from cosine order on at least some queries.
-- **Extend:** make the fallback *loud* — have it `console.warn` when it falls back, and discuss the real tradeoff: silent degradation keeps the app up but hides a broken feature. Where would you want loud vs quiet? (Foreshadows Week 5 observability.)
+- **Extend:** it already `console.error`s — but that's invisible to the product. Make the degradation observable where it can be *acted on* (a metric, or a flag on the response), and discuss the tradeoff: silent degradation keeps the app up but hides a broken feature. Where do you want loud vs quiet? (Foreshadows Week 5 observability.)
 
 **2. The empty-`patientIds` filter privacy bug (from Day 16).**
 - **Sabotage:** run a hybrid where step 1 returns nothing — e.g. `getPatientIdsByConditions(['asthmaa'])` (typo) or a condition the mapping misses → `patientIds = []`. Pass that straight into `searchClinicalNotes(query, { patientIds: [] })`.
@@ -141,7 +142,7 @@ Run at least the silent-fallback and the empty-filter privacy bug live — both 
 
 **3. Reranking with no over-fetch.**
 - **Sabotage:** fetch 5 and rerank 5 (`searchChunks(query, 5)` → `rerankResults(query, candidates, 5)`).
-- **Expected failure:** the "reranked" list is the same 5 results, merely shuffled — the reranker has no depth to promote from.
+- **Expected failure:** the list comes back **identical** — with `results.length <= topN`, `rerankResults` early-returns the input unchanged and never even calls Cohere. No depth, nothing to promote from.
 - **Fix:** over-fetch — fetch 25, keep 5. A relevant note buried at #19 by cosine is invisible unless the funnel mouth is wide enough to include it.
 - **Extend:** sweep the funnel width (10 / 25 / 100) on one query and watch what gets rescued vs what it costs (latency, per-candidate price). Note you can't *judge* which width is right without an eval — straight into Day 18.
 

@@ -82,7 +82,7 @@ npm run test:run        # the RBAC + upload specs go green
 - **Narrate:** "This counter read `24 failed` since Day 2 — the progress bar of the whole course. RBAC complete means it reads `0 failed`. The tests were the spec; we discovered the behavior by making them pass."
 - **Expected output:** all green, including the upload `never clears existing data` test and the RBAC role/override tests.
 
-Then show the role-shaped behavior (point at the relevant specs / route, or run the UI if your network is stable):
+Then show the role-shaped behavior **via the RBAC specs** (`lib/auth.test.ts` + the query/schedule route tests) — not the running product: there's no login UI to assume a STAFF vs DOCTOR role in the app yet (the `seed-users` gap; closing it is a natural capstone extension). The specs pin all three:
 
 - **STAFF response** → name pseudonymized (`Patient-A7B3`), birth date `1975-XX-XX`, clinical content blocked. Same query as DOCTOR, *differently shaped* output — the diff is the lesson.
 - **STAFF asks for "diabetic patients"** → **403**, message names the category ("this query requires clinical access"), and deliberately does **not** count or hint at the matches. ("I can't show you the 14 diabetics" has already leaked that 14 match.)
@@ -172,4 +172,4 @@ A strong submission:
 - Scripts: `npm run test:run` (deterministic gate), `npm run test:evals` (paid LLM evals — `RUN_EVALS=1`)
 - Instructor context: `curriculum/INSTRUCTOR-NOTES.md` (HIPAA framing + known runnable-state gaps)
 - Deck: `week-6.html`
-- Final submission: the Day 36 Typeform (placeholder URL in `day-36.md` until provisioned)
+- Final deliverable: the capstone video + written postmortem (students submit via the link in their own day-36 materials — a student-facing detail, not the facilitator's concern)

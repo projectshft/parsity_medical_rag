@@ -98,6 +98,7 @@ Run in order, narrating each:
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | npx ts-node mcp-server/index.ts
 ```
 - **Narrate:** JSON back = the contract is *discoverable*. This is what Claude Desktop sees at connect time. The official `npx @modelcontextprotocol/inspector` is the friendly UI for the same thing; the pipe shows what's actually moving.
+- **Fallback (if no client is wired, or the wiring fails live):** run the *entire* MCP segment through the pipe above + `npx @modelcontextprotocol/inspector`. You lose the "a foreign model picks your tool" reveal, but you keep every teaching point — discovery, scopes, and the audit trail. Don't improvise a Claude Desktop fix in front of the room; drop to the inspector.
 
 ```jsonc
 // 2. Already in your client config from Pre-flight. Show it, don't edit it live.

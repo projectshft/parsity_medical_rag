@@ -12,6 +12,7 @@
 
 - [ ] Repo cloned on the **`student`** branch, `npm install` done, `.env` filled with `DATABASE_URL` (a Neon Postgres URL). Nothing else is needed this week — no OpenAI/Pinecone keys yet.
 - [ ] A terminal open in the repo, plus a second tab for `npm run db:studio`.
+- [ ] **The Synthea Coherent dataset unpacked into `data/coherent/fhir/`** (or the ~150-patient subset in `data/subset/`). The ingest reads bundles from there and errors with "FHIR directory not found" if it's missing — see `day-03.md` for the one-time download.
 - [ ] Run the happy path once yourself before class: `npm run db:push` then `npm run ingest -- --limit 50 --skip-vectors`. Confirm rows land in Studio. (If `db:push` complains the DB is non-empty, that's fine for a fresh Neon project.)
 - [ ] One real clinical note open in a text editor to read aloud (any `DocumentReference` in `data/coherent/fhir/`, base64-decoded — or just use the one on slide 7).
 - [ ] `week-1.html` open full-screen in a browser. Arrow keys / click to navigate.
@@ -74,8 +75,8 @@ npm run db:studio                               # browse the rows live
 Run at least one live, then let the room try the rest.
 
 **1. Break the condition mapping (the headline one).**
-- **Sabotage:** count a condition the synonym dictionary doesn't have yet — e.g. search the data for "asthma" with a naive `WHERE display = 'asthma'`.
-- **Expected failure:** returns **0**, even though asthmatic patients exist. Plausible-looking, silently wrong.
+- **Sabotage:** count a condition the synonym dictionary doesn't have yet. **Show it live in the already-open Prisma Studio:** filter the `Condition` table's `display` column for `asthma`. (Studio's exact-match filter *is* the naive `WHERE display = 'asthma'`.)
+- **Expected failure:** **0 rows**, even though asthmatic patients exist. Plausible-looking, silently wrong.
 - **Fix:** query the data for what it *actually* calls the condition, add the real phrasings to the dictionary, re-run. The count jumps from 0 to N.
 - **Extend:** have them record the before/after number. "It seems better" isn't done; "0 → 14" is done. This is the whole course in miniature — find a gap, fill it, verify with a number.
 
