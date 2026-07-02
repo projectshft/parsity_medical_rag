@@ -15,6 +15,15 @@ Picture a clinic. A doctor or front-desk worker has a question — *"What do thi
 
 You're building the assistant that closes that gap: **ask in plain English, get an answer grounded in the actual records** — from the structured half, the notes, or both — and get a refusal, not a guess, when the answer isn't there.
 
+Concretely, the finished assistant can:
+
+- **Count and filter** — *"how many patients have diabetes?"*, *"which patients have had a stroke?"*
+- **Pull up a patient** — their conditions, medications, labs, and visit history in one place
+- **Answer from the notes** — *"what do the notes say about this patient's back pain?"*
+- **Do both at once** — *"sleep problems in patients with depression"*: filter first, then search their notes
+- **Take an action a human confirms** — propose a follow-up appointment for staff to approve
+- **Refuse and protect** — decline what isn't in the records (or isn't its job), and show identifying details only to people allowed to see them
+
 Why it takes a whole course: doing this *credibly* on medical data — where a confidently wrong answer is worse than none — is the whole discipline of production AI engineering. You'll make it route each question to the right place, show identifying details only to people allowed to see them, log who looked at what, and — the part most tutorials skip — **measure** it, so "it feels better" becomes a number. Everything the industry means by "RAG" and "AI agents" lives in that one system.
 
 Every patient here is **synthetic** — statistically realistic but no real person — so you practice the exact safeguards a real system needs on data that's safe to break.
