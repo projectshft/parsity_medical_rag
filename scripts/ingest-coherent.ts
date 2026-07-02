@@ -29,6 +29,7 @@ async function clearDatabase() {
   await prisma.medication.deleteMany();
   await prisma.observation.deleteMany();
   await prisma.condition.deleteMany();
+  await prisma.encounter.deleteMany();
   await prisma.patient.deleteMany();
 }
 
@@ -72,6 +73,7 @@ async function main() {
   const conditions: ExtractedBundle['conditions'] = [];
   const observations: ExtractedBundle['observations'] = [];
   const medications: ExtractedBundle['medications'] = [];
+  const encounters: ExtractedBundle['encounters'] = [];
   const notes: MedicalChunk[] = [];
 
   for (const file of files) {
@@ -88,6 +90,7 @@ async function main() {
       conditions.push(...extracted.conditions);
       observations.push(...extracted.observations);
       medications.push(...extracted.medications);
+      encounters.push(...extracted.encounters);
       notes.push(...extracted.notes);
     } catch (err) {
       console.error(`  Error processing ${file}:`, err);
@@ -97,7 +100,7 @@ async function main() {
   console.log(
     `Extracted: ${patients.length} patients, ${conditions.length} conditions, ` +
       `${observations.length} observations, ${medications.length} medications, ` +
-      `${notes.length} clinical notes\n`
+      `${encounters.length} encounters, ${notes.length} clinical notes\n`
   );
 
   // --- Postgres ---
@@ -116,6 +119,9 @@ async function main() {
   );
   await insertBatched('medications', medications, (batch) =>
     prisma.medication.createMany({ data: batch, skipDuplicates: true })
+  );
+  await insertBatched('encounters', encounters, (batch) =>
+    prisma.encounter.createMany({ data: batch, skipDuplicates: true })
   );
 
   // --- Pinecone ---

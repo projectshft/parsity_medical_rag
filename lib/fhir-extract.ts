@@ -111,6 +111,20 @@ export function extractObservation(resource: FHIRResource, patientId: string) {
   };
 }
 
+export function extractEncounter(resource: FHIRResource, patientId: string) {
+  return {
+    id: resource.id,
+    patientId,
+    // HL7 v3 ActCode: AMB (ambulatory) | EMER (emergency) | IMP (inpatient)
+    classCode: resource.class?.code ?? null,
+    type: resource.type?.[0]?.coding?.[0]?.display ?? resource.type?.[0]?.text ?? null,
+    status: resource.status ?? null,
+    startDate: toDate(resource.period?.start),
+    endDate: toDate(resource.period?.end),
+    serviceProvider: resource.serviceProvider?.display ?? null,
+  };
+}
+
 export function extractMedication(resource: FHIRResource, patientId: string) {
   const coding = resource.medicationCodeableConcept?.coding?.[0];
   return {
@@ -161,6 +175,7 @@ export interface ExtractedBundle {
   conditions: ReturnType<typeof extractCondition>[];
   observations: ReturnType<typeof extractObservation>[];
   medications: ReturnType<typeof extractMedication>[];
+  encounters: ReturnType<typeof extractEncounter>[];
   notes: MedicalChunk[];
 }
 
@@ -176,6 +191,7 @@ export function processBundle(bundle: FHIRBundle): ExtractedBundle | null {
   const conditions: ExtractedBundle['conditions'] = [];
   const observations: ExtractedBundle['observations'] = [];
   const medications: ExtractedBundle['medications'] = [];
+  const encounters: ExtractedBundle['encounters'] = [];
   const notes: MedicalChunk[] = [];
 
   for (const resource of resources) {
@@ -189,6 +205,9 @@ export function processBundle(bundle: FHIRBundle): ExtractedBundle | null {
       case 'MedicationRequest':
         medications.push(extractMedication(resource, patient.id));
         break;
+      case 'Encounter':
+        encounters.push(extractEncounter(resource, patient.id));
+        break;
       case 'DocumentReference': {
         const note = extractNote(resource, patient.id, patientName);
         if (note) notes.push(note);
@@ -197,5 +216,5 @@ export function processBundle(bundle: FHIRBundle): ExtractedBundle | null {
     }
   }
 
-  return { patient, conditions, observations, medications, notes };
+  return { patient, conditions, observations, medications, encounters, notes };
 }
