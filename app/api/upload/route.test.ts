@@ -11,6 +11,7 @@ vi.mock('@/lib/prisma', () => ({
     condition: { createMany: vi.fn(async () => ({ count: 1 })), deleteMany: vi.fn() },
     observation: { createMany: vi.fn(async () => ({ count: 2 })), deleteMany: vi.fn() },
     medication: { createMany: vi.fn(async () => ({ count: 1 })), deleteMany: vi.fn() },
+    encounter: { createMany: vi.fn(async () => ({ count: 1 })), deleteMany: vi.fn() },
   },
 }));
 
@@ -71,6 +72,16 @@ const fixtureBundle = {
     },
     {
       resource: {
+        resourceType: 'Encounter',
+        id: 'enc-1',
+        status: 'finished',
+        class: { code: 'AMB' },
+        type: [{ coding: [{ display: 'Encounter for problem' }] }],
+        period: { start: '1926-06-19T02:05:40-04:00', end: '1926-06-19T02:20:40-04:00' },
+      },
+    },
+    {
+      resource: {
         resourceType: 'DocumentReference',
         id: 'doc-1',
         type: { coding: [{ display: 'History and physical note' }] },
@@ -102,7 +113,7 @@ describe('POST /api/upload', () => {
     expect(body).toMatchObject({
       success: true,
       patientId: 'patient-123',
-      inserted: { conditions: 1, observations: 2, medications: 1, notes: 1 },
+      inserted: { conditions: 1, observations: 2, medications: 1, encounters: 1, notes: 1 },
     });
   });
 

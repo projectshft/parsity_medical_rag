@@ -102,6 +102,18 @@ const fullBundle: FHIRBundle = {
         subject: { reference: 'urn:uuid:patient-123' },
       },
     },
+    {
+      resource: {
+        resourceType: 'Encounter',
+        id: 'enc-1',
+        status: 'finished',
+        class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB' },
+        type: [{ coding: [{ display: 'Encounter for problem' }] }],
+        period: { start: '2001-05-10T02:05:40-04:00', end: '2001-05-10T02:20:40-04:00' },
+        serviceProvider: { display: 'PCP123' },
+        subject: { reference: 'urn:uuid:patient-123' },
+      },
+    },
     { resource: makeDocumentReference() },
     { resource: makeDocumentReference({ id: 'doc-2' }) },
     // Resources we intentionally don't extract should be ignored, not crash
@@ -249,6 +261,18 @@ describe('processBundle (structured rows)', () => {
         id: 'med-1',
         display: 'Simvastatin 10 MG Oral Tablet',
         status: 'stopped',
+      }),
+    ]);
+  });
+
+  it('extracts encounters with class code, type, and status', () => {
+    expect(extracted.encounters).toEqual([
+      expect.objectContaining({
+        id: 'enc-1',
+        patientId: 'patient-123',
+        classCode: 'AMB',
+        type: 'Encounter for problem',
+        status: 'finished',
       }),
     ]);
   });

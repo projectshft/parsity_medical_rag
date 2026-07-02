@@ -39,6 +39,7 @@ model Patient {
   conditions   Condition[]
   observations Observation[]
   medications  Medication[]
+  encounters   Encounter[]
 
   @@index([lastName, firstName])
   @@map("patients")
@@ -93,4 +94,21 @@ model Medication {
   @@index([patientId])
   @@index([display])
   @@map("medications")
+}
+
+model Encounter {
+  id              String    @id
+  patientId       String
+  classCode       String? // HL7 v3 ActCode: AMB (ambulatory) | EMER (emergency) | IMP (inpatient)
+  type            String? // e.g. "Encounter for problem", "General examination of patient"
+  status          String? // finished | in-progress | planned | cancelled
+  startDate       DateTime?
+  endDate         DateTime?
+  serviceProvider String? // organization display, if present
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([classCode])
+  @@map("encounters")
 }
