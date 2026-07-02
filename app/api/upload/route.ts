@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { patient, conditions, observations, medications, notes } = extracted;
+    const { patient, conditions, observations, medications, encounters, notes } = extracted;
 
     // Additive + idempotent: upsert the patient, skip duplicate child rows.
     // No deleteMany / deleteAllChunks here - clearing is the ingest script's job.
@@ -45,10 +45,11 @@ export async function POST(request: Request) {
       create: patient,
       update: patient,
     });
-    const [conditionResult, observationResult, medicationResult] = await Promise.all([
+    const [conditionResult, observationResult, medicationResult, encounterResult] = await Promise.all([
       prisma.condition.createMany({ data: conditions, skipDuplicates: true }),
       prisma.observation.createMany({ data: observations, skipDuplicates: true }),
       prisma.medication.createMany({ data: medications, skipDuplicates: true }),
+      prisma.encounter.createMany({ data: encounters, skipDuplicates: true }),
     ]);
 
     // Pinecone upserts are idempotent by vector id (the DocumentReference id)
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
         conditions: conditionResult.count,
         observations: observationResult.count,
         medications: medicationResult.count,
+        encounters: encounterResult.count,
         notes: noteCount,
       },
     });
