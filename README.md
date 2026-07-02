@@ -114,10 +114,7 @@ medical-rag/
 ├── scripts/
 │   └── ingest-coherent.ts  # Data ingestion
 ├── data/                   # Patient data (Synthea)
-└── docs/
-    ├── WEEK1-INTRO.html    # Presentations
-    ├── WEEK2-CHUNKING.html
-    └── ...
+└── docs/                   # Challenge specs + reference docs
 ```
 
 ---
