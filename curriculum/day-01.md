@@ -4,9 +4,20 @@
 
 ## Today you will
 
+- See what you're building — and why a clinic can't answer these questions today
 - Understand the one problem RAG exists to solve
 - Trace a query through the system you'll build in this course
 - Identify the two *kinds* of questions a medical records system must answer — and why one database can't serve both
+
+## What you're building, and why
+
+Picture a clinic. A doctor or front-desk worker has a question — *"What do this patient's notes say about their back pain?"*, *"Which diabetics haven't been seen in over a year?"* — and the answer is *somewhere* in the records. But "the records" aren't one thing. Half the story lives in **structured rows**: diagnoses, medications, lab values, visit dates. The other half lives in **free-text notes** — the actual narrative of each visit, written in prose. Neither half answers a real question alone, and nobody has time to read across both, by hand, for every question.
+
+You're building the assistant that closes that gap: **ask in plain English, get an answer grounded in the actual records** — from the structured half, the notes, or both — and get a refusal, not a guess, when the answer isn't there.
+
+Why it takes a whole course: doing this *credibly* on medical data — where a confidently wrong answer is worse than none — is the whole discipline of production AI engineering. You'll make it route each question to the right place, show identifying details only to people allowed to see them, log who looked at what, and — the part most tutorials skip — **measure** it, so "it feels better" becomes a number. Everything the industry means by "RAG" and "AI agents" lives in that one system.
+
+Every patient here is **synthetic** — statistically realistic but no real person — so you practice the exact safeguards a real system needs on data that's safe to break.
 
 ## Concept
 
