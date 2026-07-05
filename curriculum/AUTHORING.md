@@ -2,6 +2,37 @@
 
 Working doc for building the day-by-day curriculum in batches. **Update the status table every batch.** The template and rules here are the spec — every day file must follow them so the course reads in one voice.
 
+## ▶▶ RESTRUCTURE IN PROGRESS (2026-07-05) — read this first
+
+Brian is re-sequencing the 6-week live structure. The **README "Week index" is the new canonical map**; day files + slide decks still carry old 6-days/week numbering and are being reconciled to it. Decisions (all confirmed by Brian):
+
+**New 6-week shape:**
+1. **Stand up the whole system** — RAG, setup, data, SQL half, **+ vector ingest (both engines live), first hybrid answer**. (Was: Foundations, SQL only.)
+2. **Embeddings & semantic search** — open the black box: vectors, cosine, `searchClinicalNotes`, hybrid, reranking, retrieval evals. (Was Week 3.)
+3. **Query understanding & agents** (was Week 4).
+4. **MCP + observability + HITL** — combined into one week (was Week 5).
+5. **Production gates** — upload API, RBAC, PII (was Week 6, minus capstone/evals/poisoned).
+6. **Light: evals as the spine + capstone** — deliberate wind-down.
+
+**Two labs become HOMEWORK (📝), not live weeks** — both already self-contained with tests:
+- **Chunking (Bible lab)** — attached to Week 2. Deliverable = pick a chunking strategy, defend it, run the script. Keep `scripts/bible/`; collapse the live treatment.
+- **Poisoned / adversarial documents** — attached to Week 5. `docs/CHALLENGE-POISONED-DOCS.md` + `lib/security/content-validator.ts` already exist; this is the homework.
+
+**Two MUST-HIT content points in the rewrite:**
+- **W1 — embeddings as a black box.** Students run the full `npm run ingest` (both stores) in Week 1 without embeddings theory. Frame it: "this makes notes searchable by *meaning* — we open the box in Week 2." This intentionally REVERSES the old "no embeddings before Day 13" rule (rule 14) — that rule is now relaxed for W1's black-box framing only.
+- **W1 — why vectors, not just SQL/keyword search on the notes.** Explicitly answer "why not `LIKE '%shortness of breath%'` the notes column?" → keyword/SQL matches *letters, not meaning*; it finds nothing in a note that says "dyspnea on exertion" / "winded climbing stairs" — same clinical fact, zero shared words. This is the core motivation for the vector engine and MUST be explicit in Week 1 now that vectors go live there.
+
+**Execution phases (do in order, commit each):**
+1. ✅ Spine: README "Week index" rewritten; this tracker. (2026-07-05)
+2. ⬜ Week 1: add the vector-ingest black-box beat + the "why not SQL-search notes" explanation; Build day → "first hybrid answer" (needs vectors). Touch day-05/06 + week-1 deck/runbook.
+3. ⬜ Week 2: adapt embeddings intro (vectors already live from W1 — now explain them); fold Chunking to a homework doc; retire the standalone chunking deck/runbook; renumber week-3 embeddings deck → week-2.
+4. ⬜ Weeks 3–4: relabel (old W4 agents → W3; old W5 MCP/obs/HITL → W4). Mostly deck kicker/footer + README done.
+5. ⬜ Week 5: production gates minus poisoned-docs (→ homework); add a build-day deliverable.
+6. ⬜ Week 6: trim to evals + capstone (light).
+7. ⬜ Day-file renumbering + INSTRUCTOR-NOTES + slide-deck kickers/counters reconciled to the new week map.
+
+Everything below predates the restructure — treat as historical until reconciled.
+
 ## ▶ Pick up here (updated 2026-06-13 — ALL 36 DAYS DONE)
 
 **The curriculum is content-complete.** No more day files to write. What remains before students can use it, in priority order:

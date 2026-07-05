@@ -70,70 +70,68 @@ A hybrid RAG system over ~1,278 synthetic patients (Synthea Coherent dataset). Y
 4. **Exposure** — your RAG becomes a tool AI assistants can call, with tracing and human-in-the-loop actions
 5. **The production gates** — auth, PII handling, adversarial inputs, evals: what separates a demo from a system
 
-## Day index
+## Week index
+
+Six live weeks. Each ends with a short video deliverable (🎥). Two labs run as
+**homework** (📝) rather than live sessions — they're self-contained, with their
+own tests, and reclaim live time for the core build.
 
 **Day Zero — Foundations (optional pre-work)**
-0. [Foundations: LLMs and vector math](day-00.md) — do this *before* Day 1 if "embedding," "vector," or "cosine similarity" are new to you. The course proves these by hand later; this is the map.
+- [Foundations: LLMs and vector math](day-00.md) — do this *before* Week 1 if "embedding," "vector," or "cosine similarity" are new to you.
 
-**Days 1–6 — Foundations**
-1. [What RAG actually is (and why your LLM needs it)](day-01.md)
-2. [Setup: accounts, keys, and a running app](day-02.md)
-3. [Meet the data: FHIR bundles and 1,278 synthetic patients](day-03.md)
-4. [Postgres + Prisma: the structured half](day-04.md)
-5. [The SQL half of hybrid RAG](day-05.md)
-6. [Build day: your first end-to-end feature](day-06.md) 🎥
+**Week 1 — Stand up the whole system**
+Both retrieval engines live by the end of the week; embeddings ride along as a black box you open in Week 2.
+- [What RAG actually is (and why your LLM needs it)](day-01.md)
+- [Setup: accounts, keys, and a running app](day-02.md)
+- [Meet the data: FHIR bundles and synthetic patients](day-03.md)
+- [Postgres + Prisma: the structured half](day-04.md)
+- [The SQL half of hybrid RAG](day-05.md)
+- [Load the vectors, ask the first hybrid question](day-06.md) 🎥 — run the full ingest (Postgres **and** the vector index) and get a grounded answer end to end
 
-*Rest day.*
+**Week 2 — Embeddings & semantic search**
+Open the black box from Week 1: what a vector *is*, and how meaning-based search actually works.
+- [Embeddings: meaning as geometry](day-13.md)
+- [The vector index up close](day-14.md)
+- [Semantic search over clinical notes](day-15.md)
+- [Hybrid queries: SQL filters meet vector search](day-16.md)
+- [When cosine similarity lies: reranking](day-17.md)
+- [Build day: your retrieval eval set](day-18.md) 🎥
+- 📝 **Homework — Chunking (the Bible lab):** pick a chunking strategy, defend it, and run the script. [Start here](day-07.md) · uses `scripts/bible/`
 
-**Days 7–12 — Chunking (the Bible lab)**
-7. [Why chunking exists — and why our medical notes don't need it](day-07.md)
-8. [Bible lab I: naive chunking and where it breaks](day-08.md)
-9. [Bible lab II: boundaries and overlap](day-09.md)
-10. [Metadata: the part everyone skips](day-10.md)
-11. [The five chunking failure modes, measured](day-11.md)
-12. [Your turn: chunk a document you've never seen](day-12.md) 🎥
+**Week 3 — Query understanding & agents**
+- [Structured outputs: making LLMs return data, not prose](day-19.md)
+- [The query analyzer: intent and entities](day-20.md)
+- [Orchestration: three paths through one system](day-21.md)
+- [The chat agent: streaming, prompts, and tone](day-22.md)
+- [Failure day: hallucination bait and ambiguous queries](day-23.md)
+- [Build day: eval your analyzer](day-24.md) 🎥
 
-*Rest day.*
+**Week 4 — MCP + observability + human-in-the-loop**
+- [MCP: your RAG as a tool for AI assistants](day-25.md)
+- [Wiring MCP into Claude Desktop and Cursor](day-26.md)
+- [Securing MCP: API keys and scopes](day-27.md)
+- [Observability: tracing with LangSmith](day-28.md)
+- [Human-in-the-loop: the scheduling flow](day-29.md)
+- [Build day: a new tool, with an audit trail](day-30.md) 🎥
 
-**Days 13–18 — Embeddings & vector search**
-13. [Embeddings: meaning as geometry](day-13.md)
-14. [Pinecone: your first vector index](day-14.md)
-15. [Semantic search over clinical notes](day-15.md)
-16. [Hybrid queries: SQL filters meet vector search](day-16.md)
-17. [When cosine similarity lies: reranking](day-17.md)
-18. [Build day: your retrieval eval set](day-18.md) 🎥
+**Week 5 — Production gates**
+- [The upload API: additive, idempotent ingestion](day-31.md)
+- [RBAC I: sessions, login, and the auth guard](day-32.md)
+- [RBAC II: role-shaped responses and PII](day-33.md)
+- [Build day: role-shaped responses, end to end](day-30.md) 🎥
+- 📝 **Homework — Adversarial / poisoned documents:** defend retrieval against prompt injection. [Start here](day-34.md) · `docs/CHALLENGE-POISONED-DOCS.md`
 
-*Rest day.*
+**Week 6 — Light: evals + capstone**
+A deliberate wind-down: make measurement the spine, then ship.
+- [Evals as the spine: no metric, no decision](day-35.md)
+- [Capstone: ship it, then write the postmortem](day-36.md) 🎥
 
-**Days 19–24 — Query understanding & agents**
-19. [Structured outputs: making LLMs return data, not prose](day-19.md)
-20. [The query analyzer: intent and entities](day-20.md)
-21. [Orchestration: three paths through one system](day-21.md)
-22. [The chat agent: streaming, prompts, and tone](day-22.md)
-23. [Failure day: hallucination bait and ambiguous queries](day-23.md)
-24. [Build day: eval your analyzer](day-24.md) 🎥
+🎥 = weekly video deliverable · 📝 = homework lab (self-paced, own tests)
 
-*Rest day.*
-
-**Days 25–30 — MCP, observability, human-in-the-loop**
-25. [MCP: your RAG as a tool for AI assistants](day-25.md)
-26. [Wiring MCP into Claude Desktop and Cursor](day-26.md)
-27. [Securing MCP: API keys and scopes](day-27.md)
-28. [Observability: tracing with LangSmith](day-28.md)
-29. [Human-in-the-loop: the scheduling flow](day-29.md)
-30. [Build day: a new tool, with an audit trail](day-30.md) 🎥
-
-*Rest day.*
-
-**Days 31–36 — Production gates & capstone**
-31. [The upload API: additive, idempotent ingestion](day-31.md)
-32. [RBAC I: sessions, login, and the auth guard](day-32.md)
-33. [RBAC II: role-shaped responses and PII](day-33.md)
-34. [Adversarial day: the poisoned document](day-34.md)
-35. [Evals as the spine: no metric, no decision](day-35.md)
-36. [Capstone: ship it, then write the postmortem](day-36.md) 🎥
-
-🎥 = deliverable day (video submission)
+> **Restructure in progress (2026-07-05).** The week groupings above are the new
+> target; individual `day-NN.md` files and the slide decks still carry the old
+> 6-days-per-week numbering and are being reconciled to this shape. See
+> `AUTHORING.md` for the migration tracker.
 
 ## A note on AI-assisted coding
 
