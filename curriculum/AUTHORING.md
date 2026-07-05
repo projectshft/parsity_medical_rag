@@ -2,47 +2,35 @@
 
 Working doc for building the day-by-day curriculum in batches. **Update the status table every batch.** The template and rules here are the spec — every day file must follow them so the course reads in one voice.
 
-## ▶▶ RESTRUCTURE IN PROGRESS (2026-07-05) — read this first
+## ▶▶ RESTRUCTURE IN PROGRESS (2026-07-05, rev 2) — read this first
 
-Brian is re-sequencing the 6-week live structure. The **README "Week index" is the new canonical map**; day files + slide decks still carry old 6-days/week numbering and are being reconciled to it. Decisions (all confirmed by Brian):
+Big re-scope (Brian). **Core framing:** you're joining a company that *already has* its data in a database. The job = make it **semantically searchable** and build an **agent** on top. So the SQL/structured side is a **GIVEN — not taught, not uploaded live.** Front-load the working system; compress to **5 weeks**. README "Week index" is the canonical map; day files + decks are being reconciled.
 
-**New 6-week shape:**
-1. **Stand up the whole system** — RAG, setup, data, SQL half, **+ vector ingest (both engines live), first hybrid answer**. (Was: Foundations, SQL only.)
-2. **Embeddings & semantic search** — open the black box: vectors, cosine, `searchClinicalNotes`, hybrid, reranking, retrieval evals. (Was Week 3.)
-3. **Query understanding & agents** (was Week 4).
-4. **MCP + observability + HITL** — combined into one week (was Week 5).
-5. **Production gates** — upload API, RBAC, PII (was Week 6, minus capstone/evals/poisoned).
-6. **Light: evals as the spine + capstone** — deliberate wind-down.
+**Logistics decision — pre-loaded DB:** the Neon Postgres is PRE-LOADED (all patients/conditions/obs/meds/encounters/**note text** — done, 1278 patients / 143,946 notes in Neon) and students **copy it** (a dump / Neon branch) rather than running the ingest live. Removes all DB-setup time; Day 1 goes straight to the vector store.
 
-**Two labs become HOMEWORK (📝), not live weeks** — both already self-contained with tests:
-- **Chunking (Bible lab)** — attached to Week 2. Deliverable = pick a chunking strategy, defend it, run the script. Keep `scripts/bible/`; collapse the live treatment.
-- **Poisoned / adversarial documents** — attached to Week 5. `docs/CHALLENGE-POISONED-DOCS.md` + `lib/security/content-validator.ts` already exist; this is the homework.
+**Architecture (unchanged, validated):** Postgres = system of record (holds everything incl. note text — `Note` table done + populated). Pinecone = derived semantic index. The **vectorize script** reads notes from Postgres → embeds → upserts to Pinecone. Frame plainly: *"this is how you make existing company data searchable by meaning."* **NO drift/reconciliation exercise** (that was over-engineered — dropped).
 
-**Two MUST-HIT content points in the rewrite:**
-- **W1 — embeddings as a black box.** Students run the full `npm run ingest` (both stores) in Week 1 without embeddings theory. Frame it: "this makes notes searchable by *meaning* — we open the box in Week 2." This intentionally REVERSES the old "no embeddings before Day 13" rule (rule 14) — that rule is now relaxed for W1's black-box framing only.
-- **W1 — why vectors, not just SQL/keyword search on the notes.** Explicitly answer "why not `LIKE '%shortness of breath%'` the notes column?" → keyword/SQL matches *letters, not meaning*; it finds nothing in a note that says "dyspnea on exertion" / "winded climbing stairs" — same clinical fact, zero shared words. This is the core motivation for the vector engine and MUST be explicit in Week 1 now that vectors go live there.
+**New 5-week shape:**
+1. **The vector store** — problem statement (why a second DB for meaning-based search; SQL/`LIKE` matches letters not meaning — "dyspnea" ≠ "shortness of breath") → what a vector is + semantic similarity → the **vectorize script** (Postgres → Pinecone) → **implement vector search** (live, ideally day 1) → **chunking intro**: our notes are self-contained pieces (no chunking needed); the Bible is the opposite (needs it) — the contrast IS the point. DB pre-loaded.
+2. **Agentic / hybrid search** — the agent that routes and does BOTH SQL and vector search.
+3. **MCP + human-in-the-loop.**
+4. **Agents + evals + observability.**
+5. **Privacy & data** — PII, RBAC, access control.
 
-**Architecture decision (2026-07-05, confirmed w/ Brian) — system of record + derived index:**
-- **Postgres = system of record.** It holds *everything*, including the note text — via a NEW `Note` table (notes currently skip Postgres and go straight to Pinecone; that changes).
-- **Pinecone = a derived index** of notes + metadata, existing only to make semantic search easy. It is *built from* Postgres, never the source of truth.
-- **Bulk load stays `npm run ingest`** (FHIR → Postgres incl. notes → Pinecone) — fast, for class setup; do NOT make the sync service do the initial 144k-vector load (Pinecone bulk-EPIPE territory).
-- **Sync service = INCREMENTAL reconciliation** (the new homework): find notes changed/added in Postgres → embed + upsert to Pinecone with metadata. Frame: "the vector store keeps up with SQL." Since the dataset is static, the homework must **manufacture drift** (edit/add a note in Postgres → run sync → watch the index catch up) — planted-failure style, or the sync feels like ceremony.
-- Why this is worth the added scope (a table + a script): teaches system-of-record vs derived-index and a reconciliation job — a real, under-taught production concern — and it makes the metadata theme first-class (the sync is what stamps proposed metadata onto vectors).
+**Homework — Bible chunking as a 2-week side project (📝):**
+- Week 1: research chunking strategies, propose one, record a video explaining what chunking IS.
+- Week 2: actually chunk + upload. Uses `scripts/bible/`. Purely a side project for learning chunking (our medical notes don't need it).
 
-**Refined Week 1 / Week 2 (supersedes the W1/W2 lines above):**
-- **W1 — Load the data; why vector search; metadata.** SQL/structured is a *given* (mimics how a clinic already stores records) — load ALL of it into Postgres with minimal ceremony, little explanation. Teaching energy goes to: (a) the problem — why SQL/keyword can't match *meaning* in notes; (b) why a vector store solves it; (c) **metadata for the vector store**, using the Bible to talk chunking + metadata. Assignment (→W2): examine the data, **propose valuable vector metadata**. Homework: the **SQL→vector sync service**.
-- **W2 — Embeddings, metadata applied, search & reranking.** Open the black box (embeddings/cosine); load the notes into Pinecone with the *proposed* metadata; implement `searchClinicalNotes` + reranking; retrieval eval.
+**Dropped from live weeks:** live SQL teaching (pre-loaded given); the standalone chunking week (→ side-project homework); poisoned-docs (→ optional homework, `CHALLENGE-POISONED-DOCS.md` exists); the standalone upload-API day (the vectorize script + pre-load cover ingestion). The old "no embeddings before Day 13" rule (14) is moot — vectors are the Week 1 subject now.
 
-**Execution phases (do in order, commit each):**
-1. ✅ Spine: README "Week index" rewritten; this tracker. (2026-07-05)
-2. ⬜ **Foundation — `Note` table (Postgres = system of record).** Add `Note` model (id, patientId, type, date, content, + metadata cols); `extractNote`-to-row in `lib/fhir-extract.ts`; ingest writes notes to Postgres; keep the Pinecone upsert as the derived step. Tests. `db:push` + re-ingest. Propagate main/student.
-3. ⬜ **Sync service (homework).** `scripts/sync-vectors.ts` (or similar): read notes from Postgres not yet in / changed since Pinecone → embed + upsert with metadata. Challenge doc + manufactured-drift exercise. Student = stub; instructor = solution.
-4. ⬜ Week 1 deck/runbook + day files: SQL-as-given; problem→why-vectors→metadata; chunking+metadata via Bible; the propose-metadata assignment. (Relaxes rule 14 for W1 black-box framing.)
-5. ⬜ Week 2: embeddings intro (open the black box); load notes + proposed metadata; search + reranking; retire the standalone chunking deck (→ homework); renumber week-3 embeddings deck → week-2.
-6. ⬜ Weeks 3–4: relabel (old W4 agents → W3; old W5 MCP/obs/HITL → W4).
-7. ⬜ Week 5: production gates minus poisoned-docs (→ homework); build-day deliverable.
-8. ⬜ Week 6: trim to evals + capstone (light).
-9. ⬜ Day-file renumbering + INSTRUCTOR-NOTES + slide-deck kickers/counters reconciled to the new week map.
+**Execution phases:**
+1. ✅ Spine: README + this tracker (rev 2). (2026-07-05)
+2. ✅ Foundation: `Note` table (Postgres = system of record); Neon populated (1278/143,946). Shipped all branches.
+3. ⬜ **The vectorize script** — simple: read notes from Postgres → embed → upsert to Pinecone (with metadata). Student = stub / instructor = solution. This is Week 1 live content, NOT a drift homework. (Note: the existing `npm run ingest` already does FHIR→Pinecone; the vectorize script is the *Postgres-notes→Pinecone* version students build, matching the "service the company's existing data" story.)
+4. ⬜ Week 1 deck/runbook + day files (the big new content): problem → vectors/semantic similarity → vectorize → vector search → chunking intro. Bible = homework part 1.
+5. ⬜ Week 2 (agentic/hybrid search) + Bible homework part 2.
+6. ⬜ Weeks 3–5 relabel/remap (MCP+HITL / agents+evals+obs / privacy).
+7. ⬜ Day-file renumbering + INSTRUCTOR-NOTES + deck kickers reconciled to the 5-week map.
 
 Everything below predates the restructure — treat as historical until reconciled.
 

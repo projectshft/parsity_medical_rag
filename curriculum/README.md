@@ -72,66 +72,48 @@ A hybrid RAG system over ~1,278 synthetic patients (Synthea Coherent dataset). Y
 
 ## Week index
 
-Six live weeks. Each ends with a short video deliverable (🎥). Two labs run as
-**homework** (📝) rather than live sessions — they're self-contained, with their
-own tests, and reclaim live time for the core build.
+**Five live weeks.** The premise: you've joined a company that *already has* its
+data in a database. Your job is to make it **searchable by meaning** and build an
+**agent** on top. So the structured/SQL side is a **given** — the database comes
+**pre-loaded** (you copy it), and no live session is spent uploading it. The
+energy goes to the vector store, the agent, and shipping it safely.
 
 **Day Zero — Foundations (optional pre-work)**
 - [Foundations: LLMs and vector math](day-00.md) — do this *before* Week 1 if "embedding," "vector," or "cosine similarity" are new to you.
 
-**Week 1 — Load the data; why vector search; metadata**
-The structured half is a *given* — it mirrors how a clinic already stores its records, so **Postgres is the system of record** and you load *all* of it with little ceremony. The real work: why a second, vector store is worth building, and what metadata makes it useful.
-- [What RAG actually is (and why your LLM needs it)](day-01.md) — the problem: SQL/keyword search can't match *meaning* in the notes
-- [Setup: accounts, keys, and a running app](day-02.md)
-- [Meet the data — and load all of it into Postgres](day-03.md)
-- [Why a vector store: what meaning-based search buys you that SQL can't](day-04.md)
-- [Chunking (the Bible) and metadata: what one "piece" is, and what to tag it with](day-05.md)
-- [Build day / checkpoint](day-06.md) 🎥
-- 📝 **Assignment (→ Week 2):** examine the data and **propose the vector-store metadata** worth keeping.
-- 📝 **Homework — the sync service:** a script that keeps the vector store up to date from Postgres (system of record → derived search index). This is how the two stay aligned in production.
+**Week 1 — The vector store: why, and how**
+The database is already loaded. The question of the week: the company has all this
+data — how do we make the *notes* searchable by **meaning**, not just keywords?
+- The problem: why SQL/keyword search isn't enough — `LIKE '%shortness of breath%'` finds nothing in a note that says *"dyspnea on exertion."* Same fact, zero shared words.
+- What a vector is, and semantic similarity — the idea that fixes it
+- The **vectorize script**: read the notes from the database → embed → upsert to the vector store. *This is how you service existing data for semantic search.*
+- Implement and run **vector search** over the notes
+- Chunking, introduced: our notes are self-contained little pieces (no chunking needed) — but the **Bible** is the opposite kind of text. That contrast sets up the homework.
+- 🎥 deliverable
+- 📝 **Homework (Bible, side project — part 1):** research chunking strategies, propose one, and record a short video explaining what chunking *is*.
 
-**Week 2 — Embeddings, metadata & search**
-Open the black box from Week 1 — what a vector *is* — then load the notes into the vector store **with your proposed metadata** and build the search.
-- [Embeddings: meaning as geometry](day-13.md)
-- [The vector index up close](day-14.md)
-- [Load the notes + your metadata; semantic search over clinical notes](day-15.md)
-- [Hybrid queries: SQL filters meet vector search](day-16.md)
-- [When cosine similarity lies: reranking](day-17.md)
-- [Build day: your retrieval eval set](day-18.md) 🎥
+**Week 2 — Agentic / hybrid search**
+An agent that answers real questions by using **both** engines — exact SQL for facts, vector search for meaning — and picking the right one.
+- 🎥 deliverable
+- 📝 **Homework (Bible, side project — part 2):** actually chunk the text and load it, using `scripts/bible/`.
 
-**Week 3 — Query understanding & agents**
-- [Structured outputs: making LLMs return data, not prose](day-19.md)
-- [The query analyzer: intent and entities](day-20.md)
-- [Orchestration: three paths through one system](day-21.md)
-- [The chat agent: streaming, prompts, and tone](day-22.md)
-- [Failure day: hallucination bait and ambiguous queries](day-23.md)
-- [Build day: eval your analyzer](day-24.md) 🎥
+**Week 3 — MCP + human-in-the-loop**
+Expose the system as a tool other AI assistants can call; add human-approved actions (scheduling).
+- 🎥 deliverable
 
-**Week 4 — MCP + observability + human-in-the-loop**
-- [MCP: your RAG as a tool for AI assistants](day-25.md)
-- [Wiring MCP into Claude Desktop and Cursor](day-26.md)
-- [Securing MCP: API keys and scopes](day-27.md)
-- [Observability: tracing with LangSmith](day-28.md)
-- [Human-in-the-loop: the scheduling flow](day-29.md)
-- [Build day: a new tool, with an audit trail](day-30.md) 🎥
+**Week 4 — Agents, evals & observability**
+Deeper agent behavior — and how you *measure* and *trace* a non-deterministic system so "it feels better" becomes a number.
+- 🎥 deliverable
 
-**Week 5 — Production gates**
-- [The upload API: additive, idempotent ingestion](day-31.md)
-- [RBAC I: sessions, login, and the auth guard](day-32.md)
-- [RBAC II: role-shaped responses and PII](day-33.md)
-- [Build day: role-shaped responses, end to end](day-30.md) 🎥
-- 📝 **Homework — Adversarial / poisoned documents:** defend retrieval against prompt injection. [Start here](day-34.md) · `docs/CHALLENGE-POISONED-DOCS.md`
+**Week 5 — Privacy & data**
+The production gates: PII handling, role-based access, showing identifying details only to those allowed to see them.
+- 🎥 deliverable
 
-**Week 6 — Light: evals + capstone**
-A deliberate wind-down: make measurement the spine, then ship.
-- [Evals as the spine: no metric, no decision](day-35.md)
-- [Capstone: ship it, then write the postmortem](day-36.md) 🎥
+🎥 = weekly video deliverable · 📝 = homework (self-paced side project)
 
-🎥 = weekly video deliverable · 📝 = homework lab (self-paced, own tests)
-
-> **Restructure in progress (2026-07-05).** The week groupings above are the new
-> target; individual `day-NN.md` files and the slide decks still carry the old
-> 6-days-per-week numbering and are being reconciled to this shape. See
+> **Restructure in progress (2026-07-05, rev 2).** The five-week groupings above
+> are the new target. The `day-NN.md` files and slide decks still carry the old
+> 6-week / 36-day structure and are being reconciled to this shape. See
 > `AUTHORING.md` for the migration tracker.
 
 ## A note on AI-assisted coding
