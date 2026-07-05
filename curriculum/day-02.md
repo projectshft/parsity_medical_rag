@@ -45,14 +45,11 @@ npm install
 
 Sign up for each (free tier is enough for the whole course), then grab the credential:
 
-- **Neon** — [neon.tech](https://neon.tech) → create a project → copy the connection string from **Dashboard → Connection Details**. It looks like `postgresql://user:pass@ep-xxx.region.aws.neon.tech/...`
+- **Neon (Postgres)** — you do **not** create or load a database. You're joining a company that already has its data — so you'll be given a **connection string to a pre-loaded database** (all patients, conditions, labs, medications, and ~144,000 clinical notes are already there). Read-only is fine; you never modify it. Paste the provided string into `DATABASE_URL`. <!-- INSTRUCTOR: hand out the read-only DATABASE_URL (or a per-student Neon branch). See docs. -->
 
-    ![Screenshot: Neon dashboard showing the connection string panel](assets/day02-neon-connection.png)
-      <!-- TODO: capture screenshot -->
+- **OpenAI** — [platform.openai.com](https://platform.openai.com) → **API keys** → create one. Starts with `sk-`. (Add a few dollars of credit; the whole course costs roughly the price of a coffee.) You need this to turn the notes into vectors.
 
-- **OpenAI** — [platform.openai.com](https://platform.openai.com) → **API keys** → create one. Starts with `sk-`. (Add a few dollars of credit; the whole course costs roughly the price of a coffee.)
-
-- **Pinecone** — [pinecone.io](https://pinecone.io) → copy your API key. You'll create the actual index on a later day — today just grab the key.
+- **Pinecone** — [pinecone.io](https://pinecone.io) → copy your API key. This is *your* vector store — you'll build it from the company's data in Week 1. The `vectorize` script creates the index for you on first run.
 
 ### 3. Fill in `.env`
 
