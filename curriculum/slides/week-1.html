@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Week 1 — Foundations · RAG &amp; AI Agents</title>
+<title>Week 1 — The vector store · RAG &amp; AI Agents</title>
 <style>
   :root {
     --ink: #1b2330;
@@ -83,167 +83,204 @@
 
   <!-- 1 — Title -->
   <section class="slide active title-wrap">
-    <div class="kicker">Week 1 of 6 — Foundations</div>
-    <h1>What RAG is, and the two halves of the system you'll build</h1>
-    <p class="lead">By the end of the week: a running app that answers real questions about patient records — from a database you stood up and queried yourself.</p>
+    <div class="kicker">Week 1 of 5 — The vector store</div>
+    <h1>Making the company's data searchable by <em>meaning</em></h1>
+    <p class="lead">You've joined a company. The data is already in a database. This week: how do you let someone ask a question in plain English and find the right records — even when they don't share a single keyword?</p>
   </section>
 
   <!-- 2 — The week -->
   <section class="slide">
     <h2>This week</h2>
     <ul>
-      <li>What RAG actually is, and why an LLM can't answer questions about your data</li>
-      <li>Setup: accounts, keys, the app running locally</li>
-      <li>The data: FHIR bundles, 1,278 synthetic patients</li>
-      <li>Postgres + Prisma: the structured half</li>
-      <li>The SQL query layer, then a build day</li>
+      <li>The problem: why the database you already have can't answer by <em>meaning</em></li>
+      <li>What a vector is, and how similarity works — by hand</li>
+      <li>The vectorize script: turn the notes into a searchable vector store</li>
+      <li>Run real semantic search over the clinical notes</li>
+      <li>Chunking, introduced — and why our notes don't need it (but the Bible does)</li>
     </ul>
-    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video — explain why this system needs <em>both</em> a database and a meaning-based search.</p>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video — explain, in your own words, why keyword search isn't enough and what a vector fixes.</p>
   </section>
 
-  <!-- 3 — Concept: the problem -->
+  <!-- 3 — Problem statement -->
   <section class="slide">
-    <h2>The problem RAG solves</h2>
-    <p>Ask any LLM "what medications is this patient taking?" — it has no idea. The records were never in its training data, and never will be.</p>
-    <p class="lead">The fix is almost embarrassingly simple: <strong>fetch the relevant records at question time and paste them into the prompt.</strong> The model doesn't need to <em>know</em> your data — it needs to <em>read</em> it.</p>
-    <div class="cue"><b>Say it plainly:</b> the hard part isn't the "generation." It's the <b>retrieval</b> — and retrieval is a search problem, which is where the engineering lives.</div>
+    <h2>The setup: the data is already here</h2>
+    <p>You join a clinic's engineering team. Years of records are already in <strong>Postgres</strong> — patients, diagnoses, medications, labs, and ~144,000 free-text clinical <strong>notes</strong>. Nobody needs you to build the database. It exists.</p>
+    <p class="lead">What they want: let a doctor ask <em>"which patients are short of breath?"</em> and actually find them — including the note that says <em>"dyspnea on exertion."</em></p>
+    <div class="cue"><b>Say it plainly:</b> we're not teaching them to store data — they have that. We're teaching the thing on top: search by meaning. That reframing is the whole course.</div>
   </section>
 
-  <!-- 4 — Concept: two kinds of questions -->
+  <!-- 4 — Concept: why SQL can't -->
   <section class="slide">
-    <h2>Two kinds of questions → two engines</h2>
+    <h2>Why the database alone can't do it</h2>
+    <p>The obvious move is to search the notes column:</p>
+    <pre><code>SELECT * FROM notes WHERE content LIKE '%shortness of breath%';
+-- 0 rows.  The note says "dyspnea on exertion."</code></pre>
     <div class="two">
       <div class="card">
-        <h3>Structured</h3>
-        <p>"How many patients have diabetes?" An exact answer — a <code>COUNT(*)</code>. This is a <strong>database</strong> job.</p>
+        <h3>Keyword / SQL search</h3>
+        <p>Matches <strong>letters</strong>. "shortness of breath" ≠ "dyspnea" ≠ "winded climbing stairs" — zero shared words, so zero matches.</p>
       </div>
       <div class="card">
-        <h3>Semantic</h3>
-        <p>"Patients whose notes mention trouble sleeping." No shared keywords with "difficulty falling asleep" — same meaning. A <strong>meaning-based search</strong> job.</p>
+        <h3>What we need</h3>
+        <p>Match <strong>meaning</strong>. All three phrases describe the same clinical fact. Find the note regardless of the words used.</p>
       </div>
     </div>
-    <p class="sub" style="margin-top:1rem">Most real questions are one — or a <strong>hybrid</strong> of both. That's why the system has two storage engines.</p>
+    <div class="cue"><b>Facilitate:</b> ask the room for three more phrasings of the same symptom. The point lands when they generate the misses themselves.</div>
   </section>
 
-  <!-- 5 — Discussion break -->
+  <!-- 5 — Concept: what a vector is -->
+  <section class="slide">
+    <h2>The fix: turn text into a point in space</h2>
+    <p>An <strong>embedding</strong> turns a piece of text into a list of numbers — a point in space — so that texts with <strong>similar meaning land near each other</strong>. Picture two dimensions:</p>
+    <pre><code>   "shortness of breath"  •   • "dyspnea on exertion"
+                                  • "winded climbing stairs"
+
+                                                • "broken ankle"</code></pre>
+    <p class="sub">Our model returns <strong>1,536 numbers</strong> per note — a point in 1,536-dimensional space. You can't picture that; two is enough for the intuition. "Near" is the whole game — next we make "near" precise.</p>
+  </section>
+
+  <!-- 6 — Concept: similarity -->
+  <section class="slide">
+    <h2>How "near" is measured: cosine similarity</h2>
+    <p>Two texts are similar if their vectors point the <strong>same direction</strong>. Measure the angle between them:</p>
+    <pre><code>similarity = cos(θ) = (A · B) / (|A| × |B|)
+             └ dot product ┘   └ their lengths ┘
+
+  1.0  → same direction  (nearly identical meaning)
+  0.0  → unrelated</code></pre>
+    <p class="sub">The <strong>dot product</strong> over the two lengths. Since these embeddings come back length-1, the dot product alone gives the same ranking. That's the entire engine under "search by meaning."</p>
+    <div class="cue"><b>Design point to land:</b> they should leave able to say what cosine measures in one sentence — direction, not distance-from-origin. This is the "understand it, don't black-box it" beat.</div>
+  </section>
+
+  <!-- 7 — Code walkthrough: be the vector DB -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>Be the vector database — by hand</h2>
+    <p>Before any vector store, do what one does, in ten lines: embed a tiny corpus, embed a query, rank by cosine.</p>
+    <pre><code>const docs = ['dyspnea on exertion', 'broken ankle', 'well-controlled diabetes'];
+const q = 'patient is short of breath';
+
+const [qv, ...dv] = await embed([q, ...docs]);
+docs
+  .map((d, i) =&gt; ({ d, score: cosine(qv, dv[i]) }))
+  .sort((a, b) =&gt; b.score - a.score)
+  .forEach(r =&gt; console.log(r.score.toFixed(3), r.d));
+// 0.71  dyspnea on exertion   ← no shared words, still #1
+// 0.18  broken ankle</code></pre>
+    <p class="sub">That loop <em>is</em> a vector database. A real one just does it fast, over millions of vectors, and stores them for you.</p>
+  </section>
+
+  <!-- 8 — Discussion -->
   <section class="slide">
     <span class="mode discuss">💬 Discussion</span>
-    <h2>Sort these five into structured / semantic / hybrid</h2>
+    <h2>Which of these needs meaning — and which is just a lookup?</h2>
     <ul>
-      <li>"How many patients are on insulin?"</li>
-      <li>"Which patients describe chest pain at night?"</li>
-      <li>"Do any diabetics mention medication side effects in their notes?"</li>
-      <li>"Summarize this patient's health history."</li>
-      <li>"What's a normal blood pressure?" <span class="sub">(trick — should this even be answered?)</span></li>
+      <li>"How many patients have diabetes?"</li>
+      <li>"Which patients mention trouble sleeping?"</li>
+      <li>"Notes that describe chest pain at night"</li>
+      <li>"List patients over 65"</li>
+      <li>"Anyone whose notes sound like they're struggling to cope?"</li>
     </ul>
-    <div class="cue"><b>Facilitate:</b> let them argue the hybrid ones. The last one seeds the "refuse what the system isn't for" thread we return to in Week 4.</div>
+    <div class="cue"><b>Facilitate:</b> drive to the split — counts/filters are exact (the DB already does them); "sounds like / describes / mentions" is meaning (needs vectors). That split becomes next week's routing agent.</div>
   </section>
 
-  <!-- 6 — Concept: architecture -->
+  <!-- 9 — Concept: architecture -->
   <section class="slide">
-    <h2>The system, in one diagram</h2>
-    <pre><code>          user question
-                │
-        ┌───────▼────────┐
-        │ Query Analyzer │  (LLM decides: which engine?)
-        └───┬────────┬───┘
-   structured│        │semantic
-        ┌────▼───┐ ┌──▼───────────────┐
-        │Postgres│ │ Vector database  │
-        │ rows   │ │ (clinical notes) │
-        └────┬───┘ └──┬───────────────┘
-             └────┬───┘
-            grounded LLM answer</code></pre>
-    <p class="sub">You'll build it left-to-right over six weeks. This week: the data and the Postgres half.</p>
+    <h2>Two stores, one source of truth</h2>
+    <pre><code>   Postgres  ──(vectorize)──▶   Vector store (Pinecone)
+   system of record             derived search index
+   EVERYTHING:                  just the notes + metadata,
+   patients, meds, labs,        embedded so you can search
+   notes (full text)            them by meaning</code></pre>
+    <p class="sub"><strong>Postgres stays the source of truth.</strong> The vector store is a <em>derived</em> copy of the notes, built for one job: semantic search. If they disagree, Postgres wins — you just rebuild the index.</p>
+    <div class="cue"><b>Say it plainly:</b> this is the mental model that survives the whole course. The vector DB is never the truth; it's a searchable projection of the truth.</div>
   </section>
 
-  <!-- 7 — Code walkthrough: the data -->
+  <!-- 10 — Code walkthrough: vectorize -->
   <section class="slide">
     <span class="mode code">💻 Code walkthrough</span>
-    <h2>Read one clinical note before writing any code</h2>
-    <pre><code># Chief Complaint
-No complaints.
+    <h2>The vectorize script: DB → vector store</h2>
+    <p>Read the notes from Postgres, embed them, upsert them into the vector store. This is how you "service" existing company data for semantic search.</p>
+    <pre><code>const notes = await prisma.note.findMany({
+  include: { patient: { select: { firstName: true, lastName: true } } },
+});
 
-# Social History
-Patient has never smoked.
+const chunks = notes.map((n) =&gt; ({
+  id: n.id,                       // reuse the note id → idempotent re-runs
+  content: n.content,
+  metadata: { patientId: n.patientId, type: n.type, date: n.date },
+}));
 
-# Medications
-No Active Medications.</code></pre>
-    <p class="sub">Two things to point out live: it has <strong>structure</strong> (headed sections) and it's <strong>short</strong> (~450 chars). That second fact decides a major architecture choice later — and it's a measurement, not a vibe.</p>
+await upsertChunks(chunks);        // embeds + upserts in batches</code></pre>
+    <pre><code>npm run vectorize -- --limit 200   # a cheap slice while you build</code></pre>
   </section>
 
-  <!-- 8 — Concept: Postgres + Prisma -->
+  <!-- 11 — Concept: metadata -->
   <section class="slide">
-    <h2>The structured half: Postgres + Prisma</h2>
-    <p>One schema file becomes both the database tables <em>and</em> a typed client.</p>
+    <h2>Metadata is what makes the index useful</h2>
+    <p>A bare vector answers "what's similar?" — but real questions are scoped: <em>this patient</em>, recent notes, a note <em>type</em>. So every vector carries structured tags copied from Postgres:</p>
     <ul>
-      <li><code>Patient</code> — name, birth/death date, phone, location</li>
-      <li><code>Condition</code> — "Type 2 Diabetes Mellitus", status, onset</li>
-      <li><code>Observation</code> — labs &amp; vitals with numeric values</li>
-      <li><code>Medication</code> — name, status, dosage</li>
+      <li><code>patientId</code> — filter a search to one patient's notes</li>
+      <li><code>type</code>, <code>date</code> — "recent H&amp;P notes," not all notes ever</li>
     </ul>
-    <div class="cue"><b>Design point to land:</b> the FHIR id is the primary key → re-running ingestion <b>updates</b> a patient instead of duplicating. That property carries all the way to Week 6's upload API.</div>
+    <p class="sub">Choosing the right metadata is a real design decision — it decides which questions you can answer. That's your homework prompt: look at the data and propose what to tag.</p>
+    <div class="cue"><b>Design point to land:</b> one patient has ~113 notes on average (up to 2,162). Without <code>patientId</code> on the vector, "summarize <em>this</em> patient" is impossible. Metadata isn't decoration.</div>
   </section>
 
-  <!-- 9 — Code walkthrough: ingest -->
-  <section class="slide">
-    <span class="mode code">💻 Code walkthrough</span>
-    <h2>Load the structured data, look at it</h2>
-    <pre><code>npm run db:push                    # create the tables
-npm run ingest -- --limit 50 --skip-vectors   # Postgres only
-npm run db:studio                  # browse the rows</code></pre>
-    <p class="sub"><code>--skip-vectors</code> loads only Postgres — we haven't built the search half yet. Open Studio live and show real patients/conditions landing.</p>
-  </section>
-
-  <!-- 10 — Concept: the SQL layer + mapping problem -->
-  <section class="slide">
-    <h2>"diabetes" isn't in the data — "Type 2 Diabetes Mellitus" is</h2>
-    <p>A naive <code>WHERE display = 'diabetes'</code> returns <strong>nothing</strong>. Real medical vocabulary is messy.</p>
-    <pre><code>diabetes: ['diabetes', 'diabetic', 'diabetes mellitus',
-           'type 2 diabetes', 'prediabetes']</code></pre>
-    <p class="sub">One user word → many database phrasings. Blunt, hand-maintained — and it works <em>because</em> someone wrote the synonyms down. Contrast this with what the meaning-based search does automatically (Week 3).</p>
-  </section>
-
-  <!-- 11 — Mini-challenge -->
+  <!-- 12 — Mini-challenge: run search -->
   <section class="slide">
     <span class="mode challenge">🛠 Mini-challenge</span>
-    <h2>Add a condition the dictionary is missing</h2>
+    <h2>Search it — and try to make it miss</h2>
     <ul>
-      <li>Pick a condition not yet mapped (asthma, COPD, depression…)</li>
-      <li>Query the data first — <em>what does it actually call this?</em></li>
-      <li>Add the real phrasings; re-run the count</li>
-      <li><strong>Record the before/after number.</strong> "It seems better" is not done; "matched 0, now matches 14" is done.</li>
+      <li>Vectorize a slice, then search: <em>"patient struggling to breathe"</em> — did it find the "dyspnea" notes?</li>
+      <li>Now try to <strong>break it</strong>: a query so vague everything matches a little ("patient has a problem"). Watch the scores flatten.</li>
+      <li>Filter by <code>patientId</code> — same query, one patient. Confirm no one else's notes leak in.</li>
     </ul>
-    <div class="cue"><b>The point isn't SQL</b> — it's the loop: find a gap → fill it → verify with a number. That's the whole course in miniature.</div>
+    <div class="cue"><b>The point isn't the search call</b> — it's building the instinct to interrogate results: what did it rank #1, and does that make sense? "Looks right" isn't a measurement; we make it one later.</div>
   </section>
 
-  <!-- 12 — Research -->
+  <!-- 13 — Concept: chunking intro -->
   <section class="slide">
-    <span class="mode research">🔍 Research</span>
-    <h2>Go find out</h2>
-    <ul>
-      <li>Why not just <strong>fine-tune</strong> a model on the patient data instead of doing RAG? When would fine-tuning actually be the right call?</li>
-      <li>Vector databases can store and filter metadata — so why keep <strong>Postgres</strong> at all? Find one query each engine is bad at.</li>
-    </ul>
-    <p class="sub">Bring one finding to the next session. No single right answer — defend your reasoning.</p>
+    <h2>One more question: what is "one piece"?</h2>
+    <p>You just embedded each note as a single vector. That worked because a clinical note is already the right size — <strong>one encounter, one topic, ~450 characters, self-contained.</strong> One note = one piece. No splitting needed.</p>
+    <div class="cue"><b>Say it plainly:</b> we got lucky — our data came pre-cut into perfect pieces. That is not normal. Most corpora don't.</div>
   </section>
 
-  <!-- 13 — Recap -->
+  <!-- 14 — Concept: the Bible contrast -->
+  <section class="slide">
+    <h2>…but most text isn't so tidy</h2>
+    <p>Imagine the opposite: <strong>one enormous document</strong> — a 4-million-character book. Embed the whole thing as one vector and it "means" everything and matches nothing. So you must <strong>split it</strong> — but where? Mid-sentence? Every paragraph? By chapter?</p>
+    <p class="lead">That splitting decision is <strong>chunking</strong>, and it's a craft. You'll learn it on a corpus that truly needs it — the King James Bible — as this week's side project.</p>
+  </section>
+
+  <!-- 15 — Research / homework -->
+  <section class="slide">
+    <span class="mode research">🔍 Homework — side project (part 1)</span>
+    <h2>Chunking the Bible: propose a strategy</h2>
+    <ul>
+      <li>Skim the text (<code>scripts/bible/</code> has the tools). What are the natural seams — verses? chapters? fixed-size windows?</li>
+      <li><strong>Propose one chunking strategy</strong> and say why. What would each chunk contain? Where would it break?</li>
+      <li>Record a 2–3 min video explaining, in plain terms, <em>what chunking is</em> and the trade-off your strategy makes.</li>
+    </ul>
+    <p class="sub">Next week: you'll actually run it and measure whether your strategy was any good.</p>
+  </section>
+
+  <!-- 16 — Recap -->
   <section class="slide">
     <h2>Where you are</h2>
     <ul>
-      <li>You can explain <strong>why</strong> RAG exists and the two-engine split</li>
-      <li>You stood up Postgres and loaded real structured data</li>
-      <li>You queried it — counts, filters, lookups — and saw the mapping problem firsthand</li>
+      <li>You can explain <strong>why</strong> keyword search fails and what a vector fixes — and measure similarity by hand</li>
+      <li>You built the <strong>vector store</strong> from the company's existing database, and searched it by meaning</li>
+      <li>You know what metadata buys you, and why our notes need no chunking — but most text does</li>
     </ul>
-    <p class="lead">This week's deliverable: the 2–3 min video. Next week: documents that are too big to use as-is — <strong>chunking</strong>.</p>
+    <p class="lead">This week's video: keyword vs meaning, in your own words. Next week: an <strong>agent</strong> that decides — exact lookup or meaning search — and answers real questions using both.</p>
   </section>
 
 </div>
 
 <div class="bar">
-  <span class="name">RAG &amp; AI Agents · Week 1 — Foundations</span>
-  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 13</span></span>
+  <span class="name">RAG &amp; AI Agents · Week 1 — The vector store</span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 16</span></span>
 </div>
 
 <script>
