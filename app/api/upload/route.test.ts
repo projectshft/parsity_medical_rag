@@ -12,6 +12,7 @@ vi.mock('@/lib/prisma', () => ({
     observation: { createMany: vi.fn(async () => ({ count: 2 })), deleteMany: vi.fn() },
     medication: { createMany: vi.fn(async () => ({ count: 1 })), deleteMany: vi.fn() },
     encounter: { createMany: vi.fn(async () => ({ count: 1 })), deleteMany: vi.fn() },
+    note: { createMany: vi.fn(async () => ({ count: 1 })), deleteMany: vi.fn() },
   },
 }));
 

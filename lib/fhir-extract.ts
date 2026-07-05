@@ -166,6 +166,20 @@ export function extractNote(
   };
 }
 
+/**
+ * Map an extracted note (the Pinecone chunk) to a Postgres row.
+ * Postgres is the system of record for notes; the vector is derived from this.
+ */
+export function noteRowFromChunk(chunk: MedicalChunk) {
+  return {
+    id: chunk.id,
+    patientId: (chunk.metadata.patientId as string | undefined) ?? '',
+    type: (chunk.metadata.type as string | undefined) ?? null,
+    date: toDate(chunk.metadata.date as string | undefined),
+    content: chunk.content,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Bundle processing
 // ---------------------------------------------------------------------------
