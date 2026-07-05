@@ -18,7 +18,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { upsertChunks, deleteAllChunks, MedicalChunk } from '../lib/pinecone';
-import { processBundle, ExtractedBundle, FHIRBundle } from '../lib/fhir-extract';
+import { processBundle, noteRowFromChunk, ExtractedBundle, FHIRBundle } from '../lib/fhir-extract';
 
 // Bulk loads are far more reliable on Neon's DIRECT (non-pooled) connection —
 // the transaction pooler drops long-running bulk sessions (P1017/P1001). Derive
@@ -64,6 +64,7 @@ async function clearDatabase() {
   await withRetry(() => prisma.observation.deleteMany());
   await withRetry(() => prisma.condition.deleteMany());
   await withRetry(() => prisma.encounter.deleteMany());
+  await withRetry(() => prisma.note.deleteMany());
   await withRetry(() => prisma.patient.deleteMany());
 }
 
@@ -156,6 +157,11 @@ async function main() {
   );
   await insertBatched('encounters', encounters, (batch) =>
     prisma.encounter.createMany({ data: batch, skipDuplicates: true })
+  );
+  // Notes go to Postgres too — it's the system of record. Pinecone (below) is
+  // a derived index built from these rows.
+  await insertBatched('notes', notes.map(noteRowFromChunk), (batch) =>
+    prisma.note.createMany({ data: batch, skipDuplicates: true })
   );
 
   // --- Pinecone ---

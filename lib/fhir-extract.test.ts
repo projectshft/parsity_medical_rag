@@ -5,6 +5,7 @@ import {
   processBundle,
   extractPatient,
   extractNote,
+  noteRowFromChunk,
   cleanName,
   FHIRBundle,
   FHIRResource,
@@ -162,6 +163,21 @@ describe('extractNote (what goes into Pinecone)', () => {
     const doc = makeDocumentReference({ type: undefined });
     const note = extractNote(doc, 'patient-123', 'Abe Frami');
     expect(note?.metadata.type).toBe('Clinical Note');
+  });
+});
+
+describe('noteRowFromChunk (what goes into Postgres — the system of record)', () => {
+  it('maps a note chunk to a Postgres row', () => {
+    const chunk = extractNote(makeDocumentReference(), 'patient-123', 'Abe Frami')!;
+    const row = noteRowFromChunk(chunk);
+    expect(row).toMatchObject({
+      id: 'doc-1',
+      patientId: 'patient-123',
+      type: 'History and physical note',
+      content: NOTE_TEXT,
+    });
+    expect(row.date).toBeInstanceOf(Date);
+    expect(row.date?.toISOString().slice(0, 10)).toBe('1926-06-19');
   });
 });
 
