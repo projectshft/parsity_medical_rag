@@ -22,14 +22,27 @@ Brian is re-sequencing the 6-week live structure. The **README "Week index" is t
 - **W1 — embeddings as a black box.** Students run the full `npm run ingest` (both stores) in Week 1 without embeddings theory. Frame it: "this makes notes searchable by *meaning* — we open the box in Week 2." This intentionally REVERSES the old "no embeddings before Day 13" rule (rule 14) — that rule is now relaxed for W1's black-box framing only.
 - **W1 — why vectors, not just SQL/keyword search on the notes.** Explicitly answer "why not `LIKE '%shortness of breath%'` the notes column?" → keyword/SQL matches *letters, not meaning*; it finds nothing in a note that says "dyspnea on exertion" / "winded climbing stairs" — same clinical fact, zero shared words. This is the core motivation for the vector engine and MUST be explicit in Week 1 now that vectors go live there.
 
+**Architecture decision (2026-07-05, confirmed w/ Brian) — system of record + derived index:**
+- **Postgres = system of record.** It holds *everything*, including the note text — via a NEW `Note` table (notes currently skip Postgres and go straight to Pinecone; that changes).
+- **Pinecone = a derived index** of notes + metadata, existing only to make semantic search easy. It is *built from* Postgres, never the source of truth.
+- **Bulk load stays `npm run ingest`** (FHIR → Postgres incl. notes → Pinecone) — fast, for class setup; do NOT make the sync service do the initial 144k-vector load (Pinecone bulk-EPIPE territory).
+- **Sync service = INCREMENTAL reconciliation** (the new homework): find notes changed/added in Postgres → embed + upsert to Pinecone with metadata. Frame: "the vector store keeps up with SQL." Since the dataset is static, the homework must **manufacture drift** (edit/add a note in Postgres → run sync → watch the index catch up) — planted-failure style, or the sync feels like ceremony.
+- Why this is worth the added scope (a table + a script): teaches system-of-record vs derived-index and a reconciliation job — a real, under-taught production concern — and it makes the metadata theme first-class (the sync is what stamps proposed metadata onto vectors).
+
+**Refined Week 1 / Week 2 (supersedes the W1/W2 lines above):**
+- **W1 — Load the data; why vector search; metadata.** SQL/structured is a *given* (mimics how a clinic already stores records) — load ALL of it into Postgres with minimal ceremony, little explanation. Teaching energy goes to: (a) the problem — why SQL/keyword can't match *meaning* in notes; (b) why a vector store solves it; (c) **metadata for the vector store**, using the Bible to talk chunking + metadata. Assignment (→W2): examine the data, **propose valuable vector metadata**. Homework: the **SQL→vector sync service**.
+- **W2 — Embeddings, metadata applied, search & reranking.** Open the black box (embeddings/cosine); load the notes into Pinecone with the *proposed* metadata; implement `searchClinicalNotes` + reranking; retrieval eval.
+
 **Execution phases (do in order, commit each):**
 1. ✅ Spine: README "Week index" rewritten; this tracker. (2026-07-05)
-2. ⬜ Week 1: add the vector-ingest black-box beat + the "why not SQL-search notes" explanation; Build day → "first hybrid answer" (needs vectors). Touch day-05/06 + week-1 deck/runbook.
-3. ⬜ Week 2: adapt embeddings intro (vectors already live from W1 — now explain them); fold Chunking to a homework doc; retire the standalone chunking deck/runbook; renumber week-3 embeddings deck → week-2.
-4. ⬜ Weeks 3–4: relabel (old W4 agents → W3; old W5 MCP/obs/HITL → W4). Mostly deck kicker/footer + README done.
-5. ⬜ Week 5: production gates minus poisoned-docs (→ homework); add a build-day deliverable.
-6. ⬜ Week 6: trim to evals + capstone (light).
-7. ⬜ Day-file renumbering + INSTRUCTOR-NOTES + slide-deck kickers/counters reconciled to the new week map.
+2. ⬜ **Foundation — `Note` table (Postgres = system of record).** Add `Note` model (id, patientId, type, date, content, + metadata cols); `extractNote`-to-row in `lib/fhir-extract.ts`; ingest writes notes to Postgres; keep the Pinecone upsert as the derived step. Tests. `db:push` + re-ingest. Propagate main/student.
+3. ⬜ **Sync service (homework).** `scripts/sync-vectors.ts` (or similar): read notes from Postgres not yet in / changed since Pinecone → embed + upsert with metadata. Challenge doc + manufactured-drift exercise. Student = stub; instructor = solution.
+4. ⬜ Week 1 deck/runbook + day files: SQL-as-given; problem→why-vectors→metadata; chunking+metadata via Bible; the propose-metadata assignment. (Relaxes rule 14 for W1 black-box framing.)
+5. ⬜ Week 2: embeddings intro (open the black box); load notes + proposed metadata; search + reranking; retire the standalone chunking deck (→ homework); renumber week-3 embeddings deck → week-2.
+6. ⬜ Weeks 3–4: relabel (old W4 agents → W3; old W5 MCP/obs/HITL → W4).
+7. ⬜ Week 5: production gates minus poisoned-docs (→ homework); build-day deliverable.
+8. ⬜ Week 6: trim to evals + capstone (light).
+9. ⬜ Day-file renumbering + INSTRUCTOR-NOTES + slide-deck kickers/counters reconciled to the new week map.
 
 Everything below predates the restructure — treat as historical until reconciled.
 

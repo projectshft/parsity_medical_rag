@@ -79,24 +79,25 @@ own tests, and reclaim live time for the core build.
 **Day Zero — Foundations (optional pre-work)**
 - [Foundations: LLMs and vector math](day-00.md) — do this *before* Week 1 if "embedding," "vector," or "cosine similarity" are new to you.
 
-**Week 1 — Stand up the whole system**
-Both retrieval engines live by the end of the week; embeddings ride along as a black box you open in Week 2.
-- [What RAG actually is (and why your LLM needs it)](day-01.md)
+**Week 1 — Load the data; why vector search; metadata**
+The structured half is a *given* — it mirrors how a clinic already stores its records, so **Postgres is the system of record** and you load *all* of it with little ceremony. The real work: why a second, vector store is worth building, and what metadata makes it useful.
+- [What RAG actually is (and why your LLM needs it)](day-01.md) — the problem: SQL/keyword search can't match *meaning* in the notes
 - [Setup: accounts, keys, and a running app](day-02.md)
-- [Meet the data: FHIR bundles and synthetic patients](day-03.md)
-- [Postgres + Prisma: the structured half](day-04.md)
-- [The SQL half of hybrid RAG](day-05.md)
-- [Load the vectors, ask the first hybrid question](day-06.md) 🎥 — run the full ingest (Postgres **and** the vector index) and get a grounded answer end to end
+- [Meet the data — and load all of it into Postgres](day-03.md)
+- [Why a vector store: what meaning-based search buys you that SQL can't](day-04.md)
+- [Chunking (the Bible) and metadata: what one "piece" is, and what to tag it with](day-05.md)
+- [Build day / checkpoint](day-06.md) 🎥
+- 📝 **Assignment (→ Week 2):** examine the data and **propose the vector-store metadata** worth keeping.
+- 📝 **Homework — the sync service:** a script that keeps the vector store up to date from Postgres (system of record → derived search index). This is how the two stay aligned in production.
 
-**Week 2 — Embeddings & semantic search**
-Open the black box from Week 1: what a vector *is*, and how meaning-based search actually works.
+**Week 2 — Embeddings, metadata & search**
+Open the black box from Week 1 — what a vector *is* — then load the notes into the vector store **with your proposed metadata** and build the search.
 - [Embeddings: meaning as geometry](day-13.md)
 - [The vector index up close](day-14.md)
-- [Semantic search over clinical notes](day-15.md)
+- [Load the notes + your metadata; semantic search over clinical notes](day-15.md)
 - [Hybrid queries: SQL filters meet vector search](day-16.md)
 - [When cosine similarity lies: reranking](day-17.md)
 - [Build day: your retrieval eval set](day-18.md) 🎥
-- 📝 **Homework — Chunking (the Bible lab):** pick a chunking strategy, defend it, and run the script. [Start here](day-07.md) · uses `scripts/bible/`
 
 **Week 3 — Query understanding & agents**
 - [Structured outputs: making LLMs return data, not prose](day-19.md)
