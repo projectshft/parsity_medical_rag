@@ -16,7 +16,7 @@
 
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-import { upsertChunks, MedicalChunk } from '../lib/pinecone';
+import { upsertChunks, ensureIndexExists, MedicalChunk } from '../lib/pinecone';
 
 // Bulk reads are steadier on Neon's direct (non-pooled) connection.
 const directUrl =
@@ -29,6 +29,9 @@ async function main() {
   const args = process.argv.slice(2);
   const limitIdx = args.indexOf('--limit');
   const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : undefined;
+
+  // 0. Make sure the vector index exists (creates it on first run).
+  await ensureIndexExists();
 
   // 1. Read the notes from Postgres (the system of record).
   const notes = await prisma.note.findMany({
