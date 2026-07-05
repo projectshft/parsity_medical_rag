@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Week 3 — Embeddings &amp; vector search · RAG &amp; AI Agents</title>
+<title>Week 3 — MCP + human-in-the-loop · RAG &amp; AI Agents</title>
 <style>
   :root {
     --ink: #1b2330;
@@ -83,263 +83,204 @@
 
   <!-- 1 — Title -->
   <section class="slide active title-wrap">
-    <div class="kicker">Week 3 of 6 — Embeddings &amp; vector search</div>
-    <h1>Meaning as geometry — and how to search by it</h1>
-    <p class="lead">By the end of the week: a retrieval eval set you built from your own corpus — the instrument that turns "the search feels better" into a number.</p>
+    <div class="kicker">Week 3 of 5 — MCP + human-in-the-loop</div>
+    <h1>Your RAG stops being an app and becomes a <em>tool other AIs can call</em></h1>
+    <p class="lead">By the end of the week: your system is exposed as a tool any AI assistant can discover and use — locked behind a key with the right permissions — and it knows the difference between reading data and <em>acting</em> on it.</p>
   </section>
 
   <!-- 2 — The week -->
   <section class="slide">
     <h2>This week</h2>
     <ul>
-      <li>Embeddings: meaning as geometry (turn text into numbers, measure similarity)</li>
-      <li>Your first vector index: build the search by hand, then meet Pinecone</li>
-      <li>Semantic search over real clinical notes</li>
-      <li>Hybrid queries: SQL filters meet vector search</li>
-      <li>When cosine lies (reranking), then a build day</li>
+      <li>MCP: turn your RAG into a tool other AI assistants can call</li>
+      <li>Wire it into Claude Desktop and Cursor; watch a foreign model use it</li>
+      <li>Secure it: API keys + permission scopes (read / read_pii / admin)</li>
+      <li>Human-in-the-loop: for actions that matter, the model <em>proposes</em>, a human <em>approves</em></li>
+      <li>Break it: watch an under-scoped key get refused — cleanly, and on the record</li>
     </ul>
-    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video walking through the retrieval eval set you built — and what it measured.</p>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video demoing a tool other AIs can call — and showing it <em>refuse</em> a caller that lacks the right permission.</p>
   </section>
 
-  <!-- 3 — Foundations recap (Day Zero) -->
+  <!-- 3 — Problem statement -->
   <section class="slide">
-    <h2>Foundations recap</h2>
-    <p>Two ideas from the Day Zero pre-work that everything this week stands on. If they're fresh, skim; if not, do Day Zero first.</p>
-    <ul>
-      <li><strong>An LLM is a next-token predictor.</strong> It answers by predicting what comes next — which is why it can <em>read</em> records you hand it, but can't <em>search</em> them on its own.</li>
-      <li><strong>The missing piece is search by meaning.</strong> That's what we build this week — and it runs entirely on turning text into numbers.</li>
-    </ul>
-    <div class="cue"><b>Facilitate:</b> quick hands — who did Day Zero? Calibrate how long to linger on the next slide.</div>
+    <h2>The problem this week solves</h2>
+    <p>Everything you've built answers questions through <em>your</em> chat box. But the people you'd build this for already live in other AI tools — Claude Desktop, Cursor, a dozen assistants.</p>
+    <p class="lead">Do you write a separate integration for each one? Or expose your system <strong>once</strong>, in a way any of them can discover and use?</p>
+    <div class="cue"><b>Say it plainly:</b> the question isn't "how do I add a feature." It's "how does my system become something <b>other software</b> plugs into."</div>
   </section>
 
-  <!-- 4 — Concept: what a vector is -->
+  <!-- 4 — How it's solved: MCP -->
   <section class="slide">
-    <h2>A vector is just a list of numbers — a location</h2>
-    <p>Turn a piece of text into a list of numbers and you've placed it at a point in space. Do it for every note, and <strong>similar meanings land near each other</strong>:</p>
-    <pre><code>   "trouble breathing"  •   • "shortness of breath"
-                                 • "dyspnea"
-
-                                              • "quarterly earnings"</code></pre>
-    <p class="sub">Our model returns <strong>1,536 numbers</strong> per text — a point in 1,536-dimensional space. You can't picture 1,536 dimensions; two is enough for the intuition. <em>How</em> we measure "near" comes next.</p>
+    <h2>MCP: USB-C for AI</h2>
+    <p>The <strong>Model Context Protocol</strong> is an open standard for connecting AI apps to outside systems. You write <em>one</em> MCP <strong>server</strong> that exposes your RAG as <strong>tools</strong>; any MCP <strong>client</strong> can discover and call them.</p>
+    <pre><code>  Claude Desktop ─┐
+        Cursor ───┼──▶  YOUR MCP server  ──▶  your pipeline
+  any MCP client ─┘     (mcp-server/index.ts)   (search, notes, patient detail)</code></pre>
+    <p class="sub">A REST API needs a human to read docs and write glue code per client. MCP's contract is machine-readable: the client <em>discovers</em> your tools, schemas and all, at connect time. REST serves programmers; MCP serves models.</p>
+    <div class="cue"><b>Land the one line:</b> write one server, any client discovers your tools. The difference from REST is <b>discovery</b> — a model reads the contract, not a programmer.</div>
   </section>
 
-  <!-- 5 — Problem statement -->
+  <!-- 5 — Concept: a tool is a prompt -->
   <section class="slide">
-    <h2>The promise we've been deferring</h2>
-    <p>Since Week 1 we've said "a search that understands meaning." A user types <em>trouble breathing</em>; the note only says <em>shortness of breath</em>. Zero shared words — and we promised the system would still find it.</p>
-    <p class="lead">No synonym table did that. So what does? Today the curtain comes up: <strong>embeddings</strong>.</p>
-    <div class="cue"><b>Say it plainly:</b> the hand-maintained synonym dictionary from Week 1 was the stand-in. This week we replace it with geometry learned from data.</div>
+    <h2>A tool description is a prompt for a model you don't control</h2>
+    <pre><code>server.tool(
+  'query_notes',
+  'Search clinical notes using semantic search. Use this for finding
+   relevant medical notes, symptoms, treatments, or observations.',
+  { query: z.string().describe('e.g. "chest pain", "breathing problems"'),
+    patientId: z.string().optional(),
+    topK: z.number().optional().default(5) },
+  async ({ query, patientId, topK }) =&gt; { /* call your pipeline */ }
+);</code></pre>
+    <p class="sub">The client's LLM reads your name + description + parameter schema and <em>decides</em> when to call it. Vague description → wrong tool at the wrong time — and you can't fix it by editing their prompt. <strong>The description <em>is</em> your interface.</strong></p>
   </section>
 
-  <!-- 6 — Concept: embeddings + cosine -->
-  <section class="slide">
-    <h2>An embedding turns text into a point in space</h2>
-    <p>One sentence: <strong>an embedding turns text into a list of numbers, so that texts with similar meaning get nearby lists.</strong> Our model outputs <strong>1,536 numbers</strong> per text — a point in 1,536-dim space. Picture two dims instead:</p>
-    <pre><code>   shortness of breath  •   • difficulty breathing
-            dyspnea  •                      • knee pain
-                                                 • quarterly earnings
-
-   search = embed the query, then rank docs by closeness:
-   cosine(a, b) = (a · b) / (|a| × |b|)    └dot product┘ ÷ └lengths┘</code></pre>
-    <p class="sub">Cosine asks "do these point the same way?" — 1.0 for identical down toward 0 for unrelated. It's the <strong>dot product</strong> over the two lengths; since these vectors are unit-length, the dot product alone gives the same ranking.</p>
-    <div class="cue"><b>Design point to land:</b> the geometry <em>is</em> the synonym dictionary — learned from data, not hand-typed.</div>
-  </section>
-
-  <!-- 7 — Code walkthrough: the ladder -->
+  <!-- 6 — Code walkthrough: smoke-test the server -->
   <section class="slide">
     <span class="mode code">💻 Code walkthrough</span>
-    <h2>Measure the ladder yourself</h2>
-    <p>Embed five phrases, score them against "shortness of breath" with a ten-line cosine function — real output:</p>
-    <pre><code>dimensions: 1536
-SOB vs dyspnea:    0.701   ← synonyms, zero shared words
-SOB vs difficulty: 0.743
-SOB vs knee pain:  0.327   ← same domain, different topic
-SOB vs earnings:   0.163   ← unrelated</code></pre>
-    <p class="sub">Synonyms ~0.70, same-domain ~0.33, unrelated ~0.16. The zero-shared-keyword pair scored <strong>0.701</strong> — that number is the entire reason the second half of this system exists.</p>
+    <h2>Talk to the server before any AI does</h2>
+    <pre><code># the server speaks JSON-RPC over stdin/stdout — pipe to it, no AI required
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
+  | npx ts-node mcp-server/index.ts</code></pre>
+    <p class="sub">Back comes a JSON listing of your tools with their schemas — proof the contract is <em>discoverable</em>. This is exactly what Claude Desktop sees at connect time. One rule that bites everyone: <strong>never <code>console.log</code> in this server.</strong> Stdout <em>is</em> the protocol channel; a stray log line corrupts the stream and the client disconnects. Log to <code>console.error</code> instead.</p>
   </section>
 
-  <!-- 8 — Concept: the lie -->
+  <!-- 7 — Code walkthrough: wire into a client -->
   <section class="slide">
-    <h2>Now watch it lie</h2>
-    <p>Re-run with full sentences instead of bare phrases:</p>
-    <pre><code>"the patient reports shortness of breath"  vs
-   "dyspnea on exertion"        →  0.597
-   "the patient reports knee pain"  →  0.622   ← !!</code></pre>
-    <p>The <strong>knee-pain</strong> sentence beats the real synonym. Why? The two sentences share the template <em>"the patient reports…"</em>. Embeddings measure <em>overall</em> textual similarity — meaning dominates, but phrasing and boilerplate leave fingerprints too.</p>
-    <div class="cue"><b>Plant it:</b> not a bug to fix today. Two later pieces — filtering <em>before</em> the geometry, a second opinion <em>after</em> it — exist for exactly this.</div>
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>Wire it into Claude Desktop, watch a foreign model use it</h2>
+    <pre><code>// ~/Library/Application Support/Claude/claude_desktop_config.json
+"mcpServers": {
+  "medical-rag": {
+    "command": "npx",
+    "args": ["ts-node", "/ABSOLUTE/path/to/mcp-server/index.ts"],
+    "env": { "DATABASE_URL": "...", "PINECONE_API_KEY": "...", "OPENAI_API_KEY": "..." }
+  }
+}</code></pre>
+    <p class="sub">Restart fully. Ask in plain words — <em>"how many patients have high blood pressure?"</em> — and watch it pick a tool, show its arguments, and wait for your approval. <strong>The path must be absolute</strong> (relative paths are the #1 failure). The client launches your server as a <em>subprocess</em> — crash and the tools vanish. And notice: you just pasted database credentials into a desktop app's config file.</p>
   </section>
 
-  <!-- 9 — Discussion -->
+  <!-- 8 — Discussion break -->
   <section class="slide">
     <span class="mode discuss">💬 Discussion</span>
-    <h2>"Is 0.6 a good score?"</h2>
-    <p>Someone on your team hardcodes: <em>only show results scoring above 0.6.</em> Argue it out:</p>
+    <h2>You shipped a patient database with no front door</h2>
+    <p>Anyone who can launch that server has unrestricted access to every tool — no identity, no permissions, no record of who asked what.</p>
     <ul>
-      <li>What's wrong with the question "is 0.6 good?" in the first place?</li>
-      <li>A gibberish query still returns its "top" matches — at what score? What should the system <em>do</em> with that?</li>
-      <li>If you can't trust an absolute threshold, how would you ever know your search is any good?</li>
+      <li>What's the worst thing a stranger could do with your tools right now?</li>
+      <li>Which credentials are sitting in plaintext, and where?</li>
+      <li>For medical data, is this a missing <em>feature</em> — or a missing <em>wall</em>?</li>
     </ul>
-    <div class="cue"><b>Facilitate:</b> drive them to "scores are only meaningful relative to other candidates for the same query." That third bullet is This week's deliverable in disguise — don't resolve it, let it ache.</div>
+    <div class="cue"><b>Facilitate:</b> don't rescue them yet. Let the discomfort land — that discomfort <em>is</em> the securing segment. Breakout if &gt;8 people; debrief with the answer key.</div>
   </section>
 
-  <!-- 10 — Under the hood: build by hand -->
+  <!-- 9 — Concept: the security layers -->
   <section class="slide">
-    <span class="mode code">💻 Code walkthrough</span>
-    <h2>Be the vector database — by hand, first</h2>
-    <p>Before touching Pinecone, build what one <em>does</em> in ~ten lines: embed a tiny corpus once, embed a query, score, sort.</p>
-    <pre><code>const docVectors = await createEmbeddings(corpus);   // text → vectors, once
-const queryVector = await createEmbedding(query);
-const ranked = corpus
-  .map((text, i) => ({ text, score: cosine(queryVector, docVectors[i]) }))
-  .sort((a, b) => b.score - a.score);                 // rank by similarity</code></pre>
-    <p class="sub">Query <em>"caring for the people around you"</em> ranks <em>"Love your neighbour as yourself"</em> first — zero shared words. That <code>map → sort → take top</code> loop <strong>is what a vector database does.</strong> No extra magic in the box.</p>
-  </section>
-
-  <!-- 11 — Concept: so why pay for Pinecone -->
-  <section class="slide">
-    <h2>So why pay for a vector database?</h2>
-    <p>If search is just that loop — two reasons, and only two:</p>
+    <h2>"Secured" means three layers</h2>
     <div class="two">
       <div class="card">
-        <h3>Persistence</h3>
-        <p>Your script re-embeds the corpus every run. A database embeds once and <strong>keeps</strong> the vectors — you pay the embedding cost a single time.</p>
+        <h3>Authentication — who's calling?</h3>
+        <p>API keys. The caller presents one; the server validates it. The caller is a <em>process</em>, not a person — so keys, not logins.</p>
       </div>
       <div class="card">
-        <h3>Speed at scale</h3>
-        <p>Your loop checks <strong>every</strong> vector — fine for 5, hopeless for 144,000 per query. The database builds an index that finds nearest neighbors <strong>without</strong> checking them all.</p>
+        <h3>Authorization — what may they do?</h3>
+        <p><strong>Scopes</strong> on the key, checked per tool: <code>read</code> (search), <code>read_pii</code> (named patient detail), <code>admin</code> (bulk listing).</p>
       </div>
     </div>
-    <div class="cue"><b>Land it:</b> everything else — metadata filtering, the API, the dashboard — is convenience around those two. Two index params are permanent: <b>dimensions 1536</b> (must match the model) and <b>metric cosine</b>.</div>
+    <p class="sub" style="margin-top:1rem"><strong>Audit — who did what, when?</strong> A log entry for every call, allowed <em>or denied</em>. The modules are provided (<code>mcp-server/auth.ts</code>, <code>audit.ts</code>); you wire them in through one wrapper.</p>
   </section>
 
-  <!-- 12 — Code walkthrough: real notes -->
+  <!-- 10 — Concept: least privilege + the denial demo -->
+  <section class="slide">
+    <h2>Least privilege: one key per client, smallest scope that works</h2>
+    <p>Two callers, same system. A <code>read</code>+<code>read_pii</code> key can search and pull a patient chart — but is <strong>denied</strong> the admin-only bulk-listing tool. An admin key runs the same call and gets the data.</p>
+    <pre><code>list_patients_by_condition  ("high blood pressure")
+
+  read + read_pii key  →  DENIED: key lacks 'admin' scope   ← clean text, not a crash
+  admin key            →  returns the list                  ← same call, two worlds</code></pre>
+    <p class="sub">When a key leaks — and keys leak — the blast radius is the <strong>scope</strong>, not the database. And the key is revocable on its own, without rotating your infrastructure.</p>
+    <div class="cue"><b>Design point to land:</b> wire auth through one <code>withAuth</code> wrapper, not tool-by-tool. The next tool you add ships protected because it <em>can't</em> skip the wrapper.</div>
+  </section>
+
+  <!-- 11 — Concept: human-in-the-loop -->
+  <section class="slide">
+    <h2>The moment a system can <em>act</em>: does it act, or propose?</h2>
+    <p>Reads are safe. Now the system gets its first <em>write</em> — booking a follow-up appointment. So the design question that outranks all others:</p>
+    <pre><code>"schedule Smith ──▶ detect intent ──▶ confirmation card ──▶ confirm ──▶ book it
+ for Tue at 2"     (LLM, structured)   (human reviews)    │        (code, deterministic)
+                                                          └─ cancel ─▶ nothing happens</code></pre>
+    <p class="sub"><strong>The model never holds the trigger.</strong> Its authority ends at <em>proposing</em> structured parameters; a human reviews the actual values and clicks confirm; only then does deterministic code act.</p>
+  </section>
+
+  <!-- 12 — Code walkthrough: the propose→approve flow -->
   <section class="slide">
     <span class="mode code">💻 Code walkthrough</span>
-    <h2>Real cargo: clinical notes, one note = one vector</h2>
-    <pre><code>npm run ingest -- --limit 50        # embeds + upserts notes (no --skip-vectors now)</code></pre>
-    <p>Then implement <code>searchClinicalNotes</code> in <code>lib/vector-search.ts</code> — embed the query, query the index, map the matches. The Day 1 payoff, live:</p>
-    <pre><code>=== "shortness of breath"   and   === "trouble breathing"
-   → overlapping notes surface. Two phrasings, zero shared keywords.</code></pre>
-    <p class="sub">The promise from the first days of the course is now <em>your</em> code.</p>
+    <h2>Propose in the model, act in the code</h2>
+    <pre><code>// lib/scheduling.ts — the model only PROPOSES structured values
+const SchedulingIntentSchema = z.object({
+  isSchedulingRequest: z.boolean(),
+  patientName: z.string().nullable(),      // null, never a guessed name
+  suggestedDate: z.string().nullable(),    // "next Tuesday" resolved to YYYY-MM-DD
+  suggestedTime: z.string().nullable(),
+});
+// → renders a confirmation CARD the human edits and confirms
+// → only then does POST /api/schedule call the calendar (lib/calendar.ts)</code></pre>
+    <p class="sub">The card's values — the ones a human just reviewed — are the source of truth, not the model's raw extraction. Dates get resolved to a real <code>YYYY-MM-DD</code> in code, because "next Tuesday" needs today's date and the model doesn't reliably know it.</p>
   </section>
 
-  <!-- 13 — Concept: metadata filter / privacy -->
+  <!-- 13 — Discussion: the reversibility grid -->
   <section class="slide">
-    <h2>One new idea: filter inside the search</h2>
-    <p>Pinecone can restrict the nearest-neighbor search to vectors whose metadata matches — searching one patient's 40 notes instead of all 144,000.</p>
-    <pre><code>filter: { patientId: { $in: ['abc', 'def'] } }</code></pre>
-    <p>This is <strong>not</strong> filtering afterward. A global top-10 trimmed to one patient might leave <em>zero</em>; a filtered search returns that patient's true top 10 — and the other patients' note text <strong>never leaves the database</strong>.</p>
-    <div class="cue"><b>Design point to land:</b> <code>patientId</code> is the privacy boundary, and this <code>filter</code> is where it's enforced — quality reason <em>and</em> safety reason.</div>
+    <span class="mode discuss">💬 Discussion</span>
+    <h2>Which actions are safe to automate — and which need a human?</h2>
+    <p>Sort these onto two axes: <strong>reversibility</strong> and <strong>cost of being wrong</strong>.</p>
+    <ul>
+      <li>Search a patient's records</li>
+      <li>Book an appointment on a real calendar</li>
+      <li>Send a refill request to a pharmacist</li>
+      <li>Send a referral letter under a doctor's name</li>
+    </ul>
+    <div class="cue"><b>Facilitate:</b> the question is never "can the model do it" — it's "what does wrong cost, and <b>who absorbs it</b>?" That's what decides the gate. Debrief with the answer key.</div>
   </section>
 
-  <!-- 14 — Concept: hybrid -->
-  <section class="slide">
-    <h2>Hybrid: facts narrow the world, meaning ranks what's left</h2>
-    <p><em>"Sleep problems in patients with depression."</em> Neither engine alone: SQL's <code>LIKE '%sleep%'</code> misses "insomnia"; vector search finds sleep notes for <em>anyone</em>. Run them in order:</p>
-    <pre><code>  question
-     │
-  1. Postgres:  who HAS depression?  ──► patient ids   (exact)
-     │
-  2. Vector search: "sleep problems", filter to those ids   (fuzzy)
-     │
-     ▼
-  notes about sleep, only from depressed patients</code></pre>
-    <p class="sub"><strong>Exact filters narrow the world; semantic search ranks what's left.</strong> The exact step runs first — the math is quiet otherwise, and a fact is a <code>WHERE</code>, not a similarity score.</p>
-  </section>
-
-  <!-- 15 — Mini-challenge: hybrid controls -->
+  <!-- 14 — Mini-challenge: build/secure + break the gate -->
   <section class="slide">
     <span class="mode challenge">🛠 Mini-challenge</span>
-    <h2>Prove the hybrid earns its keep</h2>
+    <h2>Secure a tool, then try to break it</h2>
     <ul>
-      <li>Run the depression + sleep hybrid. Now run the <strong>vector-only control</strong>: same query, no filter.</li>
-      <li>Count: how many of the global top-10 are <em>not</em> depression patients?</li>
-      <li>That count <strong>is</strong> the hybrid's value — quantified in thirty seconds.</li>
-      <li>Watch the empty-filter trap: if no patients match, an empty <code>patientIds</code> array means <em>no filter</em> → it searches everyone. That's a <strong>privacy</strong> bug, not a relevance bug.</li>
+      <li><strong>Prove the wall:</strong> call the admin tool with a <code>read</code> key → watch it refuse; swap in the admin key → watch it succeed. Same call, two callers.</li>
+      <li><strong>Prove the record:</strong> find that denial in the audit log — <code>grep</code> "who tried to access what, and were they denied?"</li>
+      <li><strong>Attack the gate:</strong> make "confirm" post the <em>model's</em> values instead of the card's. Watch the human's edits vanish. Now the gate is decoration.</li>
     </ul>
-    <div class="cue"><b>The point isn't the query</b> — it's the control. Plausible-looking results are the most dangerous kind; you beat them with counts, not by staring harder.</div>
+    <div class="cue"><b>Land this:</b> don't show it <em>working</em> — show it <b>refusing, recording, and recovering</b>. The refusals are the deliverable, not the happy path.</div>
   </section>
 
-  <!-- 16 — Concept: reranking -->
-  <section class="slide">
-    <h2>When cosine lies: a second opinion</h2>
-    <p>Remember the lie — knee pain out-scored dyspnea. The root cause: <strong>an embedding summarizes each text separately, before any query exists.</strong> At search time you're comparing two blind summaries.</p>
-    <p>A <strong>reranker</strong> reads the <em>query and the document together, at query time</em>, and scores how well <em>this</em> doc answers <em>this</em> query. Boilerplate matching boilerplate impresses it far less.</p>
-    <pre><code>query ─► vector search ─► top 25 ─► reranker ─► top 5, re-ordered
-         (fast, broad)            (slow, careful)</code></pre>
-    <p class="sub">Cheap-and-broad finds candidates; expensive-and-careful orders them. Same logic as skimming 200 résumés and interviewing 6.</p>
-  </section>
-
-  <!-- 17 — Code walkthrough: the funnel -->
-  <section class="slide">
-    <span class="mode code">💻 Code walkthrough</span>
-    <h2>Wire the funnel — and resist concluding anything</h2>
-    <pre><code>const candidates = await searchChunks(query, 25);   // over-fetch on purpose
-const reranked  = await rerankResults(query, candidates, 5);</code></pre>
-    <ul>
-      <li><strong>Over-fetch is the point</strong> — a great note ranked #19 by cosine is invisible unless the funnel mouth is wide enough.</li>
-      <li><strong>Different universe</strong> — rerank scores aren't cosine scores; only order within one list means anything.</li>
-      <li>The order changes… <em>sometimes</em>. Which raises the honest question.</li>
-    </ul>
-    <div class="cue"><b>Heads up (it'll bite live):</b> no <code>COHERE_API_KEY</code> → the wrapper returns the <em>original</em> order, no error. If reranked == original always, suspect the key before the model.</div>
-  </section>
-
-  <!-- 18 — Concept: no metric, no decision -->
-  <section class="slide">
-    <h2>"It felt better" is not evidence</h2>
-    <p>You watched the order change and it <em>felt</em> like an improvement. But "the order changed" and "the results got better" are different claims — and the second needs <strong>ground truth</strong>: which notes are actually relevant? Nothing you've built knows that yet.</p>
-    <p class="lead">The course's spine rule arrives: <strong>no metric, no decision.</strong> A reranker adds latency, cost, and a vendor. Whether it pays for itself on <em>your</em> corpus is an empirical question — and you're one eval away from the answer.</p>
-    <div class="cue"><b>Say it plainly:</b> plenty of real systems measure and drop the reranker; plenty keep it as their best upgrade. Today we build the instrument that tells you which kind yours is.</div>
-  </section>
-
-  <!-- 19 — Build day: the eval set -->
-  <section class="slide">
-    <span class="mode challenge">🛠 Mini-challenge</span>
-    <h2>Build day: your retrieval eval set</h2>
-    <p>Embarrassingly simple machinery — and the most important build in the course so far:</p>
-    <ul>
-      <li>15+ <strong>(query, expected)</strong> pairs — questions with known-correct answers <em>in your corpus</em>, read from your own notes</li>
-      <li>Query in the <strong>user's</strong> words, not the note's (verbatim queries test nothing)</li>
-      <li>Metric: <strong>hit@5</strong> = (queries where an expected note landed in the top 5) / total</li>
-      <li>Score it twice: <em>vector alone</em> vs <em>vector + reranker</em>. Now you know.</li>
-    </ul>
-    <div class="cue"><b>Land it:</b> "is 73% good?" → the only honest answer is <em>compared to what?</em> Evals create differences, not grades. Keep a few pairs you never tune on.</div>
-  </section>
-
-  <!-- 20 — Research: two meanings of hybrid -->
+  <!-- 15 — Research -->
   <section class="slide">
     <span class="mode research">🔍 Research</span>
-    <h2>"Hybrid" can mean two engines — or two scores</h2>
-    <p>Search "hybrid search" outside this course and you'll mostly find a <em>different</em> technique than the one you built:</p>
-    <div class="two">
-      <div class="card">
-        <h3>Two engines (ours)</h3>
-        <p>Postgres for exact facts, the vector index for meaning — picked per question.</p>
-      </div>
-      <div class="card">
-        <h3>Two scores (the literature)</h3>
-        <p><strong>Dense</strong> (meaning) + <strong>sparse</strong>/BM25 (exact words) fused in one store, because each catches what the other misses.</p>
-      </div>
-    </div>
-    <p class="sub">Go find out: why does <em>this</em> system get its exact-match half from Postgres instead of sparse vectors? Where's the one seam where sparse <em>would</em> earn its place? (Hint: a term that lives only in free-text notes, never as structured data.)</p>
+    <h2>Go find out</h2>
+    <ul>
+      <li>Your <code>read</code> key can't pull a named chart — but it <em>can</em> walk the whole database politely, one call at a time. Auth doesn't stop that. What does? (Look up rate limiting and anomaly detection.)</li>
+      <li>"next Tuesday" needs today's date, and the model doesn't reliably know it. Why resolve dates in <strong>code</strong>, not in the prompt — even though the model can <em>usually</em> do the math?</li>
+    </ul>
+    <p class="sub">Bring one finding back. The first question is a door nobody guards yet — you'll meet an attacker at it in the final week.</p>
   </section>
 
-  <!-- 21 — Recap -->
+  <!-- 16 — Recap -->
   <section class="slide">
     <h2>Where you are</h2>
     <ul>
-      <li>You can explain <strong>why</strong> meaning-based search works — embeddings, cosine, the geometry that replaced the synonym table</li>
-      <li>You built the search by hand, then stood up real semantic search over clinical notes</li>
-      <li>You wired the hybrid pattern, added a reranker, and — above all — built the <strong>instrument</strong> that turns retrieval opinions into facts</li>
+      <li>Your system is now <strong>infrastructure</strong> — tools any AI client can discover and call</li>
+      <li>With <strong>identity and least privilege</strong> — keys + scopes, one per client, revocable on its own</li>
+      <li>Every call is on the record — <strong>allowed or denied</strong>, who and what</li>
+      <li>And one <strong>human-gated write path</strong> — the model proposes, a person confirms, code acts</li>
     </ul>
-    <p class="lead">This week's deliverable: the 2–3 min video on your eval set and what it measured. Next: the system learns to read the <strong>user's</strong> question and route it to the right engine automatically.</p>
+    <p class="lead">This week's deliverable: the 2–3 min video — a tool other AIs can call, shown <em>refusing</em> an under-scoped caller and logging the refusal. Next week, the final block: the system gets locked down for <strong>people</strong>, attacked through its data, and judged end to end against the standard you've built all course.</p>
   </section>
 
 </div>
 
 <div class="bar">
-  <span class="name">RAG &amp; AI Agents · Week 3 — Embeddings &amp; vector search</span>
-  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 21</span></span>
+  <span class="name">RAG &amp; AI Agents · Week 3 — MCP + human-in-the-loop</span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 16</span></span>
 </div>
 
 <script>

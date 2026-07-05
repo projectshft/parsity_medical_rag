@@ -1,23 +1,44 @@
-# Week 3 — Embeddings & vector search · Facilitator Runbook
+# Week 3 — MCP + human-in-the-loop · Facilitator Runbook
 
-**Block:** Embeddings & vector search · **Days covered:** 13–18 · **Session length:** ~110 min · **Deck:** `week-3.html`
+**Block:** MCP + human-in-the-loop · **Days covered:** 13–18 · **Session length:** ~110 min · **Deck:** `week-3.html`
 
-**Goal of this session:** the room leaves able to explain *why* meaning-based search works (embeddings → cosine → geometry that replaces the synonym table), having run a vector search by hand and a real one over clinical notes — and they understand the spine rule that lands Friday: **no metric, no decision.** You can't claim reranking helped without an eval, which is the Day 18 deliverable.
+**Goal of this session:** the room leaves able to explain — without notes — how their RAG stops being an app and becomes a *tool other AIs can call* (MCP), gated by keys with the right permissions (scopes), on the record for every call (audit), and held back from acting on its own when the action matters (human-in-the-loop). They will have talked to the server over a raw pipe, wired it into a real AI client (or the inspector), called a tool live, and watched the auth layer refuse an under-scoped key — cleanly, and in the log.
 
-> This runbook is backstage. Say anything here; the slides are what students see. You do **not** need to have built the system to run this — Pre-flight and Code-together assume you're coming in cold.
+> This runbook is backstage. Say anything here — HIPAA framing, the planted 401, the audit-log specifics. The slides are what students see, so slide text stays in the student register (household-name conditions like high blood pressure/diabetes, no HIPAA jargon on the slide face). You do **not** need to have built the system to run this — Pre-flight and Code-together assume you're coming in cold.
 
 ---
 
 ## Pre-flight (before the room arrives)
 
-- [ ] Repo cloned on the **`student`** branch, `npm install` done.
-- [ ] `.env` filled with **three** keys this week: `OPENAI_API_KEY` (embeddings), `PINECONE_API_KEY` (the index), and `COHERE_API_KEY` (reranking — free trial tier is enough). Missing the Cohere key is the headline live failure; have it set, but know what its absence looks like (below).
-- [ ] **A populated note index.** Run `npm run ingest -- --limit 50` once yourself before class so the `medical-notes` index has real clinical-note vectors. Confirm in the [Pinecone console](https://app.pinecone.io): index `medical-notes`, dimension **1536**, metric **cosine**, non-zero vector count. The first ~30 min of the deck don't need it, but everything from slide 11 on does.
-- [ ] Two terminals open in the repo: one for scratch scripts, one for `npm run db:studio` (you'll grab a real `patientId` live).
-- [ ] A scratch file ready to paste into — scripts run with `npx ts-node --compiler-options '{"module":"CommonJS"}' scratch.ts`.
-- [ ] `week-3.html` open full-screen. Arrow keys / click to navigate.
+- [ ] Repo cloned on the **`instructor`** branch (you want the solved `auth.ts` / `audit.ts` / `scheduling.ts` / `calendar.ts` to demo against), `npm install` done. Students follow on `student`.
+- [ ] `.env` filled with the base stack: `DATABASE_URL` (Neon), `PINECONE_API_KEY`, `OPENAI_API_KEY`. `CAL_API_KEY` + `CAL_EVENT_TYPE_ID` only if you intend to book a *real* appointment live (optional — see the 401 note below; the propose→approve flow demos fine without them).
+- [ ] **The MCP server runs.** Smoke-test it once yourself before class:
+  ```bash
+  echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | npx ts-node mcp-server/index.ts
+  ```
+  You should get JSON back listing the five tools with their schemas. If you see nothing (or garbage before the JSON), you almost certainly logged to stdout somewhere — check for a stray `console.log`. Note `mcp-server/index.ts` correctly uses `console.error('Medical RAG MCP server running')` on startup; that's fine, stderr isn't the channel.
+- [ ] **Claude Desktop or Cursor installed**, with the `medical-rag` server already wired into its config and confirmed working (tools icon visible in a fresh conversation). Do this the night before — the first wiring always takes longer than you think, and absolute-path bugs are not a live-demo moment.
+  - macOS Claude Desktop config: `~/Library/Application Support/Claude/claude_desktop_config.json`
+  - Cursor: `.cursor/mcp.json` at the repo root
+  - **Fallback if no client cooperates:** run the whole MCP segment through the pipe + `npx @modelcontextprotocol/inspector` (see Code-together Part 1). You lose the "a foreign model picks your tool" reveal but keep every teaching point.
+- [ ] **Scope-demo keys set in `.env`** — there is **no key-minting step**; the keys are just strings you choose, and the server reads them from the environment (`mcp-server/auth.ts` → `checkEnvironmentKeys`):
+  ```bash
+  MCP_API_KEY=mcp_demo_read       # auth.ts maps this to read + read_pii
+  MCP_ADMIN_KEY=mcp_demo_admin    # → read + read_pii + admin
+  MCP_REQUIRE_AUTH=true           # turn the gate ON (unset/false = open server)
+  ```
+  The scope layout you're demoing (from `TOOL_SCOPES`): `search_patients`/`query_notes` need `read`; `get_patient`/`find_patient_by_name` need `read_pii`; `list_patients_by_condition` needs `admin`. So `MCP_API_KEY` can search *and* read patient detail but is **refused on the admin tool** — that's your clean boundary. (There's no env var for a `read`-only key; to demo the read→read_pii line specifically you'd `registerApiKey` one in-process — optional, see the break-it bank.)
+- [ ] A populated note index for the `query_notes` tool to have something to return — run `npm run ingest -- --limit 50` once if you haven't already this course. The `search_patients` / condition-count tools read Postgres directly and don't need it.
+- [ ] Terminals open: one for the MCP pipe/inspector, one tailing the client's MCP log, one for the audit log:
+  ```bash
+  tail -f ~/Library/Logs/Claude/mcp-server-medical-rag.log   # client-side
+  ls logs/mcp-audit-*.jsonl                                   # server-side audit (JSONL, one file per day)
+  ```
+- [ ] `week-3.html` open full-screen in a browser. Arrow keys / click to navigate; `N` toggles presenter notes.
 
-If a laptop can't reach Pinecone or OpenAI, pair up — the by-hand and ladder demos survive one working machine between two people.
+**Known runnable-state gap — flag this so you're not surprised live:** on the finished system the **chat-UI "schedule" button returns 401.** This is *expected*, not a bug. `app/api/schedule/route.ts` calls `requireAuth(request, ['STAFF'])` — RBAC (built in the final block) gates scheduling to STAFF, and there is **no login UI yet** and no seeded users, so a normal browser session is unauthenticated. The propose → approve → execute *flow* is fully built (`lib/scheduling.ts` detects intent and emits the confirmation card; `lib/calendar.ts` does the booking); it's the RBAC wall in front of `/api/schedule` that returns 401. If you want to demo booking end-to-end live, either (a) walk the flow conceptually and show the confirmation card appearing (the model's propose step works regardless), or (b) hit the route directly with a STAFF-authenticated request / temporarily relax the role check on a throwaway branch. Do **not** debug the 401 in front of the room as if it were broken — name it as the seam where this block (HITL) meets next block (RBAC for people, not just keys).
+
+If a laptop can't install an MCP client, pair them — one wired client (or the inspector) per two people survives the whole session.
 
 ---
 
@@ -25,154 +46,152 @@ If a laptop can't reach Pinecone or OpenAI, pair up — the by-hand and ladder d
 
 | Time | Arc segment | Slides | What to do |
 |---|---|---|---|
-| 0:00 | **Foundations recap** | 1–4 | Title + the week, then the two Day-Zero recap slides: an LLM is a next-token predictor; a vector is a list of numbers = a point in space (1,536 dims). Quick hands — who did Day Zero? — calibrate depth. |
-| 0:08 | **Problem statement** | 5 | Cold open on the promise we've deferred since Week 1: "trouble breathing" must find a note that says "shortness of breath," zero shared words. No synonym table did that. Sit in the gap before naming embeddings. |
-| 0:15 | **High-level concept** | 6 | Embedding = text → point in space; cosine = "do they point the same way?" Land that cosine is a normalized dot product, and the geometry *is* the learned synonym dictionary. |
-| 0:23 | **Practical example** | 7 | The ladder, with the real numbers (0.701 / 0.327 / 0.163). The zero-shared-keyword pair at 0.701 is the whole reason engine two exists. |
-| 0:30 | **The honest limit** | 8 | Watch it lie: knee-pain sentence (0.622) beats dyspnea (0.597) on a shared template. Plant that two later pieces — filter-before, second-opinion-after — exist for this. |
-| 0:36 | **Discussion / breakout** | 9 | "Is 0.6 a good score?" Breakout if >8 people. Debrief with the answer key below — drive to *relative, not absolute*. |
-| 0:48 | **Code together (by hand)** | 10 | Be the vector database: embed a tiny corpus, embed a query, `map → sort → take top`. *This loop is what Pinecone does.* |
-| 1:00 | **Concept: why pay for it** | 11 | Only two reasons: persistence + speed at scale. Two permanent index params: dims 1536, metric cosine. |
-| 1:06 | **Code together (real notes)** | 12–13 | `npm run ingest -- --limit 50` (already done in pre-flight — show the log), then `searchClinicalNotes`. Run the Day 1 payoff queries live. Land the in-query filter = privacy boundary. |
-| 1:18 | **Concept + break-it: hybrid** | 14 | Facts narrow the world, meaning ranks what's left — SQL first, vectors second. Run the empty-filter privacy break (bank #2) live. |
-| 1:28 | **Mini-challenge: controls** | 15 | Turn them loose: hybrid + vector-only control, count the strangers in the global top-10. |
-| 1:38 | **Concept + code: reranking** | 16–17 | The funnel. Wire it live; trip the silent Cohere fallback (bank #1) so they see it once. |
-| 1:48 | **Spine rule + deliverable** | 18–19 | "No metric, no decision." Frame the eval set as the instrument; "is 73% good?" → *compared to what?* |
-| 1:55 | **Recap + send-off** | 20–21 | The two-meanings-of-hybrid research slide (dense+sparse), then the recap: where you are + the deliverable framing. Light forward ref: next block the LLM routes questions automatically. |
+| 0:00 | **Problem statement** | 1–3 | Cold open: "Everything you built lives in *your* chat box. Your users live in Claude Desktop and Cursor. Do you write an integration for each?" Sit in the gap before naming MCP. |
+| 0:10 | **How it's solved** | 4 | Land the one line: *write one MCP server, any client discovers your tools.* USB-C for AI. REST serves programmers; MCP serves models. |
+| 0:16 | **High-level concept** | 5 | The inversion that matters: *your tool description is a prompt for a model you don't control.* The description **is** the interface. |
+| 0:24 | **Code together (part 1)** | 6–7 | Pipe `tools/list` at the server (no AI). Then wire into Claude Desktop and ask a plain question — watch a foreign model pick a tool. Fallback to the inspector if the client fights you. Commands below. |
+| 0:42 | **Discussion / breakout** | 8 | "You shipped a database with no front door." Let the discomfort land. Breakout if >8 people. Debrief with the answer key below. |
+| 0:54 | **Concept: securing it** | 9–10 | The three layers (authN / authZ / audit) + least privilege. Then the live two-keys demo — same admin call, two callers, two worlds. |
+| 1:10 | **Concept: human-in-the-loop** | 11–12 | The first *write*. Propose vs act — the model never holds the trigger. Walk `lib/scheduling.ts`'s structured intent → confirmation card → `/api/schedule`. **Name the 401 / RBAC seam here** (see Pre-flight). |
+| 1:24 | **Discussion / breakout** | 13 | The reversibility-vs-cost grid. Sort the four actions. Debrief with the answer key. |
+| 1:36 | **Break it / extend → mini-challenge** | 14 | Run the under-scoped-key refusal live (the headline), grep the audit log for the denial, then turn them loose on the gate-bypass. |
+| 1:50 | **Recap + send-off** | 15–16 | Research questions + deliverable framing. Point lightly at the final block (production gates: auth for *people*, PII, adversarial inputs, evals). |
 
-Runs long? The compressible segments are the ladder (0:23) and the why-pay concept (1:00) — **never** the by-hand code-together (0:48) or the eval-set spine landing (1:48). If you must cut a break-it, keep the empty-filter privacy one.
+Runs long? The compressible segments are the reversibility discussion (1:24 — can shrink to a fast whole-room sort) and the HITL code-read (1:10 — the confirmation-card diagram on slide 11 carries it). **Never** compress the MCP code-together (0:24) or the two-keys demo (0:54) — those are the hands-on proof points.
 
 ---
 
-## Breakout prompt + answer key
+## Breakout prompts + answer keys
 
-**Prompt (slide 7):** "A teammate hardcodes 'only show results scoring above 0.6.' Argue: what's wrong with the question 'is 0.6 good?' to begin with? A gibberish query still returns top matches — at what score, and what should the system do with that? And if you can't trust an absolute threshold, how would you *ever* know your search is any good?"
+### Breakout A (slide 8) — "A database with no front door"
 
-- **"Is 0.6 good?" is malformed** — cosine has no absolute calibration; it depends on the model, text length, domain, even boilerplate. The only well-formed question is "did the *right* document outrank the *wrong* ones for this query?" Scores are meaningful **only relative to other candidates for the same query**.
-- **The gibberish query** ("how do I file my taxes" against clinical notes) still returns its K nearest neighbors — at visibly lower scores, but **not zero**, and with no universal threshold separating "real match" from "best of a bad lot." The retrieval layer *cannot* say "nothing matched"; something downstream must decide that.
-- **How would you know it's good?** — this is the trap door. There's no answer from scores alone; you need ground truth — known-correct (query, expected) pairs. That's Friday's deliverable, seeded here. **Don't resolve it** — let the room feel they can't answer the third bullet yet.
+**Prompt:** "You just wired this server into an AI client with your real database URL in the config. (1) What's the worst thing a stranger who got that config could do? (2) Which credentials are sitting in plaintext, and where? (3) Is this a missing *feature* or a missing *wall*?"
 
-**What to listen for:** anyone reaching for "just pick a higher threshold" is walking into the wall on purpose — that instinct is exactly what the eval set dismantles. The students who say "good *compared to what?*" already get it.
+**What to listen for:**
+- The worst case isn't "they read a note" — it's *every conversation in that client can now read the entire patient database, with no record of who asked.* No identity, no permissions, no audit. For real PHI that's a reportable event, not a rough edge.
+- The plaintext credentials are `DATABASE_URL`, `PINECONE_API_KEY`, `OPENAI_API_KEY` — full infrastructure access — sitting in a desktop-app config file *and* flowing through an AI client you don't operate. "Every integration seam is a place credentials pool."
+- "Missing wall" is the right framing. It's not a feature you forgot; it's the load-bearing wall, absent.
+
+**Debrief:** this is exactly the securing segment. The fix is three layers — authentication (keys), authorization (scopes), audit (a log of every call). The quiet win of the day: clients stop holding raw `DATABASE_URL` and start holding a scoped, individually-revocable application key; infrastructure credentials live only where the server runs.
+
+### Breakout B (slide 13) — "Which actions need a human?"
+
+**Prompt:** "Place each action on two axes — *reversibility* and *cost of being wrong* — then decide: automate freely, or human gate? Say why."
+
+- **Search a patient's records** → low cost, fully reversible → **automate.** A bad result costs a shrug and a rephrase.
+- **Book an appointment on a real calendar** → consequential and not silently reversible (it emails a real patient, corrupts a clinic's day) → **human gate.** This is the one the block builds.
+- **Refill request to a pharmacist** → it's a *proposal* a licensed human already reviews downstream → **light gate.** The pharmacist is the human-in-the-loop.
+- **Referral letter under a doctor's name** → consequential *and* reputational, sent in someone's name → **hard gate**, probably sign-off stronger than one click.
+
+**What to listen for:** the instinct to gate by "how smart is the model." That's the wrong axis. The right axis is **what does wrong cost, and who absorbs it.** The model's competence doesn't change who's liable when it books the wrong slot. The grid generalizes to every future feature.
 
 ---
 
 ## Code-together
 
-### Part A — be the vector database by hand (slide 8)
+### Part 1 — MCP: pipe it, then wire it (slides 6–7)
 
-Paste into a scratch script, run with `npx ts-node --compiler-options '{"module":"CommonJS"}' scratch.ts`:
-
-```typescript
-import 'dotenv/config';
-import { createEmbedding, createEmbeddings } from './lib/openai';
-
-function cosine(a: number[], b: number[]): number {
-  let dot = 0, na = 0, nb = 0;
-  for (let i = 0; i < a.length; i++) { dot += a[i]*b[i]; na += a[i]*a[i]; nb += b[i]*b[i]; }
-  return dot / (Math.sqrt(na) * Math.sqrt(nb));
-}
-
-async function main() {
-  const corpus = [
-    'In the beginning God created the heaven and the earth.',
-    'Love your neighbour as yourself.',
-    'Thou shalt not steal.',
-    'The Lord is my shepherd; I shall not want.',
-    'Blessed are the peacemakers.',
-  ];
-  const docVectors = await createEmbeddings(corpus);
-  const query = 'caring for the people around you';
-  const queryVector = await createEmbedding(query);
-  const ranked = corpus
-    .map((text, i) => ({ text, score: cosine(queryVector, docVectors[i]) }))
-    .sort((a, b) => b.score - a.score);
-  console.log(`query: "${query}"\n`);
-  for (const r of ranked) console.log(`${r.score.toFixed(3)}  ${r.text}`);
-}
-main();
-```
-
-- **Narrate:** the corpus is embedded **once**; the query is embedded once; the rest is `map` to a score, `sort` descending, take the top. There is no extra magic in a vector database — just persistence and speed.
-- **Expected output:** "Love your neighbour as yourself." ranks **first**, despite sharing zero words with the query. The other four trail it.
-- **Most likely live failure:** `OPENAI_API_KEY` missing/invalid → the `createEmbeddings` call throws an auth error. It's the key, not the code. Second most likely: `ts-node` module error → make sure the `--compiler-options '{"module":"CommonJS"}'` flag is on the command.
-
-### Part B — real semantic search (slides 10–11)
+Run in order, narrating each:
 
 ```bash
-npm run ingest -- --limit 50          # embeds + upserts real notes (run in pre-flight; show the log)
+# 1. Talk to the server with no AI in the loop. Stdout IS the protocol channel.
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | npx ts-node mcp-server/index.ts
 ```
+- **Narrate:** JSON back = the contract is *discoverable*. This is what Claude Desktop sees at connect time. The official `npx @modelcontextprotocol/inspector` is the friendly UI for the same thing; the pipe shows what's actually moving.
+- **Fallback (if no client is wired, or the wiring fails live):** run the *entire* MCP segment through the pipe above + `npx @modelcontextprotocol/inspector mcp-server/index.ts`. You lose the "a foreign model picks your tool" reveal, but you keep every teaching point — discovery, scopes, and the audit trail. Don't improvise a Claude Desktop fix in front of the room; drop to the inspector.
 
-Then run the Day 1 payoff against your implemented `searchClinicalNotes` (`lib/vector-search.ts`):
-
-```typescript
-import 'dotenv/config';
-import { searchClinicalNotes } from './lib/vector-search';
-async function main() {
-  for (const q of ['shortness of breath', 'trouble breathing']) {
-    const results = await searchClinicalNotes(q, { topK: 5 });
-    console.log(`\n=== ${q}`);
-    for (const r of results)
-      console.log(`${r.score.toFixed(3)} ${r.patientName} (${r.date}) — ${r.contentPreview.slice(0,100)}…`);
+```jsonc
+// 2. Already in your client config from Pre-flight. Show it, don't edit it live.
+// ~/Library/Application Support/Claude/claude_desktop_config.json
+"mcpServers": {
+  "medical-rag": {
+    "command": "npx",
+    "args": ["ts-node", "/ABSOLUTE/path/to/mcp-server/index.ts"],
+    "env": { "DATABASE_URL": "...", "PINECONE_API_KEY": "...", "OPENAI_API_KEY": "..." }
   }
 }
-main();
 ```
+- **Narrate the three load-bearing details:** the client launches your server as a *subprocess* (crash = tools vanish); the path must be *absolute* (the #1 setup failure); the `env` block exists because your `.env` doesn't travel — *and notice you just pasted database credentials into a desktop app*.
 
-- **Narrate:** two phrasings, zero shared keywords, **overlapping notes** surface. The Week 1 promise is now their code.
-- **Expected output:** both queries return 5 notes each; you can see the same patient/notes appearing across both lists.
-- **Most likely live failure:** empty results / all-`undefined` fields → either the index wasn't populated (pre-flight!), `includeMetadata: true` was omitted in their implementation, or Pinecone's eventual consistency means a fresh upsert isn't searchable yet (wait a few seconds, retry). If they get ids+scores but no text, it's the missing `includeMetadata`.
+Then, in a fresh client conversation, ask in plain words (no tool names): *"How many patients have high blood pressure?"* Watch it announce a tool call, show its chosen arguments, and wait for your approval — the client's built-in human-in-the-loop, which foreshadows slide 11.
+
+- **Expected output:** the assistant picks `search_patients` (or `list_patients_by_condition` if auth is off), shows arguments, you approve, your code runs, and the answer is *their* model reading *your* formatted text. The condition-count phrasing works reliably — that's why it's the chosen demo query.
+- **Most likely live failure:** tool *hangs*. First suspect is **stdout pollution** — a code path wrote to stdout and corrupted the JSON-RPC stream. Look in `~/Library/Logs/Claude/mcp-server-medical-rag.log` for the malformed line; fix is `console.error`. Second: invalid config JSON or a non-absolute path → server never appears at all (check the log's first lines). When in doubt, drop back to the pipe — "is it my server or the integration?" is one `tools/list` away.
+
+### Part 2 — the scope boundary (slides 9–10)
+
+This is the security demo; it earns its slot. The two env keys give you two callers (make sure `MCP_REQUIRE_AUTH=true`):
+
+```bash
+# MCP_API_KEY   → read + read_pii: can search AND read full patient detail,
+#                 but is DENIED on the admin tool
+# MCP_ADMIN_KEY → read + read_pii + admin: the same admin call succeeds
+```
+Call the **admin-scoped** tool `list_patients_by_condition` with each key (swap the key in the client's `env` block, or hit the server via the inspector's auth field). Same tool, two callers, two outcomes.
+- **Narrate:** same system, two callers, two worlds. `MCP_API_KEY` gets a clean **denial** — "Access denied: Tool 'list_patients_by_condition' requires one of [admin] scope(s). Your key has: [read, read_pii]" — readable text the model relays to its human, not a crash (`withAuth` in `auth.ts` throws a descriptive `Error`). `MCP_ADMIN_KEY` gets the data. That's scopes working, and it's a HIPAA technical control (minimum-necessary access + per-call audit) even though the slides don't say "HIPAA."
+- **Most likely live failure:** you edited the client config but didn't fully restart it — clients read config at *startup*. Edit → full restart → test. (Second suspect: `MCP_REQUIRE_AUTH` not `true`, so every call sails through and nothing is ever denied.)
+
+### Part 3 — the propose→approve flow (slides 11–12)
+
+You're reading code here, not necessarily running the booking (see the 401 note). Open `lib/scheduling.ts` and walk it:
+- `detectSchedulingIntent()` calls the LLM with a **structured** `SchedulingIntentSchema` — `patientName`/`suggestedDate`/`suggestedTime` are `.nullable()`, and the system prompt injects `Today's date is ${todayStr}` so "next Tuesday" resolves to a real `YYYY-MM-DD` **in code context**, not by the model guessing the calendar.
+- `formatSchedulingAction()` emits a `<!-- SCHEDULING_ACTION {...} -->` block the frontend turns into a **confirmation card** — the human's editable copy of the model's proposal.
+- Only on confirm does the UI `POST /api/schedule`, which calls `scheduleAppointment()` in `lib/calendar.ts` (the Cal.com booking). **The model never calls the calendar directly.**
+- **Name the 401 seam out loud** (Pre-flight): the finished `/api/schedule` sits behind `requireAuth(request, ['STAFF'])`, so a browser with no login returns 401. That's the RBAC wall of the *next* block landing early — the HITL flow itself is complete.
 
 ---
 
 ## Break it / extend bank
 
-Run at least the silent-fallback and the empty-filter privacy bug live — both are this block's signature failure modes.
+Run at least the under-scoped-key refusal live (the headline), then turn the room loose.
 
-**1. The silent rerank fallback (the headline one).**
-- **Sabotage:** comment out / unset `COHERE_API_KEY`, then run the funnel (`searchChunks(query, 25)` → `rerankResults(query, candidates, 5)`).
-- **Expected failure:** the caller gets a list **identical** to the vector order. `rerankResults` in `lib/reranker.ts` catches the failed Cohere call, logs `Reranking failed, using original order`, and returns the original top-N — degraded search beats no search. The catch: nothing the *caller or the user* sees signals reranking stopped working (a red line in the server log is easy to miss).
-- **Fix:** restore the key. Reranked order now differs from cosine order on at least some queries.
-- **Extend:** it already `console.error`s — but that's invisible to the product. Make the degradation observable where it can be *acted on* (a metric, or a flag on the response), and discuss the tradeoff: silent degradation keeps the app up but hides a broken feature. Where do you want loud vs quiet? (Foreshadows Week 5 observability.)
+**1. Call the server with no API key — or an under-scoped one (the headline).**
+- **Sabotage:** call `list_patients_by_condition` (the admin tool) with no key at all, then with `MCP_API_KEY` (read + read_pii, but *not* admin).
+- **Expected failure:** no key → refused, "API key is required." `MCP_API_KEY` → refused, "requires one of [admin] scope(s). Your key has: [read, read_pii]." Crucially, *both refusals are clean readable text the calling model receives* — not a thrown crash the client swallows — **and both land in the audit log** (`logToolInvocation` / `logSecurityEvent` in `audit.ts`).
+- **Fix:** present a key with the required scope (`MCP_ADMIN_KEY`); the same call now succeeds.
+- **Extend:** `grep`/`jq` the audit log and answer *"who tried to access patient X today, and were they denied?"* with a one-liner:
+  ```bash
+  jq -c 'select(.success==false)' logs/mcp-audit-$(date +%F).jsonl
+  ```
+  A denial that isn't logged is a security bug — failed access is the most interesting access. (Want the read→read_pii denial too? `registerApiKey('mcp_test_read','test',['read'])` in a small script in the *same process* and call `get_patient` — registered keys live only in that process, so this is a script, not an env var.)
 
-**2. The empty-`patientIds` filter privacy bug (from Day 16).**
-- **Sabotage:** run a hybrid where step 1 returns nothing — e.g. `getPatientIdsByConditions(['asthmaa'])` (typo) or a condition the mapping misses → `patientIds = []`. Pass that straight into `searchClinicalNotes(query, { patientIds: [] })`.
-- **Expected failure:** **plausible-looking results from every patient.** An empty array hits the `if (patientIds && patientIds.length > 0)` guard as false → **no filter built** → it searches the whole corpus. This is a *privacy* bug, not a relevance bug: it returns strangers' notes while looking like it worked.
-- **Fix:** guard explicitly — if step 1 returns `[]`, return `[]` (no patients matched ≠ search everyone). Show the `if (patientIds.length === 0) return [];` early-out from the Day 16 hybrid.
-- **Extend:** add a control count — log how many of the results fall outside the intended cohort. The habit of producing the number is the point; plausible-but-wrong is beaten by counts, never by staring harder.
+**2. Make the model "just book it" — bypass the human gate.**
+- **Sabotage:** wire the confirm action to post the *model's* extracted values directly to `/api/schedule` instead of the confirmation card's current (human-editable) values.
+- **Expected failure:** the human's edits vanish — the model effectively booked. (On the finished system you'll *also* hit the 401 RBAC wall first; name that, then make the point conceptually: even past RBAC, if confirm posts model output instead of card state, the gate is decoration.)
+- **Fix:** the **card state, not the model output, is the source of truth.** The route should also re-validate `patientName` and `dateTime` because *anything that can POST can hit it* — trusting the UI is how "the UI validates it" becomes a postmortem sentence.
+- **Extend:** probe the extractor — schedule with no patient name (should yield `patientName: null`, not a guessed patient), with a past date, or *while mid-conversation about a different patient* (does it grab the wrong name from history with full confidence? `detectSchedulingIntent` deliberately reads the last 4 messages — test whether that helps or hurts). Each caught behavior is a new failure case for a system that can now act.
 
-**3. Reranking with no over-fetch.**
-- **Sabotage:** fetch 5 and rerank 5 (`searchChunks(query, 5)` → `rerankResults(query, candidates, 5)`).
-- **Expected failure:** the list comes back **identical** — with `results.length <= topN`, `rerankResults` early-returns the input unchanged and never even calls Cohere. No depth, nothing to promote from.
-- **Fix:** over-fetch — fetch 25, keep 5. A relevant note buried at #19 by cosine is invisible unless the funnel mouth is wide enough to include it.
-- **Extend:** sweep the funnel width (10 / 25 / 100) on one query and watch what gets rescued vs what it costs (latency, per-candidate price). Note you can't *judge* which width is right without an eval — straight into Day 18.
+**3. Vague tool description — the colleague test.**
+- **Sabotage:** rewrite a tool's description to be vague ("gets patient data") and ask a fresh AI session to predict which of the five tools handles "is anyone on aspirin?", "notes about dizziness for patient X", "tell me about patient Y."
+- **Expected failure:** wrong predictions / overlapping guesses — the foreign model can't route from a vague description.
+- **Fix:** rewrite descriptions like the real ones in `index.ts` (what it's for, what it's *not* for, an example argument — e.g. `query_notes`'s "Use this for finding relevant medical notes, symptoms, treatments, or observations"); predictions sharpen. Tool descriptions have evals too — the description *is* the interface (slide 5).
 
-**4. The *other* hybrid: dense + sparse (BM25) — would it help here? (advanced/optional, slide 19.)**
-- **Sabotage (thought experiment, not code):** propose bolting a sparse/BM25 keyword score onto the vector side to "catch exact terms" — a drug name, a lab code like `HbA1c`, an acronym.
-- **Expected failure:** you'd be re-solving a problem **Postgres already owns**. Exact facts live in structured columns and get a `WHERE` clause; sparse-dense fusion also forces a specific metric and needs a keyword encoder kept in sync with the corpus. It double-pays for the exact-match half this system already has.
-- **Fix/judgment:** "hybrid" is *two-of-something* — two **engines** (ours: Postgres + vectors) or two **scores** (dense + sparse). Whether the second thing is another engine or another score depends on **where your exact-match signal already lives**. Here it lives in Postgres, so we don't need sparse vectors.
-- **Extend:** name the one honest seam where sparse *would* earn its place — a term that appears **only in free-text notes, never as structured data** (a symptom phrase; a drug mentioned in a note but never coded into the medications table). SQL can't see it (not a column) and dense search can fuzz the exact string. Note that reranking is the lighter-weight alternative most teams reach for there first. Keep this as the honest optional-advanced note it is — it does **not** rewire the core two-engine hybrid story.
+**4. Pollute stdout, watch the client disconnect.**
+- **Sabotage:** add a `console.log('debug')` anywhere in a tool handler in `mcp-server/index.ts`, restart the client, call that tool.
+- **Expected failure:** the tool hangs or the client drops the server — that log line went into the JSON-RPC stream and corrupted it. The pipe test shows the garbage prepended to the JSON.
+- **Fix:** change it to `console.error`. Stdout is the protocol channel; stderr is yours. This is the single most common MCP-server bug.
+- **Extend:** re-run the raw pipe from Part 1 with the bad log in place and read exactly what the client would have choked on — the malformed first bytes are the whole lesson.
 
 ---
 
 ## Misconceptions to preempt
 
-- **"A cosine score of 0.6 means a good match."** No — cosine has no absolute calibration. Scores are meaningful only *relative to other candidates for the same query*. Hardcoding a threshold off vibes is the trap slide 7 is built to spring.
-- **"A vector database is doing something magical / more than my loop."** It does exactly the by-hand loop (embed query → score against stored vectors → top-K). It adds **only** persistence and speed-at-scale. If they can say that, they own vector search.
-- **"The order changed, so reranking helped."** "Changed" ≠ "got better." Better needs ground truth. This is the spine rule — *no metric, no decision* — and resisting the conclusion until Friday's eval exists is the discipline being taught.
-- **"Filter the vector results in JavaScript afterward — same thing."** Not the same: post-filtering gives "the global top-K minus strangers" (often empty) and leaks other patients' note content through your app code. The filter belongs **inside** `index.query` — quality reason and safety reason.
-- **"Run the vector search first, then keep the matching patients."** Backwards. Exact filters narrow the world; semantic search ranks what's left. A fact is a `WHERE`, not a similarity score — and the over-fetch math fails quietly the other way around.
+- **"MCP is just a REST API with extra steps."** No — the difference is *discovery*. A REST client needs a human to read docs and write glue per endpoint; an MCP client reads your tools' schemas at connect time and a model decides when to call them. The contract is machine-readable and consumed by a model, not a programmer.
+- **"Auth means a login screen."** Not here. The caller is a *process* (Claude Desktop, a script, another service), so it's machine-to-machine: per-client API keys, individually revocable, with scopes — not user sessions. (User-facing auth/RBAC *is* coming — that's the final block, and it's why the schedule route already 401s.)
+- **"Logging that a tool ran is an audit trail."** Logging *that* it ran is trivial. A trail is designed *backwards from questions someone asks under pressure*: who touched patient X, what did the revoked key do while live, who's hitting denials. If the entries can't answer those, it's a diary, not a trail — which is why the denial path logs too.
+- **"The human gate is about the model being unreliable."** It's about *consequence*, not competence. A perfect model still shouldn't unilaterally book a real slot or send a letter in a doctor's name. Gate by what wrong costs and who absorbs it — not by how good the model is.
+- **"The model resolves 'next Tuesday' fine, so let it."** The model doesn't reliably know today's date; that's why `scheduling.ts` injects `todayStr` into the prompt and the *code* owns the calendar math. "Usually right" on a real booking is a wrong appointment sent to a real patient.
 
 ---
 
-## Deliverable 🎥 (Friday, Day 18)
+## Deliverable 🎥 (end of week, Day 18)
 
-A strong 2–3 min video walks through the **retrieval eval set the student built — and what it measured.** They should show:
+A strong 2–3 min video (phone camera fine), one of:
 
-- The eval set itself: 15+ (query, expected) pairs read from *their own* corpus, queries in the **user's** vocabulary (not the note's verbatim wording).
-- The number: **hit@5** for vector-alone vs vector+reranker, side by side.
-- The judgment: does the reranker stay in their system, and **what would change their mind** (a different corpus? more eval cases? a latency budget?). Either that, or the teach-back: why "the search feels better" is not evidence, using one real eval query as the example.
+- **Defend the design:** the student's MCP tool (an existing one they secured, or a new one) — why these scopes (and the alternative scope they rejected), what its audit entry contains and what it deliberately omits. The demo shows it **refusing, recording, and recovering** — an under-scoped key denied *and* that denial visible in the audit log — not just working.
+- **Teach back:** explain to a non-engineer why "the AI can book appointments" required a confirmation card but "the AI can search records" didn't — and how the same reversibility/cost logic decides which future features need a human gate.
 
-**Grade against one question:** when asked *"is your hit@5 good?"*, do they answer **"compared to what?"** — and point to the second configuration's number? If yes, they own the spine rule: evals create *differences*, not grades. If they recite a percentage as a grade, they don't yet. Bonus signal: they kept a few pairs they never tuned on (didn't memorize the test) and can name the single failed case that taught them the most.
+**Grade against one question:** *does the demo show a refusal that is both denied **and** logged?* A happy-path demo proves the tool runs; it does not prove the tool is secured. The denial (under-scoped key refused cleanly, and the denial visible in `logs/mcp-audit-*.jsonl`) is the deliverable.
 
 ---
 
@@ -180,6 +199,7 @@ A strong 2–3 min video walks through the **retrieval eval set the student buil
 
 - Student day files this anchors: `day-13.md` … `day-18.md`
 - Deck: `week-3.html`
-- Code touched live: `lib/openai.ts` (`createEmbedding`/`createEmbeddings`), `lib/pinecone.ts` (`ensureIndexExists`, `upsertChunks`, `searchChunks`), `lib/vector-search.ts` (`searchClinicalNotes`), `lib/reranker.ts` (`rerankResults`); ingest via `npm run ingest -- --limit 50`.
-- Eval artifacts the deliverable produces: `eval/retrieval-set.json`, `eval/run-retrieval-eval.ts` (both go in git — the eval set is data, and it's valuable; it's the seed of the regression suite later weeks build on).
-- Further reading the keen students will have hit: 3Blue1Brown "Vectors, what even are they?" and "Dot products and duality"; Cohere rerank docs; Anthropic "Contextual Retrieval" (note its headline numbers stack contextual chunks *with* reranking — production retrieval is a measured stack of techniques).
+- Provided modules to demo against (on `instructor`): `mcp-server/index.ts`, `mcp-server/auth.ts` (+ `mcp-server/auth.test.ts` if present), `mcp-server/audit.ts`, `lib/scheduling.ts`, `lib/calendar.ts`, `app/api/schedule/route.ts`
+- Read the auth module's spec from its test names if a suite exists: `npx vitest run mcp-server/auth.test.ts`
+- Logs to tail live: `~/Library/Logs/Claude/mcp-server-medical-rag.log` (client side) · `logs/mcp-audit-<YYYY-MM-DD>.jsonl` (server-side audit trail)
+- Further reading the keen students will have hit: [modelcontextprotocol.io](https://modelcontextprotocol.io/) (Architecture + Security best practices), the MCP Inspector (`npx @modelcontextprotocol/inspector`), [Cal.com API reference](https://cal.com/docs/api-reference)

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Week 2 — Chunking · RAG &amp; AI Agents</title>
+<title>Week 2 — Agentic / hybrid search · RAG &amp; AI Agents</title>
 <style>
   :root {
     --ink: #1b2330;
@@ -83,229 +83,226 @@
 
   <!-- 1 — Title -->
   <section class="slide active title-wrap">
-    <div class="kicker">Week 2 of 6 — Chunking</div>
-    <h1>Chunking: how big is one piece of text — and how we'll prove it</h1>
-    <p class="lead">By the end of the week: a 2–3 min video where you chunk a document you've never seen and defend your choices with numbers, not vibes.</p>
+    <div class="kicker">Week 2 of 5 — Agentic / hybrid search</div>
+    <h1>An agent that <em>decides</em> — then answers from the records</h1>
+    <p class="lead">Last week you built the vector store. Now the real question: when a doctor types something in plain English, who should answer — the database, the notes, or both? This week you build the thing that decides, and answers grounded in what's actually there.</p>
   </section>
 
   <!-- 2 — The week -->
   <section class="slide">
     <h2>This week</h2>
     <ul>
-      <li>Why chunking exists, and why our medical notes <em>don't</em> need it</li>
-      <li>Bible lab I: naive chunking, and where it breaks</li>
-      <li>Bible lab II: boundaries and overlap</li>
-      <li>Metadata: the part everyone skips</li>
-      <li>The five failure modes, then a solo build day (the Constitution)</li>
+      <li>Recap: you have two engines — the database (exact facts) and the vector store (meaning)</li>
+      <li>Structured outputs: turn the model into a <em>typed function</em> you can trust to route</li>
+      <li>The query analyzer: read a question → intent + what it's about → pick an engine</li>
+      <li>Three paths: exact lookup, meaning search, and <em>hybrid</em> — facts narrow, meaning ranks</li>
+      <li>The grounding contract: answer only from the records — and refuse what isn't there</li>
     </ul>
-    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video — chunk a brand-new document and defend your chunk size, boundaries, and overlap with measurements.</p>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video — show your agent answer one real question per path, and show it <em>refuse</em> a question the data can't answer.</p>
   </section>
 
   <!-- 3 — Problem statement -->
   <section class="slide">
-    <h2>The question every corpus forces on you</h2>
-    <p>Meaning-based search matches a user's question against stored <strong>pieces of text</strong>, and hands the best pieces to the LLM. So someone has to answer, for every corpus:</p>
-    <p class="lead"><strong>What is one piece?</strong></p>
-    <p class="sub">Too big: a 40-page document "mentions" diabetes, sleep, surgery, and billing — a mediocre match for all of them. Too small: <code>"And he said unto them"</code> matches confidently and tells you nothing. Said what? Who? To whom?</p>
-    <div class="cue"><b>Say it plainly:</b> chunking is just splitting documents into retrieval-sized pieces. The whole week is "how big, and where do you cut?"</div>
+    <h2>The setup: two engines, no driver</h2>
+    <p>After Week 1 you have two ways to find things. The database answers <strong>exact facts</strong> — "how many patients have diabetes?" is a <code>COUNT</code>. The vector store answers by <strong>meaning</strong> — "notes that describe shortness of breath" finds the one that says "dyspnea."</p>
+    <p class="lead">But a user doesn't know which engine they're hitting. They just type. Something has to <em>read the question and choose</em> — and choosing wrong means a right-sounding, wrong answer.</p>
+    <div class="cue"><b>Say it plainly:</b> Week 1 built the engines. This week builds the driver. The whole session is: how does software decide which tool a plain-English question needs?</div>
   </section>
 
-  <!-- 4 — How it's solved / the twist -->
+  <!-- 4 — How it's solved -->
   <section class="slide">
-    <h2>The move: decide from the data, not from habit</h2>
-    <p>Most tutorials make chunking "step 2 of every pipeline." That's the trap. Whether you chunk <em>at all</em> is a property of your corpus — and you find it by measuring.</p>
+    <h2>The move: let the model classify, then route in code</h2>
+    <p>We don't ask the model to answer the medical question. We ask it one narrow thing first: <strong>what kind of question is this, and what is it about?</strong> Then plain code routes to the right engine and hands the model only the records that came back.</p>
     <div class="two">
       <div class="card">
-        <h3>Our clinical notes</h3>
-        <p>~144,000 notes · ~450 chars each · one note = one topic, one date. <strong>Already a piece.</strong> Chunking it would only break it.</p>
+        <h3>The model's job</h3>
+        <p>Read the question → return a small, typed label: the intent, the conditions/names mentioned, which engines are needed.</p>
       </div>
       <div class="card">
-        <h3>The King James Bible</h3>
-        <p>1 document · 4.3 <strong>million</strong> chars. Unusable as one piece. <strong>Must</strong> be chunked.</p>
+        <h3>Your code's job</h3>
+        <p>Trust that label to run the database, the vector search, or both — then answer <em>only</em> from what came back.</p>
       </div>
     </div>
-    <div class="cue"><b>Design point to land:</b> we learn chunking on the Bible <b>because</b> our notes don't need it. The contrast <em>is</em> the lesson — "no metric, no decision," applied to architecture.</div>
+    <div class="cue"><b>Design point to land:</b> the LLM is a router and a writer, never the source of facts. Splitting "decide" from "answer" is what makes this debuggable.</div>
   </section>
 
-  <!-- 5 — Discussion: measure first -->
+  <!-- 5 — Concept: structured outputs -->
+  <section class="slide">
+    <h2>Turning the model into a typed function</h2>
+    <p>Routing only works if the model's answer has a <strong>fixed shape</strong> you can branch on — not a paragraph you have to parse. So we hand it a schema and make it fill in the blanks:</p>
+    <pre><code>const QueryAnalysis = z.object({
+  intent: z.enum(['population_analytics', 'clinical_note_search',
+                  'hybrid_query', 'patient_summary', /* … */]),
+  requiresSQL:    z.boolean(),
+  requiresVector: z.boolean(),
+  semanticQuery:  z.string().nullable(),  // expanded terms for meaning search
+});</code></pre>
+    <p class="sub">The schema <em>is</em> the contract. The model can only answer inside these fields — so your <code>if (requiresSQL)</code> is always safe to write.</p>
+  </section>
+
+  <!-- 6 — Code walkthrough: the analyzer -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>The analyzer: <code>analyzeQuery()</code></h2>
+    <p>One call. A system prompt describing the two stores, the schema as the output format, and <code>temperature: 0</code> so the same question routes the same way every time.</p>
+    <pre><code>const response = await client.responses.parse({
+  model: 'gpt-4o-mini',
+  input: [
+    { role: 'system', content: SYSTEM_PROMPT },   // "you route medical queries…"
+    { role: 'user',   content: userQuery },
+  ],
+  temperature: 0,
+  text: { format: zodTextFormat(QueryAnalysis, 'queryAnalysis') },
+});
+
+return QueryAnalysis.parse(response.output_parsed);  // typed + validated</code></pre>
+    <p class="sub"><code>lib/query-analyzer.ts</code>. Note the pattern: <code>responses.parse()</code> + <code>zodTextFormat</code> + <code>output_parsed</code> — then <code>.parse()</code> again to be sure.</p>
+    <div class="cue"><b>Facilitate:</b> run it live on three questions (next section) and read the JSON aloud. The intent flip between them is the whole idea made visible.</div>
+  </section>
+
+  <!-- 7 — Concept: three paths -->
+  <section class="slide">
+    <h2>Three paths out of the analyzer</h2>
+    <pre><code>                    analyzeQuery(question)
+                            │
+         ┌──────────────────┼──────────────────┐
+         ▼                  ▼                  ▼
+   requiresSQL only   requiresVector only   both
+   ───────────────    ─────────────────    ────────────
+   "how many have     "notes describing    "notes about sleep
+    diabetes?"         shortness of breath"  for diabetics"
+         │                  │                  │
+     database            vector store       SQL then vector
+     COUNT / filter      meaning search     (hybrid)</code></pre>
+    <p class="sub">The flags <code>requiresSQL</code> and <code>requiresVector</code> pick the branch. Two booleans decide the entire route.</p>
+  </section>
+
+  <!-- 8 — Discussion -->
   <section class="slide">
     <span class="mode discuss">💬 Discussion</span>
-    <h2>Chunk it or not? Decide from the number</h2>
+    <h2>Which path — and what could route it wrong?</h2>
     <ul>
-      <li>Clinical notes — avg 450 chars, max ~3,000</li>
-      <li>Support-ticket transcripts — avg 80,000 chars</li>
-      <li>Tweets — avg 120 chars</li>
-      <li>Notes again — but one in a thousand is a 40,000-char discharge summary</li>
+      <li>"How many patients have high blood pressure?"</li>
+      <li>"Which notes mention trouble sleeping?"</li>
+      <li>"What do the notes say about coping for patients with depression?"</li>
+      <li>"Give me a summary of Abe Frami"</li>
+      <li>"Which patients are on insulin?"</li>
     </ul>
-    <div class="cue"><b>Facilitate:</b> push them off "the average." The last one is the trap — an average can hide a monster. The rule isn't "is the average small," it's "is <em>every</em> document an acceptable piece."</div>
+    <div class="cue"><b>Facilitate:</b> the last one is a trap — sounds like a clean count, but medication filtering isn't wired to the database yet, so the honest answer is "the router wants SQL, but there's no med filter behind it." Great lead-in to Week 4's analyzer evals. Don't sell it as a working demo.</div>
   </section>
 
-  <!-- 6 — Concept: too big vs too small -->
+  <!-- 9 — Concept: hybrid -->
   <section class="slide">
-    <h2>The two ways a piece is wrong</h2>
-    <pre><code>TOO BIG                          TOO SMALL
-─────────────────────            ─────────────────────
-one chunk covers                 "And he said unto them"
-many topics                      → complete sentence,
-→ matches everything             → zero standalone meaning
-  a little, nothing well         → confident match, useless
-
-       the sweet spot: one self-contained thought,
-       big enough to mean something on its own</code></pre>
-    <p class="sub">There is no universal right answer. "Just use 512 with 50 overlap" is reciting a default, not making a decision. The week is about <em>how to make the decision</em>.</p>
+    <h2>Hybrid: facts narrow the world, meaning ranks what's left</h2>
+    <p>Some questions need both. "What do the notes say about sleep for patients with <strong>depression</strong>?" The word "depression" is an exact fact — the database knows exactly who has it. "About sleep" is meaning — only the notes know that.</p>
+    <pre><code>1.  SQL:    get the patient IDs who have the condition   → [id, id, …]
+2.  Vector: search "sleep quality insomnia rest" — but ONLY
+            within those patients' notes
+            └─ the fact is a filter on the meaning search</code></pre>
+    <p class="sub">Order matters: narrow first, then rank. Searching all 144k notes and hoping the depression ones float up is slower <em>and</em> leaks everyone else in.</p>
+    <div class="cue"><b>Say it plainly:</b> the SQL result isn't the answer — it's the <em>filter</em> the vector search runs inside. Hold this; the privacy bug on slide 14 is exactly this filter going empty.</div>
   </section>
 
-  <!-- 7 — Code walkthrough: download + shape -->
+  <!-- 10 — Code walkthrough: orchestration -->
   <section class="slide">
     <span class="mode code">💻 Code walkthrough</span>
-    <h2>Get the corpus, read its shape</h2>
-    <pre><code>mkdir -p data/bible
-curl -o data/bible/kjv.txt \
-  https://www.gutenberg.org/cache/epub/10/pg10.txt
-head -120 data/bible/kjv.txt</code></pre>
-    <p class="sub">Three things to point at live: a <strong>Gutenberg license header</strong> that is NOT scripture (must be stripped), book titles as plain lines, and every verse prefixed <code>chapter:verse</code> like <code>1:1 In the beginning…</code> — built-in structure that pays off Wednesday.</p>
+    <h2>The orchestrator: <code>executeQuery()</code></h2>
+    <p>The analysis flags pick the branch. Here's the hybrid path — the interesting one:</p>
+    <pre><code>if (analysis.requiresSQL &amp;&amp; analysis.requiresVector) {
+  let patientIds;
+  if (analysis.entities.conditions?.length) {
+    patientIds = await getPatientIdsByConditions(analysis.entities.conditions);
+  }
+  const notes = await searchClinicalNotes(analysis.semanticQuery, {
+    topK: 10,
+    patientIds: patientIds?.length ? patientIds : undefined,  // ← watch this
+  });
+}</code></pre>
+    <p class="sub"><code>lib/query-executor.ts</code>. That <code>patientIds?.length ? … : undefined</code> is doing something sneaky — we'll break it on purpose later.</p>
   </section>
 
-  <!-- 8 — Code walkthrough: naive chunker -->
+  <!-- 11 — Concept: the grounding contract -->
   <section class="slide">
-    <span class="mode code">💻 Code walkthrough</span>
-    <h2>The simplest chunker: slice every 500 chars</h2>
-    <pre><code>npm run bible:fixed
-
-Corpus: 4,307,701 characters
-Chunks: 8,616 (size=500, overlap=0)</code></pre>
-    <p>Start of chunk 1000: <code>uses of the cities of the Levites…</code></p>
-    <p class="sub">A fixed window doesn't know what a word is. Chunk 999 ended on <code>ho</code>; chunk 1000 starts on <code>uses</code> — the word <strong>"houses"</strong> torn in half. Neither side owns it.</p>
-  </section>
-
-  <!-- 9 — Concept: measure the damage -->
-  <section class="slide">
-    <h2>Don't squint — measure</h2>
-    <pre><code>npm run bible:audit -- data/bible/chunks-fixed.jsonl
-
-chunks:               8,616
-size min/median/max:  201 / 500 / 500 chars
-starts mid-word:      7,634 (88.6%)
-ends mid-sentence:    8,339 (96.8%)
-has metadata:         0 (0.0%)</code></pre>
-    <p class="sub">"The chunks feel bad" starts arguments. <strong>"88.6% start mid-word"</strong> ends them. And <code>metadata: 0%</code> — a bill that comes due Thursday.</p>
-    <div class="cue"><b>Say it plainly:</b> a chunk is what gets <em>matched</em> AND what gets <em>read</em>. A broken edge doesn't just rank worse — the model fills in the torn-off half and <em>misleads</em>.</div>
-  </section>
-
-  <!-- 10 — Discussion: the size knob -->
-  <section class="slide">
-    <span class="mode discuss">💬 Discussion</span>
-    <h2>"I'll just pick a better size." Will that fix it?</h2>
-    <p>We can re-run at <code>--size 200</code> or <code>--size 2000</code>. Predict before we run: what happens to the 88.6% mid-word rate?</p>
-    <div class="cue"><b>Facilitate:</b> let them bet, then run it. The percentages barely move — 85–90% at every size. The flaw isn't the number; it's that <b>character positions don't align with meaning</b>, at any size. The knob you were given doesn't control the thing that's broken.</div>
-  </section>
-
-  <!-- 11 — Concept: cut on structure -->
-  <section class="slide">
-    <h2>The fix: let the document tell you where it bends</h2>
-    <p>The Bible arrives pre-jointed — verses are marked, books are titled. So instead of cutting every 500 chars, <strong>pack whole verses</strong>:</p>
+    <h2>The grounding contract</h2>
+    <p>Once the records come back, the model writes the answer — under a strict rule baked into its system prompt:</p>
     <ul>
-      <li>add verses until the chunk reaches a target (~500 chars)</li>
-      <li><strong>never split a verse</strong> — overshooting the target is fine</li>
-      <li><strong>never cross a book boundary</strong> — Malachi's end and Matthew's start aren't one piece</li>
+      <li>Answer <strong>only</strong> from the retrieved records</li>
+      <li>If the information isn't there, <strong>say so</strong> — don't infer, don't fill the gap</li>
+      <li>Never invent a diagnosis, a med, or a number</li>
     </ul>
-    <div class="cue"><b>Design point to land:</b> use the <b>strongest structure the corpus actually has</b>. Generic separator-splitting is for corpora with no real joints — this one declares its own.</div>
+    <p class="lead">A confidently wrong medical assistant is worse than none. "I don't have that in the records" is a <em>correct</em> answer.</p>
+    <div class="cue"><b>Design point to land:</b> retrieval is what earns the model the right to speak. No record → no claim. This is the line between a demo and something you'd let near a chart.</div>
   </section>
 
-  <!-- 12 — Concept: overlap -->
+  <!-- 12 — Concept: the failure beat -->
   <section class="slide">
-    <h2>Overlap: insurance for the seams</h2>
-    <pre><code>chunk 0:  verses 1:1 … 1:6
-                       └── 1:6 repeated ──┐
-chunk 1:                  verses 1:6 … 1:11
-
-A question about "the firmament dividing the waters"
-might need 1:6 AND 1:7 together. Repeat the seam verse
-so whichever chunk is retrieved, the thought is whole.</code></pre>
-    <p class="sub">Cost is real: overlap duplicates text → more storage, more near-duplicates crowding results. It's a <strong>dial, not a virtue</strong>. We set it to 1 verse and let the audit say what we bought.</p>
-  </section>
-
-  <!-- 13 — Code together: smart chunker + compare -->
-  <section class="slide">
-    <span class="mode code">💻 Code walkthrough</span>
-    <h2>Chunk on structure, then compare the audits</h2>
-    <pre><code>npm run bible:smart        # Verses: 31,081 · Chunks: 9,737</code></pre>
+    <h2>The tell: what happens when the answer isn't there</h2>
+    <p>Ask the agent something plausible that the data simply doesn't contain — a detail no note or record holds. Two possible behaviors:</p>
     <div class="two">
       <div class="card">
-        <h3>fixed (Tue)</h3>
-        <p>mid-word starts <strong>88.6%</strong><br/>ends mid-sentence <strong>96.8%</strong><br/>has metadata <strong>0%</strong></p>
+        <h3>✅ Grounded</h3>
+        <p>"I don't see that in the records." It retrieved nothing relevant and refused to guess.</p>
       </div>
       <div class="card">
-        <h3>structure-aware (Wed)</h3>
-        <p>mid-word starts <strong>0.0%</strong><br/>ends mid-sentence <strong>3.5%</strong><br/>has metadata <strong>100%</strong></p>
+        <h3>❌ Confabulated</h3>
+        <p>A smooth, specific, invented answer. Reads great. Is fiction. This is the failure that gets someone hurt.</p>
       </div>
     </div>
-    <p class="sub">We paid for it: max chunk is now <strong>1,675 chars</strong> (the longest verse, Esther 8:9, ships whole). We bought integrity and citability with size variance. Perfection isn't on the menu — <em>measured improvement</em> is.</p>
+    <p class="sub">You can't tell which you built by reading the happy path. You find out by <strong>feeding it bait</strong>.</p>
   </section>
 
-  <!-- 14 — Concept: metadata -->
-  <section class="slide">
-    <h2>Metadata: the part everyone skips</h2>
-    <p>A chunk without metadata is a quote without a source. The <code>text</code> gets matched; the <code>metadata</code> does the three jobs text alone can't:</p>
-    <pre><code>Cite    "Where did this come from?"   → reference: "Psalms 48:10"
-Filter  "Search only in Psalms"       → book == "..." (a field)
-Debug   "Why did THIS chunk match?"   → find it in the source</code></pre>
-    <div class="cue"><b>Design point to land:</b> in our system <code>book</code> is <code>patientId</code>. Getting the filter wrong isn't a bad result — it's showing one patient's chart inside another patient's answer. <b>Decide metadata at chunking time</b>; afterward, provenance is gone.</div>
-  </section>
-
-  <!-- 15 — The five failure modes -->
-  <section class="slide">
-    <h2>The five chunking failure modes — each with a number</h2>
-    <ul>
-      <li><strong>1. Fragmentation</strong> — cuts mid-word/sentence → % starting mid-word</li>
-      <li><strong>2. Context orphaning</strong> — whole sentence, no meaning alone → min size, sampling</li>
-      <li><strong>3. Boundary straddling</strong> — answer spans a seam → overlap setting</li>
-      <li><strong>4. Anonymity</strong> — can't cite / filter / trace → % with metadata</li>
-      <li><strong>5. Wrong granularity</strong> — too big or too small → size vs the corpus's unit</li>
-    </ul>
-    <p class="sub">They <strong>trade against each other</strong>: never-split-a-verse killed fragmentation but created size variance. You don't solve chunking — you balance dials, for this corpus, with measurements.</p>
-  </section>
-
-  <!-- 16 — Mini-challenge: break it -->
+  <!-- 13 — Mini-challenge -->
   <section class="slide">
     <span class="mode challenge">🛠 Mini-challenge</span>
-    <h2>Make a failure mode appear on demand</h2>
+    <h2>Run it — then try to make it lie</h2>
     <ul>
-      <li>Rebuild the smart chunks with <strong>zero overlap</strong>: <code>npm run bible:smart -- --overlap-verses 0</code></li>
-      <li>Look at two adjacent chunks at a seam — they now share no verse</li>
-      <li><strong>Write a question whose answer needs the last verse of one AND the first verse of the next.</strong> That question is now unanswerable from any single chunk.</li>
-      <li>Restore overlap to 1 afterward — and audit to prove the seam coverage came back</li>
+      <li>Run one question per path: a count (diabetes), a note search (shortness of breath), a hybrid (sleep + depression). Read the routing JSON each time.</li>
+      <li><strong>Bait it:</strong> ask something the records can't hold. Did it refuse — or did it write fiction?</li>
+      <li><strong>Break the filter:</strong> send a hybrid query whose condition matches <em>no one</em>. Watch whose notes come back.</li>
     </ul>
-    <div class="cue"><b>The point isn't the Bible</b> — it's holding boundary-straddling in your hands so you recognize it in any corpus.</div>
+    <div class="cue"><b>The point isn't that it works</b> — it's building the reflex to attack your own system. A grounded refusal and an empty-filter leak both hide until you go looking. We measure this properly in Week 4.</div>
   </section>
 
-  <!-- 17 — Research -->
+  <!-- 14 — Concept: the empty-filter bug -->
   <section class="slide">
-    <span class="mode research">🔍 Research</span>
-    <h2>Go find out</h2>
-    <ul>
-      <li>The most common general-purpose chunker splits on a cascade of separators (paragraphs → sentences → words). When is that the <strong>right</strong> choice — and why did we reject it for the Bible?</li>
-      <li>Some teams <strong>prepend generated context</strong> to each chunk before storing it. What problem is that solving that metadata fields alone can't?</li>
-    </ul>
-    <p class="sub">Bring one finding back. No single right answer — defend your reasoning with the five-mode vocabulary.</p>
+    <h2>When the filter narrows to nobody</h2>
+    <p>Back to that hybrid line. If the condition matches <strong>zero</strong> patients, <code>patientIds</code> is an empty list — and <code>patientIds?.length ? … : undefined</code> quietly passes <code>undefined</code>, which means <em>no filter</em>:</p>
+    <pre><code>patientIds = []            // nobody matched the condition
+patientIds?.length         // 0 → falsy
+  ? patientIds
+  : undefined              // → search ALL 144k notes, every patient</code></pre>
+    <p class="lead">"Zero patients" should mean <strong>zero notes</strong>. Instead it means <em>everyone's</em> notes. The empty filter doesn't fail loudly — it silently widens to the whole corpus. That's a privacy leak, not a ranking bug.</p>
+    <div class="cue"><b>Say it plainly:</b> an empty filter that means "match everything" is one of the most common real RAG security bugs. The fix is to treat empty-narrowing as return-nothing, not fall-through. We fix it live in the break-it bank.</div>
   </section>
 
-  <!-- 18 — Recap + deliverable -->
+  <!-- 15 — Research / homework -->
+  <section class="slide">
+    <span class="mode research">🔍 Homework — side project (part 2)</span>
+    <h2>Chunk the Bible — actually upload it this time</h2>
+    <ul>
+      <li>Last week you <em>proposed</em> a chunking strategy. Now run it: the tools in <code>scripts/bible/</code> chunk the text and upsert the chunks into a vector store.</li>
+      <li>Search your chunks. Do the boundaries help or hurt? Find one query where a bad cut splits the answer across two chunks.</li>
+      <li>Record 2–3 min: show one search that worked, one that got tripped by a chunk boundary, and what you'd change.</li>
+    </ul>
+    <p class="sub">This closes the loop from Week 1's proposal — strategy on paper vs. what the retrieval actually does.</p>
+  </section>
+
+  <!-- 16 — Recap -->
   <section class="slide">
     <h2>Where you are</h2>
     <ul>
-      <li>You can decide <strong>whether to chunk at all</strong> from a measurement — and you proved one corpus that needed it and one that didn't</li>
-      <li>You mangled a corpus naively, <strong>measured</strong> the damage, then fixed it by respecting structure</li>
-      <li>You attached metadata, and you can name the <strong>five failure modes</strong> — each tied to a number</li>
+      <li>You can turn a model into a <strong>typed router</strong> with structured outputs — and explain why that makes routing trustworthy</li>
+      <li>You built the <strong>agent</strong>: analyze → route to SQL, vector, or hybrid → answer from the records</li>
+      <li>You know the <strong>grounding contract</strong> and can prove it by baiting the agent into refusing — and you've seen the empty-filter leak</li>
     </ul>
-    <p class="lead">By the end of the week: chunk the <strong>US Constitution</strong> solo and defend it on camera. Next week: what actually happens to these chunks — how text becomes searchable by <em>meaning</em>.</p>
+    <p class="lead">This week's video: one question per path, plus a clean refusal. Next week: how do we stop trusting "looks right" — and start <em>measuring</em> whether retrieval is any good?</p>
   </section>
 
 </div>
 
 <div class="bar">
-  <span class="name">RAG &amp; AI Agents · Week 2 — Chunking</span>
-  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 18</span></span>
+  <span class="name">RAG &amp; AI Agents · Week 2 — Agentic / hybrid search</span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 16</span></span>
 </div>
 
 <script>

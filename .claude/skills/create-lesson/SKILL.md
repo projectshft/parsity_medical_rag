@@ -68,16 +68,19 @@ Sections, in order:
 8. **Deliverable** (block-end weeks) — what a strong 2–3 min video shows; the one question to grade against.
 9. **Materials** — the day files this draws from, links, anything to hand out.
 
-## Block → week map
+## Week map (5 weeks — restructured 2026-07-05)
 
-| Week | Block | Days | Block-end deliverable (🎥) |
-|---|---|---|---|
-| 1 | Foundations | 1–6 | why the system needs both engines |
-| 2 | Chunking (the Bible lab) | 7–12 | chunk a document you've never seen (the Constitution) |
-| 3 | Embeddings & vector search | 13–18 | a retrieval eval set |
-| 4 | Query understanding & agents | 19–24 | eval your analyzer |
-| 5 | MCP, observability, human-in-the-loop | 25–30 | a new tool, with an audit trail |
-| 6 | Production gates & capstone | 31–36 | capstone + postmortem |
+Premise: the student joins a company that ALREADY has its data in a database (pre-loaded Neon, students copy it). SQL is a given — not taught. Live energy goes to the vector store, the agent, and shipping it safely. Two labs run as homework (📝): the Bible chunking side project (weeks 1–2) and poisoned/adversarial docs (optional).
+
+| Week | Live focus | 🎥 deliverable |
+|---|---|---|
+| 1 | **The vector store** — why keyword/SQL can't match meaning; what a vector is + similarity by hand; the vectorize script (Postgres → Pinecone); vector search; chunking intro | keyword vs meaning, in your own words |
+| 2 | **Agentic / hybrid search** — structured outputs, the query analyzer, orchestration (SQL / vector / hybrid), the chat agent + grounding contract | the agent answering, with a refusal |
+| 3 | **MCP + human-in-the-loop** — RAG as a tool others call; wiring; keys/scopes; audit; propose→approve scheduling | a tool call, denied-and-logged |
+| 4 | **Agents, evals & observability** — `traced()`/LangSmith; evals (exact-match + LLM-as-judge); hit@5; cost as a metric | run one eval, report it "compared to what" |
+| 5 | **Privacy & data** (final) — RBAC, role-shaped responses, PII de-identification, minimum-necessary access | role-shaped output, defended |
+
+Old 6-week / 36-day `day-NN.md` numbering is being reconciled to this map; the README "Week index" is canonical.
 
 ## Build a lesson — checklist
 
