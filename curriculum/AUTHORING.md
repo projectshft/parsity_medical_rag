@@ -23,14 +23,26 @@ Big re-scope (Brian). **Core framing:** you're joining a company that *already h
 
 **Dropped from live weeks:** live SQL teaching (pre-loaded given); the standalone chunking week (→ side-project homework); poisoned-docs (→ optional homework, `CHALLENGE-POISONED-DOCS.md` exists); the standalone upload-API day (the vectorize script + pre-load cover ingestion). The old "no embeddings before Day 13" rule (14) is moot — vectors are the Week 1 subject now.
 
+**Week 1 must TEACH vector similarity (not black-box it).** Brian: students should *understand* how similarity works, not just call it. W1 includes hands-on similarity — cosine / dot product, "same direction = same meaning" — reusing material already written: `day-00.md` (vector-math primer), `day-13.md` (embeddings/cosine), `day-14.md` "be the vector DB by hand" (embed a tiny corpus → cosine → rank). So W1 = problem → **what a vector is + how similarity works (hands-on)** → vectorize script → vector search → chunking intro. Supersedes the earlier "black box in W1" idea — vectors ARE the W1 subject now.
+
+**Data model (confirmed):** one patient → MANY notes (avg 112.6; range 2–2,162; `Patient.notes = Note[]`). Vectorize emits one vector per note, tagged `patientId` so search can filter to a patient.
+
 **Execution phases:**
 1. ✅ Spine: README + this tracker (rev 2). (2026-07-05)
 2. ✅ Foundation: `Note` table (Postgres = system of record); Neon populated (1278/143,946). Shipped all branches.
-3. ⬜ **The vectorize script** — simple: read notes from Postgres → embed → upsert to Pinecone (with metadata). Student = stub / instructor = solution. This is Week 1 live content, NOT a drift homework. (Note: the existing `npm run ingest` already does FHIR→Pinecone; the vectorize script is the *Postgres-notes→Pinecone* version students build, matching the "service the company's existing data" story.)
-4. ⬜ Week 1 deck/runbook + day files (the big new content): problem → vectors/semantic similarity → vectorize → vector search → chunking intro. Bible = homework part 1.
+3. ✅ **Vectorize script** (`scripts/vectorize.ts` + `npm run vectorize`): read notes from Postgres → `upsertChunks` (embed + upsert) with metadata. Instructor solution (verified live, --limit 5) / main solution / student STUB. Shipped (fcd6f7b / 10ed3ed / 7b7388d).
+4. ⬜ Week 1 deck/runbook + day files (the big new content): problem → **vectors + similarity (hands-on)** → vectorize → vector search → chunking intro. Bible = homework part 1.
 5. ⬜ Week 2 (agentic/hybrid search) + Bible homework part 2.
 6. ⬜ Weeks 3–5 relabel/remap (MCP+HITL / agents+evals+obs / privacy).
 7. ⬜ Day-file renumbering + INSTRUCTOR-NOTES + deck kickers reconciled to the 5-week map.
+
+**Student-branch reconciliation plan (do alongside the phases):** `student` = skeletons + failing specs; it must track the restructure.
+- ✅ `scripts/vectorize.ts` = STUB on student (Week 1 build-it exercise); solution on instructor/main. (7b7388d)
+- ✅ `Note` table + `noteRowFromChunk` = provided infra on student; upload route stays a STUB (still CHALLENGE-UPLOAD-API).
+- ⬜ **Pre-loaded DB:** students do NOT run the FHIR ingest — they connect to the pre-loaded Neon DB (read-only role, or a per-student Neon branch). Update student setup/day-02 + `.env.example`: `DATABASE_URL` = the provided DB; no ingest step. `scripts/ingest-coherent.ts` stays only as reference (students don't run it).
+- ⬜ **Students still IMPLEMENT (keep as student stubs, just re-map to new week #s):** vectorize (W1, done), `searchClinicalNotes`/vector-search (W1), query analyzer + agent / hybrid search (W2), MCP server (W3), RBAC/PII (W5). Don't rewrite — relabel.
+- ⬜ **No student code to delete:** `scripts/bible/` stay (homework); poisoned-docs stays (optional homework). It's mostly re-labeling which week each stub belongs to.
+- ⬜ Re-run student suite after remap; expected red = still-unimplemented assignments. (vectorize has no test yet — run-it exercise; add a note→chunk mapping test if we want it graded.)
 
 Everything below predates the restructure — treat as historical until reconciled.
 
