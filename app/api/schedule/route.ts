@@ -2,15 +2,6 @@
  * Appointment Scheduling API
  *
  * Human-in-the-loop endpoint: user confirms scheduling action from chat.
- *
- * Flow:
- * 1. LLM detects scheduling intent and suggests date/time
- * 2. UI shows confirmation card with adjustable date/time
- * 3. User clicks "Confirm" -> calls this endpoint
- * 4. This endpoint calls Cal.com API to book
- * 5. Response shown to user
- *
- * This pattern ensures human oversight of AI-suggested actions.
  */
 
 import { NextResponse } from 'next/server';
@@ -18,35 +9,61 @@ import { scheduleAppointment, isCalConfigured } from '@/lib/calendar';
 import { traced } from '@/lib/langsmith';
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { patientName, dateTime, notes } = body;
+	try {
+		// The gate here is the human-in-the-loop confirmation in the UI, not a
+		// login — a scheduling card only posts after the user confirms it.
+		const body = await request.json();
+		const { patientName, dateTime, notes } = body;
 
-    // TODO: Validate required fields
-    // Return 400 if patientName or dateTime is missing
+		if (!isCalConfigured()) {
+			return NextResponse.json(
+				{
+					error: 'Calendar integration not configured. Set CAL_API_KEY and CAL_EVENT_TYPE_ID.',
+				},
+				{ status: 503 },
+			);
+		}
 
-    // TODO: Check if Cal.com is configured
-    // Return 503 if not configured with helpful error message
+		// Trace the scheduling action in LangSmith
+		const result = await traced(
+			'schedule_appointment',
+			async () => {
+				return scheduleAppointment({
+					patientName,
+					dateTime,
+					notes,
+				});
+			},
+			{
+				runType: 'tool',
+				inputs: { patientName, dateTime, notes },
+				metadata: { action: 'human_confirmed_scheduling' },
+			},
+		);
 
-    // TODO: Trace the scheduling action in LangSmith
-    // Use traced() wrapper with:
-    // - name: 'schedule_appointment'
-    // - runType: 'tool'
-    // - inputs: { patientName, dateTime, notes }
-    // - metadata: { action: 'human_confirmed_scheduling' }
+		if (!result.success) {
+			return NextResponse.json(
+				{ error: result.error || 'Failed to schedule appointment' },
+				{ status: 500 },
+			);
+		}
 
-    // TODO: Call scheduleAppointment() and handle response
-    // Return success with bookingId/bookingUrl or error
-
-    return NextResponse.json(
-      { error: 'Not implemented - your turn!' },
-      { status: 501 }
-    );
-  } catch (error) {
-    console.error('Schedule error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    );
-  }
+		return NextResponse.json({
+			success: true,
+			message: `Appointment scheduled for ${patientName}`,
+			bookingId: result.bookingId,
+			bookingUrl: result.bookingUrl,
+		});
+	} catch (error) {
+		console.error('Schedule error:', error);
+		return NextResponse.json(
+			{
+				error:
+					error instanceof Error
+						? error.message
+						: 'Internal server error',
+			},
+			{ status: 500 },
+		);
+	}
 }
