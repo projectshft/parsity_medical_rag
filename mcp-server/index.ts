@@ -3,6 +3,10 @@
  *
  * Exposes the RAG system as tools for Claude Desktop, Cursor, and other MCP clients.
  *
+ * SCOPE: this is a FRONT-OFFICE (STAFF) tool. Front-office staff never see PII,
+ * so every response here is PII-obscured, and only non-identifying tools are
+ * exposed (search / notes / condition lists) — no patient-detail lookups.
+ *
  * Setup:
  * 1. npm install @modelcontextprotocol/sdk
  * 2. Configure Claude Desktop or Cursor (see the Week 3 curriculum)
@@ -15,8 +19,8 @@ import { z } from 'zod';
 
 import { executeQuery, formatResultsForLLM } from '../lib/query-executor';
 import { searchClinicalNotes } from '../lib/vector-search';
-import { findPatientByName, getPatientSummary, findPatientsByConditions } from '../lib/sql-queries';
-import { shouldObscurePII, obscureName, obscureDate, obscureLocation } from '../lib/pii';
+import { findPatientsByConditions } from '../lib/sql-queries';
+import { obscureName } from '../lib/pii';
 
 const server = new McpServer({
   name: 'medical-rag',
@@ -24,7 +28,7 @@ const server = new McpServer({
 });
 
 /**
- * Tool: Search for patients
+ * Tool: Search for patients (PII-obscured)
  */
 server.registerTool(
   'search_patients',
@@ -38,7 +42,8 @@ server.registerTool(
   async ({ query, limit }) => {
     try {
       const result = await executeQuery(query, { sqlLimit: limit });
-      const formatted = formatResultsForLLM(result);
+      // Front-office channel — always obscure PII in the rendered results.
+      const formatted = formatResultsForLLM(result, true);
 
       return {
         content: [{ type: 'text', text: formatted || 'No matching patients found.' }],
@@ -53,7 +58,7 @@ server.registerTool(
 );
 
 /**
- * Tool: Query clinical notes
+ * Tool: Query clinical notes (PII-obscured)
  */
 server.registerTool(
   'query_notes',
@@ -78,9 +83,8 @@ server.registerTool(
         };
       }
 
-      const formatted = formatVectorResults(results);
       return {
-        content: [{ type: 'text', text: formatted }],
+        content: [{ type: 'text', text: formatVectorResults(results) }],
       };
     } catch (error) {
       return {
@@ -92,86 +96,7 @@ server.registerTool(
 );
 
 /**
- * Tool: Get patient details
- */
-server.registerTool(
-  'get_patient',
-  {
-    description: 'Get detailed information about a specific patient including conditions, medications, observations, and allergies.',
-    inputSchema: {
-      patientId: z.string().describe('The patient ID'),
-    },
-  },
-  async ({ patientId }) => {
-    try {
-      const patient = await getPatientSummary(patientId);
-
-      if (!patient) {
-        return {
-          content: [{ type: 'text', text: `Patient not found: ${patientId}` }],
-        };
-      }
-
-      const formatted = formatPatientDetails(patient);
-      return {
-        content: [{ type: 'text', text: formatted }],
-      };
-    } catch (error) {
-      return {
-        content: [{ type: 'text', text: `Error getting patient: ${error}` }],
-        isError: true,
-      };
-    }
-  }
-);
-
-/**
- * Tool: Find patient by name
- */
-server.registerTool(
-  'find_patient_by_name',
-  {
-    description: 'Look up a patient by their name. Returns matching patients with basic info.',
-    inputSchema: {
-      name: z.string().describe('Patient name to search for (e.g., "John Smith")'),
-    },
-  },
-  async ({ name }) => {
-    try {
-      const patients = await findPatientByName(name);
-
-      if (!patients.length) {
-        return {
-          content: [{ type: 'text', text: `No patients found matching "${name}"` }],
-        };
-      }
-
-      const lines = [`## Patients matching "${name}"\n`];
-      for (const patient of patients) {
-        lines.push(`### ${fullName(patient)}`);
-        lines.push(`- **ID**: ${patient.id}`);
-        lines.push(`- **Gender**: ${patient.gender}`);
-        lines.push(`- **Birth Date**: ${patient.birthDate?.toISOString().split('T')[0] || 'Unknown'}`);
-        if (patient.conditions?.length) {
-          lines.push(`- **Active Conditions**: ${patient.conditions.slice(0, 5).map(c => c.display).join(', ')}`);
-        }
-        lines.push('');
-      }
-
-      return {
-        content: [{ type: 'text', text: lines.join('\n') }],
-      };
-    } catch (error) {
-      return {
-        content: [{ type: 'text', text: `Error finding patient: ${error}` }],
-        isError: true,
-      };
-    }
-  }
-);
-
-/**
- * Tool: List patients by condition
+ * Tool: List patients by condition (PII-obscured)
  */
 server.registerTool(
   'list_patients_by_condition',
@@ -195,8 +120,10 @@ server.registerTool(
 
       const lines = [`## Patients with ${condition} (${patients.length} total, showing ${limited.length})\n`];
       for (const patient of limited) {
+        // Obscure the name — front-office staff get a pseudonym, not the real name.
+        const name = obscureName(fullName(patient));
         const matchingConditions = patient.conditions?.map(c => c.display).join(', ') || condition;
-        lines.push(`- **${fullName(patient)}** (ID: ${patient.id}) - ${matchingConditions}`);
+        lines.push(`- **${name}** (ID: ${patient.id}) - ${matchingConditions}`);
       }
 
       return {
@@ -219,77 +146,18 @@ function fullName(patient: { firstName?: string | null; lastName?: string | null
 }
 
 /**
- * Helper: Format vector search results
+ * Helper: Format vector search results (always PII-obscured for MCP)
  */
 function formatVectorResults(results: any[]): string {
-  const obscure = shouldObscurePII();
   const parts = ['## Clinical Notes\n'];
 
   for (const result of results) {
-    const patientName = obscure ? obscureName(result.patientName) : (result.patientName || 'Unknown');
+    const patientName = obscureName(result.patientName || 'Unknown');
     parts.push(`### ${patientName} - ${result.documentType || 'Clinical Note'} (${result.date || 'undated'})`);
     parts.push(`Relevance: ${(result.score * 100).toFixed(1)}%`);
     parts.push('```');
     parts.push(result.contentPreview || result.content);
     parts.push('```\n');
-  }
-
-  return parts.join('\n');
-}
-
-/**
- * Helper: Format patient details
- */
-function formatPatientDetails(patient: any): string {
-  const obscure = shouldObscurePII();
-
-  const name = obscure ? obscureName(fullName(patient)) : fullName(patient);
-  const dob = obscure
-    ? obscureDate(patient.birthDate)
-    : (patient.birthDate?.toISOString().split('T')[0] || 'Unknown');
-  const location = obscure
-    ? obscureLocation(patient.city, patient.state, patient.postalCode)
-    : [patient.city, patient.state, patient.postalCode].filter(Boolean).join(', ');
-
-  const parts = [`# ${name}\n`];
-  parts.push(`- **ID**: ${patient.id}`);
-  parts.push(`- **Gender**: ${patient.gender}`);
-  parts.push(`- **Birth Date**: ${dob}`);
-  if (location) {
-    parts.push(`- **Location**: ${location}`);
-  }
-
-  if (patient.conditions?.length) {
-    parts.push('\n## Active Conditions');
-    for (const c of patient.conditions.filter((c: any) => c.status === 'active').slice(0, 15)) {
-      const onset = c.onsetDate?.toISOString().split('T')[0];
-      parts.push(`- ${c.display}${onset ? ` (since ${onset})` : ''}`);
-    }
-  }
-
-  if (patient.medications?.length) {
-    parts.push('\n## Current Medications');
-    for (const m of patient.medications.filter((m: any) => m.status === 'active').slice(0, 15)) {
-      parts.push(`- ${m.display}${m.dosageInstruction ? ` - ${m.dosageInstruction}` : ''}`);
-    }
-  }
-
-  if (patient.observations?.length) {
-    parts.push('\n## Recent Observations');
-    for (const o of patient.observations.slice(0, 10)) {
-      const date = o.effectiveDate?.toISOString().split('T')[0];
-      const value = o.valueNumeric !== null
-        ? `${o.valueNumeric} ${o.unit || ''}`
-        : o.valueString || 'N/A';
-      parts.push(`- ${o.display}: ${value}${date ? ` (${date})` : ''}`);
-    }
-  }
-
-  if (patient.allergies?.length) {
-    parts.push('\n## Allergies');
-    for (const a of patient.allergies) {
-      parts.push(`- ${a.display} (${a.criticality || 'unknown criticality'})`);
-    }
   }
 
   return parts.join('\n');
