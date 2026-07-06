@@ -4,9 +4,6 @@
  * Ingests a single FHIR bundle through the new pipeline:
  * - structured rows + note text -> Postgres (system of record; additive, idempotent)
  * - clinical notes -> Pinecone, one note = one vector (the derived search index)
- *
- * Stretch (CHALLENGE-RBAC.md): make this DOCTOR-only with
- * `await requireAuth(request, ['DOCTOR'])`.
  */
 
 import { NextResponse } from 'next/server';

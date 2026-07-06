@@ -1,7 +1,6 @@
 import { executeQuery, formatResultsForLLM } from "@/lib/query-executor";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuth, AuthError } from "@/lib/auth";
 
 const QueryRequestSchema = z.object({
   query: z.string().min(1),
@@ -11,35 +10,30 @@ const QueryRequestSchema = z.object({
 });
 
 /**
- * Direct query endpoint for programmatic access to the hybrid RAG system
+ * Direct query endpoint for the hybrid RAG system (the clinician channel).
+ *
+ * Access is channel-based, not login-based: this direct endpoint returns full
+ * data by default. The front-office channel (the MCP server) is the one that
+ * always obscures PII. Callers here may still opt into obscuring.
  *
  * POST /api/query
  * Body: { query: string, vectorTopK?: number, obscurePII?: boolean, format?: 'raw' | 'formatted' }
  * Headers: X-Obscure-PII: true (optional, overrides body.obscurePII)
- *
- * Returns: QueryResult with analysis, SQL results, and vector results
  */
 export async function POST(request: Request) {
   try {
-    // INSTRUCTOR SOLUTION: STAFF never see PII, regardless of client input (docs/CHALLENGE-RBAC.md)
-    const session = await requireAuth(request);
-
     const { query, vectorTopK, obscurePII, format } = QueryRequestSchema.parse(
       await request.json()
     );
 
-    // Check header for PII obscuring (takes precedence over body)
-    const headerObscure = request.headers.get('x-obscure-pii');
-    const clientObscure = headerObscure === 'true' ? true :
-                          headerObscure === 'false' ? false :
-                          obscurePII;
-    // The role wins: STAFF are always obscured; doctors may opt in
-    const shouldObscure = session.role === 'STAFF' ? true : clientObscure;
+    // Optional PII obscuring: header takes precedence over body.
+    const headerObscure = request.headers.get("x-obscure-pii");
+    const shouldObscure =
+      headerObscure === "true" ? true : headerObscure === "false" ? false : obscurePII;
 
     const result = await executeQuery(query, { vectorTopK, obscurePII: shouldObscure });
 
-    // Return formatted text if requested
-    if (format === 'formatted') {
+    if (format === "formatted") {
       return NextResponse.json({
         ...result,
         formatted: formatResultsForLLM(result, shouldObscure),
@@ -48,17 +42,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (error) {
-    if (error instanceof AuthError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error("Query error:", error);
     return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Internal server error",
-      },
+      { error: error instanceof Error ? error.message : "Internal server error" },
       { status: 500 }
     );
   }

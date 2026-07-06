@@ -7,13 +7,11 @@
 import { NextResponse } from 'next/server';
 import { scheduleAppointment, isCalConfigured } from '@/lib/calendar';
 import { traced } from '@/lib/langsmith';
-import { requireAuth, AuthError } from '@/lib/auth';
 
 export async function POST(request: Request) {
 	try {
-		// INSTRUCTOR SOLUTION: only STAFF schedule appointments (docs/CHALLENGE-RBAC.md)
-		await requireAuth(request, ['STAFF']);
-
+		// The gate here is the human-in-the-loop confirmation in the UI, not a
+		// login — a scheduling card only posts after the user confirms it.
 		const body = await request.json();
 		const { patientName, dateTime, notes } = body;
 
@@ -57,9 +55,6 @@ export async function POST(request: Request) {
 			bookingUrl: result.bookingUrl,
 		});
 	} catch (error) {
-		if (error instanceof AuthError) {
-			return NextResponse.json({ error: error.message }, { status: error.status });
-		}
 		console.error('Schedule error:', error);
 		return NextResponse.json(
 			{
