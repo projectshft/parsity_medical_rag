@@ -1,109 +1,117 @@
-# Orchestration: Three Paths Through One System
+# Orchestration: Router, Parallel Agents, Aggregator
 
-**Needs: a working `analyzeQuery`; both engines loaded (Postgres + the note index)**
+**Needs: a working `analyzeQuery`; both engines available (Postgres + the note index)**
 
 ## Today you will
 
-- Read the router that turns the analyzer's output into actual retrieval — it's already written
-- Trace real queries down all three paths and verify the routing with your own eyes
+- Assemble the chat agent as a small **multi-agent pipeline**, not one big function
+- Run two specialist agents **in parallel** and let an aggregator synthesize the answer
 - Learn the debugging loop for LLM-routed systems: behavior bug → prompt fix → re-run
 
 ## Concept
 
-Today is mostly a **reading day**, and that's deliberate. The orchestration layer — `lib/query-executor.ts` — is complete, and reading working orchestration code teaches more than re-typing it. You've met every part it calls; now see how thin the glue actually is.
-
-`executeQuery` is the whole runtime in one function:
+Last lesson you built the router (`analyzeQuery`) — the thing that reads a question and decides what to do. Now you wire it into the shape the chat actually uses. Instead of one function that does everything in a line, the agent is four small pieces with clear seams:
 
 ```mermaid
 flowchart TD
-    Q[user query] --> AN["analyzeQuery"]
-    AN --> B{requiresSQL?<br/>requiresVector?}
-    B -->|"SQL only"| P1["executeStructuredQuery<br/>(Postgres)"]
-    B -->|"vector only"| P2["searchClinicalNotes<br/>(Pinecone)"]
-    B -->|both| P3["getPatientIdsByConditions<br/>→ searchClinicalNotes(filter)<br/>(hybrid)"]
-    P1 --> R[QueryResult]
-    P2 --> R
-    P3 --> R
+    Q[user query] --> R["ROUTER<br/>analyzeQuery"]
+    R --> D{which specialists?}
+    D -->|requiresSQL| S["SQL AGENT<br/>executeStructuredQuery"]
+    D -->|requiresVector| V["VECTOR AGENT<br/>searchClinicalNotes"]
+    S --> A["AGGREGATOR<br/>LLM synthesizes both"]
+    V --> A
+    A --> ST["stream to the client"]
 ```
 
-Open the file and read `executeQuery` top to bottom. Three things to notice as you go:
+Three ideas make this more than decoration:
 
-- **The router is two booleans and three branches.** All the intelligence lives in the analyzer; the router just dispatches. This is good design under test — a dumb router is a router that can't be wrong in interesting ways.
-- **The hybrid branch (around line 53) is the pattern the whole week builds toward.** Condition entities → patient ids → filtered vector search. Notice it searches with `analysis.semanticQuery || userQuery` (the *expanded* query, not the raw one) and passes `patientIds: patientIds?.length ? patientIds : undefined`. That last expression is doing something subtle, and we take it apart in the next lesson — for now, just clock that an empty list and a real list get treated differently.
-- **`formatResultsForLLM`** — the second half of the file. Retrieval returns structured objects; the LLM needs *text*. This function renders patients, conditions, observations, and note previews into readable context. Read it asking one question: *what information survives the rendering, and what gets dropped?* (Top-10 patients only; 5 notes; previews truncated at ~500 chars. Every one of those numbers is a silent editorial decision about what the LLM gets to see.)
+- **The router is dumb, and that's the point.** All the judgment lives in the analyzer's prompt; the router just reads two booleans (`requiresSQL`, `requiresVector`) and decides which agents to run. A dumb router can't be wrong in interesting ways — when something misbehaves, you always know it's the prompt or a specialist, never the glue.
+- **The specialists run in parallel.** The SQL agent and the vector agent don't depend on each other, so you fire them together with `Promise.all` and wait once. Each returns only its slice — exact facts from Postgres, relevant notes from the vector store — and neither knows the other exists.
+- **The aggregator is where meaning gets made.** It's an LLM call that receives both slices as context plus the original question, and writes one grounded answer — streamed back token by token so the user sees it type. This is the only place the two retrieval worlds meet.
+
+This is `lib/agent.ts`'s `runAgent`. Open it and read top to bottom: a `routeQuery`, a `runSqlAgent`, a `runVectorAgent`, then the orchestration that runs the two in parallel and hands the results to the aggregator.
 
 ### The debugging loop
 
-Here's what changes when a system routes via LLM: **bugs move.** When a query produces a wrong answer, the cause is now usually *upstream of all your deterministic code* — the analyzer misclassified, mis-extracted, or wrote a weak `semanticQuery`. The loop becomes:
+Routing via LLM moves your bugs. A wrong answer is now usually *upstream of all your deterministic code* — the router misclassified, mis-extracted an entity, or wrote a weak `semanticQuery`. The loop:
 
 ```
-symptom (wrong results) → inspect the analysis (intent? entities? booleans?)
-  → if analysis is wrong: fix the PROMPT (usually: add one few-shot example)
-  → if analysis is right: NOW suspect the deterministic code
+symptom (wrong results) → inspect the ROUTER's analysis (intent? entities? booleans?)
+  → analysis wrong: fix the PROMPT (usually one few-shot example)
+  → analysis right: NOW suspect a specialist (SQL query, vector filter) or the aggregator
 → re-run the battery
 ```
 
-Engineers who skip the "inspect the analysis" step end up "fixing" working SQL for hours. The analysis object is your first stack frame — always read it first.
+The analysis object is your first stack frame. Engineers who skip it "fix" working SQL for hours.
 
 ## Implementation
 
-Trace all three paths with real queries:
+Trace the pipeline with real queries — watch the router choose, both agents run, and the aggregated context that the LLM will actually see:
 
 ```typescript
 import 'dotenv/config';
-import { executeQuery, formatResultsForLLM } from './lib/query-executor';
+import { analyzeQuery } from './lib/query-analyzer';
+import { executeStructuredQuery } from './lib/sql-queries';
+import { searchClinicalNotes } from './lib/vector-search';
+import { formatResultsForLLM } from './lib/query-executor';
 
 async function trace(q: string) {
-  const result = await executeQuery(q);
+  const analysis = await analyzeQuery(q);                 // ROUTER
+  const useSql = analysis.requiresSQL;
+  const useVector = analysis.requiresVector || (!analysis.requiresSQL && !analysis.requiresVector);
+
+  const [sqlResults, vectorResults] = await Promise.all([ // SPECIALISTS, in parallel
+    useSql ? executeStructuredQuery(analysis) : undefined,
+    useVector ? searchClinicalNotes(analysis.semanticQuery || q, { topK: 10 }) : undefined,
+  ]);
+
   console.log(`\n=== ${q}`);
-  console.log('analysis:', result.analysis.intent,
-    `SQL:${result.analysis.requiresSQL} Vector:${result.analysis.requiresVector}`);
-  console.log('sqlResults:', result.sqlResults ? result.sqlResults.type : 'none');
-  console.log('vectorResults:', result.vectorResults?.length ?? 0, 'notes');
-  console.log('--- rendered for LLM (first 400 chars) ---');
-  console.log(formatResultsForLLM(result).slice(0, 400));
+  console.log('router:', analysis.intent, `SQL:${useSql} Vector:${useVector}`);
+  console.log('--- aggregator context (first 400 chars) ---');
+  console.log(formatResultsForLLM({ analysis, sqlResults, vectorResults }).slice(0, 400));
 }
 
 async function main() {
-  await trace('How many patients have diabetes?');                    // path 1: SQL
-  await trace('notes mentioning chest pain at night');                // path 2: vector
-  await trace('what do notes say about sleep for depressed patients'); // path 3: hybrid
+  await trace('How many patients have diabetes?');                     // router → SQL agent
+  await trace('notes mentioning chest pain at night');                 // router → vector agent
+  await trace('what do notes say about sleep for depressed patients'); // router → both, in parallel
 }
 main();
 ```
 
-For each: confirm the booleans chose the path you expected, the right engine(s) ran, and the rendered context contains what an LLM would need to answer. You are looking at the exact text the model will receive — this view is where most "why did it answer that?" mysteries resolve.
+For each: confirm the router picked the agents you expected, both fired when needed, and the aggregator context contains what an LLM would need to answer. You're looking at the exact text the aggregator receives — this view is where most "why did it answer that?" mysteries resolve.
 
 ### Common mistakes
 
-- **Debugging the SQL when the analysis is wrong.** The loop above, violated. If `requiresVector` came back false for a notes question, no amount of staring at Pinecone will help.
-- **Treating `formatResultsForLLM`'s limits as facts of nature.** Top-10 patients, 5 notes, truncated previews — those are *choices*, and when an answer is mysteriously incomplete, "the relevant data was rendered out" belongs on your suspect list.
-- **Testing only happy paths.** Trace a query where the condition matches *zero* patients, and one where entities come back empty. The branches you didn't trace are the ones that page you later — one of them is a privacy bug we hunt on purpose in the next lesson.
+- **Debugging the SQL when the router is wrong.** If `requiresVector` came back false for a notes question, no amount of staring at Pinecone helps. Read the analysis first.
+- **Running the specialists sequentially.** `await sql; await vector;` works but wastes wall-clock — they're independent, so `Promise.all` them. On a hybrid query that's the difference between one round-trip and two.
+- **Letting the aggregator invent.** The aggregator must answer *only* from the two slices it's handed. If the context is empty, the honest answer is "I don't have that" — not a plausible guess. That contract is the whole next lesson thread.
 
 ## Your turn
 
 Spend **no more than 45 minutes** here.
 
-1. Run the three-path trace; confirm routing and read every rendered context in full.
-2. Run your own labeled query list through `executeQuery`. For each: which path, and did the result match the label you assigned it before any of this existed?
-3. Find one query whose *analysis* is right but whose *rendered context* would mislead the LLM (data dropped, preview truncated mid-fact, wrong 10 patients shown). Write down what you'd change — don't change it yet; you'll want this note when the full chat loop enters the picture.
+1. Run the trace; confirm the router's choice and read every aggregator context in full.
+2. Run your own labeled query list through the pipeline. For each: which agents ran, and did it match the label you assigned before any of this existed?
+3. Find one query where the router is right but the aggregator context would still mislead the LLM (data dropped, preview truncated mid-fact). Write down what you'd change — you'll want it when you harden the chat agent.
 
 ## Check yourself
 
+- Name the four stages of the pipeline and what each is responsible for.
+- Why do the SQL and vector agents run in parallel instead of one feeding the other?
 - In the debugging loop, what's the first artifact you inspect, and what are the two fix-paths from there?
-- Why is "the router is dumb" praise rather than criticism?
 
 <details>
 <summary>Solution / discussion</summary>
 
-**First artifact: the analysis object** — intent, entities, booleans, `semanticQuery`. Right analysis → suspect the deterministic code (engines, rendering). Wrong analysis → fix the prompt, usually with one targeted few-shot example, then re-run your battery so the fix can't silently regress something else.
+**The four stages:** ROUTER (`analyzeQuery` — decides which agents run), SQL AGENT (`executeStructuredQuery` — exact facts), VECTOR AGENT (`searchClinicalNotes` — meaning-matched notes), AGGREGATOR (an LLM that synthesizes both and streams the answer). Judgment lives in the router's prompt; dispatch and synthesis are trivial-by-inspection glue.
 
-**Dumb router as virtue:** every line of conditional cleverness in the router is logic the analyzer *also* encodes, which means two places to disagree. Keeping all judgment in one component (the prompt — visible, versionable, testable) and all dispatch in another (three branches — trivially correct by inspection) is separation of concerns applied to an LLM system. When something's wrong, you always know which layer to interrogate.
+**Why parallel:** the two agents have no data dependency — the SQL agent doesn't need the vector agent's output or vice versa — so running them together halves the wait. (A *different* pattern, hybrid retrieval, deliberately makes vector search depend on a SQL filter; that's the next lesson, and it's a retrieval technique you reach for per-query, not the chat's default orchestration.)
 
-**Common find on exercise 3:** a patient-summary query renders observations most-recent-first but truncates the list, and the truncation can cut exactly the labs the question was about. The render order silently decided which facts the LLM can see. "What does the model actually receive?" is a question you now know to ask with `console.log`.
+**First artifact: the router's analysis** — intent, entities, booleans, `semanticQuery`. Right analysis → suspect a specialist or the aggregator. Wrong analysis → fix the prompt (usually one targeted few-shot example), then re-run the battery so the fix can't silently regress something else.
 
 </details>
 
 ## Further reading (optional)
 
-- Re-read `lib/query-executor.ts` once more, fast — this file is the system's table of contents, and you'll be back in it on every remaining block of the course
+- Read `lib/agent.ts` once more, fast — `runAgent` is the system's table of contents, and you'll be back in it on every remaining block.

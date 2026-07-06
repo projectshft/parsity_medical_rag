@@ -12,19 +12,19 @@
 
 Everything until now produced *data*. Today the system starts producing *answers* — and that step is where a RAG system earns trust or destroys it.
 
-Open `lib/agent.ts` and read `runAgent`. Most of it you've already met: it calls `executeQuery` (analyze → route → retrieve), renders the records with `formatResultsForLLM`, and streams an LLM response to the chat UI. You'll also see scheduling wiring (`detectSchedulingIntent`, a scheduling card) — that belongs to a later week on human-in-the-loop actions; leave it be and focus on one thing today: the `SYSTEM_PROMPT`.
+Open `lib/agent.ts` and read `runAgent`. Most of it you've already met: the **aggregator** is the final stage of the pipeline — after the router fires the SQL and vector agents in parallel, the aggregator renders both slices with `formatResultsForLLM` and streams one answer to the chat UI. You'll also see scheduling wiring (`detectSchedulingIntent`, a scheduling card) — that belongs to a later week on human-in-the-loop actions; leave it be and focus on one thing today: the `AGGREGATOR_PROMPT`.
 
 Notice *how the messages are assembled* near the bottom of `runAgent`. The retrieved context and the user's question arrive **together, in the user turn**:
 
 ```typescript
-content: `${analysisInfo}\n\nRetrieved Data:\n${context}\n\nUser question: ${query}`
+content: `${analysisInfo}\n\nRetrieved data:\n${context}\n\nUser question: ${query}`
 ```
 
-…while the `SYSTEM_PROMPT` sits above, static. That layout is doing real work.
+…while the `AGGREGATOR_PROMPT` sits above, static. That layout is doing real work.
 
 ### The grounding contract
 
-The single idea to protect all week: **the model decides and writes, but it is never the source of facts.** Retrieval earns it the right to speak; no record means no claim. The system prompt is where that rule gets encoded — call it the **grounding contract**. Read the `SYSTEM_PROMPT` in `lib/agent.ts` and find each of these four clauses in it (or where it should be sharper):
+The single idea to protect all week: **the model decides and writes, but it is never the source of facts.** Retrieval earns it the right to speak; no record means no claim. The system prompt is where that rule gets encoded — call it the **grounding contract**. Read the `AGGREGATOR_PROMPT` in `lib/agent.ts` and find each of these four clauses in it (or where it should be sharper):
 
 1. **Answer from the retrieved data — only.** The model has read a million medical textbooks. For *these patients*, those textbooks are noise: the only truth is what retrieval returned. The prompt must make "I'll answer from general knowledge" feel like a violation. (The repo's prompt says it plainly: *"Provide accurate information based only on the retrieved medical records… Never make up or infer."*)
 2. **Say when the data doesn't answer.** From Week 1 you know retrieval *always returns something* — the nearest neighbors of an unanswerable question are still in the context window, looking quotable. *"The retrieved records don't contain this"* must be an approved, encouraged answer shape.
@@ -59,7 +59,7 @@ Now act like you're trying to get the system in trouble (gently — the real adv
 - Ask something the data genuinely can't answer for a real patient — *"what is this patient's blood type?"* (Synthea has no blood-type field) — and watch whether the nearest-neighbor context seduces the model into pretending.
 - Ask a dosing question — *"should we increase this patient's insulin?"* — and check the refusal boundary holds.
 
-After each probe, if the behavior is wrong, sharpen the `SYSTEM_PROMPT` and re-run. Prompt-writing *is* this loop; nobody writes the contract right on draft one.
+After each probe, if the behavior is wrong, sharpen the `AGGREGATOR_PROMPT` and re-run. Prompt-writing *is* this loop; nobody writes the contract right on draft one.
 
 ### Common mistakes
 
