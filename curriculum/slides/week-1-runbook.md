@@ -27,7 +27,7 @@ The big shift from the old Foundations week: **there is no live SQL ingest.** Th
       npm run vectorize -- --limit 200
       ```
       Expected tail: `Vectorizing 200 notes from Postgres...` then `Done. Upserted 200 note vectors into Pinecone.` Embedding all ~143,946 notes costs real money and ~an hour — **never do the full run live.** Keep the live slice at 200.
-- [ ] Have the two scratch scripts from Code-together (`scripts/be-the-db.ts`, `scripts/search.ts`) already written and test-run once, so you're not typing them cold. They're printed in full below.
+- [ ] Have the be-the-db scratch script (`scripts/be-the-db.ts`) written and test-run once (it is printed in full below), and confirm `npm run search -- "x"` works. So you are not typing cold.
 - [ ] A terminal open in the repo; `scripts/vectorize.ts` open in an editor to scroll to live.
 - [ ] `week-1.html` open full-screen. Arrow keys / click to navigate, `N` toggles presenter notes.
 
@@ -45,7 +45,7 @@ The big shift from the old Foundations week: **there is no live SQL ingest.** Th
 | 0:35 | **Discussion / breakout** | 8 | "Which needs meaning — and which is just a lookup?" Breakout if >8 people, else full room. Drive to the split: counts/filters vs "sounds like / describes / mentions." Answer key below. That split *is* next week's routing agent. |
 | 0:46 | **Concept — two stores, one source of truth** | 9 | The architecture beat. Postgres = system of record (everything); vector store = derived index (just notes + metadata, embedded). If they disagree, Postgres wins; you rebuild the index. This mental model survives the whole course. |
 | 0:52 | **Code together II — the vectorize script** | 10–11 | Walk `scripts/vectorize.ts` (read from Postgres → shape with metadata → `upsertChunks`). Run `npm run vectorize -- --limit 200` live. Then the metadata slide: `patientId`/`type`/`date` are what make the index *useful* — one patient averages ~113 notes (up to 2,162), so without `patientId` you can't summarize *this* patient. |
-| 1:06 | **Mini-challenge + break it** | 12 | Run `scripts/search.ts`: *"patient struggling to breathe"* → did it find the dyspnea notes? Then break it live — the too-vague query (entry 1), then the missing-`patientId`-filter leak (entry 2). Turn them loose on the bank. |
+| 1:06 | **Mini-challenge + break it** | 12 | Run `npm run search`: *"patient struggling to breathe"* → did it find the dyspnea notes? Then break it live — the too-vague query (entry 1), then the missing-`patientId`-filter leak (entry 2). Turn them loose on the bank. |
 | 1:25 | **Concept — chunking intro + the Bible contrast** | 13–14 | Why our notes need no chunking: one note = one encounter = one piece (~450 chars, self-contained). Then the opposite: one 4M-char book embedded whole "means everything, matches nothing" → you must split it, but *where?* That decision is chunking. |
 | 1:33 | **Homework + recap + send-off** | 15–16 | Homework part 1: propose a chunking strategy for the Bible + record the 2–3 min "what is chunking" clip. Recap where they are. This week's deliverable video: keyword vs meaning, their own words. Tease Week 2: you'll *run* your chunking strategy and measure it. |
 
@@ -69,7 +69,7 @@ Runs long? Compress the architecture slide (0:46) and the chunking contrast (1:2
 
 ## Code-together
 
-There is no `npm run search` in this repo yet — Week 1 builds the instinct with two tiny scratch scripts on top of the real `lib/` functions. Write both during Pre-flight and just *run* them live. Both use the same `ts-node` invocation as `npm run vectorize`.
+Two hands-on pieces. The similarity-by-hand one is a *scratch script you write live* (`scripts/be-the-db.ts` — that's the point, feel the cosine math). The note search is a real command that ships: `npm run search -- "your query"`.
 
 ### Part I — be the vector database by hand (slide 7)
 
@@ -122,7 +122,7 @@ npm run vectorize -- --limit 200
 - **Narrate the three steps:** (1) `prisma.note.findMany({ take: limit })` reads notes from Postgres — the source of truth; (2) `.map()` shapes each note into `{ id, content, metadata }`, reusing `note.id` as the vector id (**this is what makes re-runs idempotent** — entry 3); (3) `upsertChunks` embeds + upserts in batches of 100.
 - **Expected output:** `Vectorizing 200 notes from Postgres...` → `Done. Upserted 200 note vectors into Pinecone.`
 
-**Search** — `scripts/search.ts`, built on the real `searchClinicalNotes` from `lib/vector-search.ts`:
+**Search** — `npm run search` (`scripts/search.ts`), built on the real `searchClinicalNotes` from `lib/vector-search.ts`:
 
 ```ts
 import 'dotenv/config';
@@ -145,7 +145,7 @@ main();
 ```
 
 ```bash
-npx ts-node --compiler-options '{"module":"CommonJS"}' scripts/search.ts "patient struggling to breathe"
+npm run search -- "patient struggling to breathe"
 ```
 
 - **Narrate:** the query never says "dyspnea," yet the top hits are the breathing notes. Point at the `score` column — that number is the cosine from Part I, now over the real corpus.
@@ -164,15 +164,15 @@ npx ts-node --compiler-options '{"module":"CommonJS"}' scripts/search.ts "patien
 Run at least entries 1 and 2 live (they're the headline — a flattened ranking and a privacy leak), then let the room try the rest.
 
 **1. The too-vague query — scores flatten (slide 12's "make it miss").**
-- **Sabotage:** search something so generic everything matches a little: `scripts/search.ts "patient has a problem"`.
+- **Sabotage:** search something so generic everything matches a little: `npm run search -- "patient has a problem"`.
 - **Expected failure:** the top-5 scores bunch up (e.g. 0.30 / 0.29 / 0.28 …) and the results are a grab-bag — no clear winner. The system isn't *wrong*, it's *undiscriminating*: a vague query points at the center of everything, so everything is "a little near."
 - **Fix:** make the query carry meaning — `"shortness of breath climbing stairs"` re-separates the ranking, top score jumps and the gap to #2 widens. Retrieval quality is a property of the *query* as much as the index.
 - **Extend:** this is *why* you can't trust "it returned results." A later week builds a retrieval eval set so "it found the right note" becomes a number, not a vibe. Name that forward ref.
 
 **2. The missing `patientId` filter — one patient's notes leak into another's answer (the privacy one).**
-- **Sabotage:** run a patient-scoped question *without* the filter: `scripts/search.ts "chest pain"` (no patientId arg) and read the `patientName` column — hits come from *many different patients*.
+- **Sabotage:** run a patient-scoped question *without* the filter: `npm run search -- "chest pain"` (no patientId arg) and read the `patientName` column — hits come from *many different patients*.
 - **Expected failure:** you asked a question that should be about one chart, and got fragments from strangers' charts. In a clinical product that's not a bad search result — it's a patient-privacy boundary violation.
-- **Fix:** pass the filter: `scripts/search.ts "chest pain" <patientId>`. Under the hood (`lib/vector-search.ts`) this sets Pinecone's metadata `filter.patientId`, and every hit now shares that one id. Confirm the `patientName` column is now a single person.
+- **Fix:** pass the filter: `npm run search -- "chest pain" <patientId>`. Under the hood (`lib/vector-search.ts`) this sets Pinecone's metadata `filter.patientId`, and every hit now shares that one id. Confirm the `patientName` column is now a single person.
 - **Extend:** this is exactly why `patientId` had to be on the vector at *vectorize* time (slide 11) — metadata isn't decoration, it's the filter that enforces the boundary. Foreshadow: the same filter, forgotten, is a planted bug in a later week's hybrid path.
 
 **3. Re-running vectorize is idempotent (prove it).**
@@ -217,7 +217,7 @@ A **2–3 min video** (phone is fine): explain, in your own words, **why keyword
   - `lib/vector-search.ts` — `searchClinicalNotes` (the `patientId` metadata filter lives here)
   - `lib/openai.ts` — `createEmbedding` / `createEmbeddings` (`text-embedding-3-small`, 1536 dims)
   - `prisma/schema.prisma` — the `Note` model (`id` doubles as the Pinecone vector id)
-- Scratch scripts you create for the live demo: `scripts/be-the-db.ts`, `scripts/search.ts` (both printed above)
+- Scratch script you write live: `scripts/be-the-db.ts` (printed above). Shipped command: `npm run search`
 - Homework corpus (Week 2): `scripts/bible/` tools — KJV Bible
 - Data facts to have on hand: **1,278 patients**, **143,946 notes** total, **~113 notes per patient on average** (up to **2,162**); notes ~450 chars, self-contained.
 - Env the vectorize path needs: `DATABASE_URL` (provided/read-only), `OPENAI_API_KEY`, `PINECONE_API_KEY` (+ optional `PINECONE_INDEX`, `DIRECT_URL`).
