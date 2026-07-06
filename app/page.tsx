@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import Link from "next/link";
 
 interface Message {
   role: "user" | "assistant";
@@ -218,12 +217,6 @@ export default function Home() {
             Medical Records Assistant
           </h1>
         </div>
-        <Link
-          href="/upload"
-          className="px-4 py-2 text-sm bg-copilot-input hover:bg-copilot-border rounded-lg transition-colors text-copilot-text"
-        >
-          Upload Records
-        </Link>
       </header>
 
       {/* Messages */}
