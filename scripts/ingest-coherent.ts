@@ -59,13 +59,15 @@ async function withRetry<T>(fn: () => Promise<T>, tries = 5): Promise<T> {
 }
 
 async function clearDatabase() {
-  // Children first (cascades would handle it, but be explicit)
-  await withRetry(() => prisma.medication.deleteMany());
-  await withRetry(() => prisma.observation.deleteMany());
-  await withRetry(() => prisma.condition.deleteMany());
-  await withRetry(() => prisma.encounter.deleteMany());
-  await withRetry(() => prisma.note.deleteMany());
-  await withRetry(() => prisma.patient.deleteMany());
+  // TRUNCATE, not DELETE: DELETE leaves dead rows that still count against
+  // Neon's project size limit, so a re-ingest can blow the cap while the old
+  // data is still occupying space. TRUNCATE reclaims it immediately. CASCADE
+  // clears the child tables via their foreign keys.
+  await withRetry(() =>
+    prisma.$executeRawUnsafe(
+      'TRUNCATE TABLE "notes","observations","medications","encounters","conditions","patients" CASCADE'
+    )
+  );
 }
 
 async function insertBatched<T>(
