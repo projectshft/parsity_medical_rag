@@ -27,7 +27,7 @@ The big shift from the old Foundations week: **there is no live SQL ingest.** Th
       npm run vectorize -- --limit 200
       ```
       Expected tail: `Vectorizing 200 notes from Postgres...` then `Done. Upserted 200 note vectors into Pinecone.` Embedding all ~143,946 notes costs real money and ~an hour — **never do the full run live.** Keep the live slice at 200.
-- [ ] Have the be-the-db scratch script (`scripts/be-the-db.ts`) written and test-run once (it is printed in full below), and confirm `curl localhost:3000/api/search -d '{"query":"x"}'` works. So you are not typing cold.
+- [ ] Confirm `npm run similarity` works, and `curl localhost:3000/api/search -d '{"query":"x"}'` works. So you are not typing cold.
 - [ ] A terminal open in the repo; `scripts/vectorize.ts` open in an editor to scroll to live.
 - [ ] `week-1.html` open full-screen. Arrow keys / click to navigate, `N` toggles presenter notes.
 
@@ -41,7 +41,7 @@ The big shift from the old Foundations week: **there is no live SQL ingest.** Th
 |---|---|---|---|
 | 0:00 | **Problem statement** | 1–4 | Cold open on the reframe: *you joined a company; the data is already here.* Read the query aloud — "which patients are short of breath?" — then show the `LIKE '%shortness of breath%'` → **0 rows** because the note says *"dyspnea on exertion."* Sit in the gap. Ask the room (slide 4 cue) for three more phrasings of the same symptom; let them generate the misses. |
 | 0:12 | **High-level concept — vector + cosine** | 5–6 | Text → a point in space; similar meaning lands near. Then make "near" precise: cosine = direction, not distance-from-origin. Land the one-sentence definition. Do **not** black-box it — the next slide proves it in ten lines. |
-| 0:22 | **Code together I — be the vector DB by hand** | 7 | Run `scripts/be-the-db.ts`. "dyspnea on exertion" ranks #1 for *"short of breath"* with **zero shared words.** The loop *is* a vector database. (Full script + narration below.) |
+| 0:22 | **Code together I — be the vector DB by hand** | 7 | Run `npm run similarity`. "dyspnea on exertion" ranks #1 for *"short of breath"* with **zero shared words.** The loop *is* a vector database. (Full script + narration below.) |
 | 0:35 | **Discussion / breakout** | 8 | "Which needs meaning — and which is just a lookup?" Breakout if >8 people, else full room. Drive to the split: counts/filters vs "sounds like / describes / mentions." Answer key below. That split *is* next week's routing agent. |
 | 0:46 | **Concept — two stores, one source of truth** | 9 | The architecture beat. Postgres = system of record (everything); vector store = derived index (just notes + metadata, embedded). If they disagree, Postgres wins; you rebuild the index. This mental model survives the whole course. |
 | 0:52 | **Code together II — the vectorize script** | 10–11 | Walk `scripts/vectorize.ts` (read from Postgres → shape with metadata → `upsertChunks`). Run `npm run vectorize -- --limit 200` live. Then the metadata slide: `patientId`/`type`/`date` are what make the index *useful* — one patient averages ~113 notes (up to 2,162), so without `patientId` you can't summarize *this* patient. |
@@ -73,42 +73,25 @@ Two hands-on pieces. The similarity-by-hand one is a *scratch script you write l
 
 ### Part I — be the vector database by hand (slide 7)
 
-`scripts/be-the-db.ts` — embeds a tiny corpus, embeds a query, ranks by cosine. No Pinecone, no DB; just OpenAI embeddings and arithmetic:
-
-```ts
-import 'dotenv/config';
-import { createEmbeddings } from '../lib/openai';
-
-const cosine = (a: number[], b: number[]) => {
-  const dot = a.reduce((s, x, i) => s + x * b[i], 0);
-  const mag = (v: number[]) => Math.sqrt(v.reduce((s, x) => s + x * x, 0));
-  return dot / (mag(a) * mag(b));
-};
-
-async function main() {
-  const docs = ['dyspnea on exertion', 'broken ankle', 'well-controlled diabetes'];
-  const q = 'patient is short of breath';
-  const [qv, ...dv] = await createEmbeddings([q, ...docs]);
-  docs
-    .map((d, i) => ({ d, score: cosine(qv, dv[i]) }))
-    .sort((a, b) => b.score - a.score)
-    .forEach((r) => console.log(r.score.toFixed(3), r.d));
-}
-main();
-```
+`scripts/similarity.ts` — embeds a query + a few candidate phrases, ranks them by cosine. No Pinecone, no DB; just OpenAI embeddings and arithmetic. It ships, so run it live:
 
 ```bash
-npx ts-node --compiler-options '{"module":"CommonJS"}' scripts/be-the-db.ts
+npm run similarity
 ```
 
-- **Narrate:** this is the entire engine. Embed the query, embed each doc, score by cosine, sort. A real vector database does exactly this — just fast, over millions of vectors, and it stores them for you.
-- **Expected output** (scores approximate; the *ranking and the gap* are the point, not the exact decimals):
+The full script (open it on screen — it's ~40 lines): a hand-written `cosine(a, b) = (a·b)/(|a||b|)`, then `createEmbeddings([query, ...candidates])`, map to scores, sort, print.
+
+- **Narrate:** this is the entire engine. Embed the query, embed each candidate, score by cosine, sort. A real vector database does exactly this — just fast, over millions of vectors, and it stores them for you.
+- **Expected output** (scores approximate; the *ranking and the gap* are the point):
       ```
-      0.7xx dyspnea on exertion      ← no shared words, still #1
-      0.2xx broken ankle
-      0.1xx well-controlled diabetes
+      0.599  dyspnea on exertion            ← no shared words, still #1
+      0.438  complains of a persistent cough
+      0.379  winded climbing the stairs
+      0.253  well-controlled type 2 diabetes
+      0.251  fractured left ankle
       ```
 - **The line to say out loud:** "short of breath" and "dyspnea on exertion" share *zero* letters, yet cosine puts them on top. That is meaning, not keywords — and it's why `LIKE` returned 0 rows on slide 4.
+- **Then edit and re-run:** change a candidate or the query in `scripts/similarity.ts` and run it again — students *feel* the geometry when they move a phrase and watch its score move.
 - **If asked why we don't divide out the magnitudes:** OpenAI's embeddings come back length-1, so the dot product alone gives the same ranking. We wrote the full cosine so nobody has to take that on faith.
 
 ### Part II — vectorize, then search it (slides 10–12)
@@ -215,7 +198,7 @@ A **2–3 min video** (phone is fine): explain, in your own words, **why keyword
   - `lib/vector-search.ts` — `searchClinicalNotes` (the `patientId` metadata filter lives here)
   - `lib/openai.ts` — `createEmbedding` / `createEmbeddings` (`text-embedding-3-small`, 1536 dims)
   - `prisma/schema.prisma` — the `Note` model (`id` doubles as the Pinecone vector id)
-- Live build: `scripts/be-the-db.ts` (scratch, printed above) + the `app/api/search/route.ts` endpoint (printed above)
+- Shipped exercise: `npm run similarity` (`scripts/similarity.ts`). Live build: the `app/api/search/route.ts` endpoint (printed above)
 - Homework corpus (Week 2): `scripts/bible/` tools — KJV Bible
 - Data facts to have on hand: **1,278 patients**, **143,946 notes** total, **~113 notes per patient on average** (up to **2,162**); notes ~450 chars, self-contained.
 - Env the vectorize path needs: `DATABASE_URL` (provided/read-only), `OPENAI_API_KEY`, `PINECONE_API_KEY` (+ optional `PINECONE_INDEX`, `DIRECT_URL`).

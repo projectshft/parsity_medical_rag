@@ -15,6 +15,7 @@
     "db:studio": "prisma studio",
     "ingest": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/ingest-coherent.ts",
     "vectorize": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/vectorize.ts",
+    "similarity": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/similarity.ts",
     "bible:fixed": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/chunk-fixed.ts",
     "bible:smart": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/chunk-smart.ts",
     "bible:audit": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/audit.ts"
