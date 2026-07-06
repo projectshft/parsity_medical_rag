@@ -15,7 +15,7 @@ export default async function AdminPage() {
 
   const [students, lessons, userList, inviteList] = await Promise.all([
     lmsPrisma.student.findMany({
-      include: { progress: { select: { lessonDay: true } } },
+      include: { progress: { select: { lessonSlug: true } } },
       orderBy: { invitedAt: "asc" },
     }),
     getLessons(),
@@ -23,9 +23,12 @@ export default async function AdminPage() {
     client.invitations.getInvitationList({ status: "pending" }),
   ]);
 
-  const total = lessons.length || 36;
+  const total = lessons.length || 1;
   const bannedById = new Map(userList.data.map((u) => [u.id, u.banned]));
   const pending = inviteList.data;
+  // A lesson starts a new week block → draw a left border before it.
+  const isWeekStart = (i: number) =>
+    i === 0 || lessons[i].week !== lessons[i - 1].week;
 
   return (
     <div className="space-y-10">
@@ -101,17 +104,15 @@ export default async function AdminPage() {
                   <th className="px-2 py-2 text-right font-medium text-copilot-muted">
                     %
                   </th>
-                  {lessons.map((l) => (
+                  {lessons.map((l, i) => (
                     <th
-                      key={l.day}
+                      key={l.slug}
                       className={`w-6 px-0 py-2 text-center text-[10px] font-normal text-copilot-muted ${
-                        (l.day - 1) % 6 === 0
-                          ? "border-l-2 border-copilot-border"
-                          : ""
+                        isWeekStart(i) ? "border-l-2 border-copilot-border" : ""
                       }`}
-                      title={`Day ${l.day}: ${l.title}`}
+                      title={`${l.week === 0 ? "Day Zero" : `Week ${l.week}`}: ${l.title}`}
                     >
-                      {l.day}
+                      {i + 1}
                     </th>
                   ))}
                   <th className="px-3 py-2 text-right font-medium text-copilot-muted">
@@ -121,8 +122,8 @@ export default async function AdminPage() {
               </thead>
               <tbody>
                 {students.map((s) => {
-                  const doneDays = new Set(s.progress.map((p) => p.lessonDay));
-                  const pct = Math.round((doneDays.size / total) * 100);
+                  const doneSlugs = new Set(s.progress.map((p) => p.lessonSlug));
+                  const pct = Math.round((doneSlugs.size / total) * 100);
                   const banned = bannedById.get(s.id) ?? false;
                   return (
                     <tr
@@ -140,18 +141,16 @@ export default async function AdminPage() {
                       <td className="px-2 py-2 text-right text-copilot-muted">
                         {pct}
                       </td>
-                      {lessons.map((l) => (
+                      {lessons.map((l, i) => (
                         <td
-                          key={l.day}
+                          key={l.slug}
                           className={`px-0 py-2 text-center ${
-                            (l.day - 1) % 6 === 0
-                              ? "border-l-2 border-copilot-border"
-                              : ""
+                            isWeekStart(i) ? "border-l-2 border-copilot-border" : ""
                           }`}
                         >
                           <span
                             className={`mx-auto block h-2 w-2 rounded-full ${
-                              doneDays.has(l.day)
+                              doneSlugs.has(l.slug)
                                 ? "bg-green-500"
                                 : "bg-copilot-input"
                             }`}

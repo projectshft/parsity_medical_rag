@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Week 1 — The vector store · RAG &amp; AI Agents</title>
+<style>
+  :root {
+    --ink: #1b2330;
+    --muted: #5b6675;
+    --line: #e3e7ec;
+    --bg: #ffffff;
+    --panel: #f6f8fa;
+    --accent: #2563eb;       /* calm blue, no purple */
+    --code-bg: #f4f6f8;
+    /* engagement-mode accents, all muted */
+    --discuss: #b45309;      /* amber */
+    --code: #2563eb;         /* blue */
+    --challenge: #15803d;    /* green */
+    --research: #475569;     /* slate */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .deck { height: 100vh; position: relative; }
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 5vh 9vw 9vh;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .slide.active { display: flex; }
+  h1 { font-size: 2.6rem; line-height: 1.15; letter-spacing: -0.02em; }
+  h2 { font-size: 2rem; line-height: 1.2; letter-spacing: -0.01em; margin-bottom: 1.2rem; }
+  p, li { font-size: 1.25rem; line-height: 1.6; color: var(--ink); }
+  ul { padding-left: 1.3rem; }
+  li { margin: 0.5rem 0; }
+  .sub { color: var(--muted); font-size: 1.15rem; }
+  .lead { font-size: 1.45rem; color: var(--muted); margin-top: 0.8rem; }
+  strong { font-weight: 650; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.3rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: 1rem; line-height: 1.5; }
+
+  /* engagement-mode banner */
+  .mode { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.35rem 0.7rem; border-radius: 999px; margin-bottom: 1.4rem; align-self: flex-start; }
+  .mode.discuss { color: var(--discuss); background: #fef3e2; }
+  .mode.code { color: var(--code); background: #e8f0fe; }
+  .mode.challenge { color: var(--challenge); background: #e7f6ec; }
+  .mode.research { color: var(--research); background: #eef1f5; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 0.6rem; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem 1.4rem; background: var(--panel); }
+  .card h3 { font-size: 1.15rem; margin-bottom: 0.4rem; }
+  .card p { font-size: 1.05rem; color: var(--muted); }
+
+  /* instructor cue */
+  .cue { display: none; margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
+  .cue b { color: var(--ink); }
+  .cue::before { content: "PRESENTER NOTE"; display: block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.35rem; }
+  .deck.notes .cue { display: block; background: #fbfbe8; }
+
+  .title-wrap { gap: 0.4rem; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.95rem; }
+
+  /* footer / nav */
+  .bar { position: fixed; bottom: 0; left: 0; right: 0; height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 1.2rem; border-top: 1px solid var(--line); background: var(--bg); font-size: 0.85rem; color: var(--muted); }
+  .bar .name { font-weight: 600; color: var(--ink); }
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); transition: width 0.2s ease; }
+  .hint { font-size: 0.8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+  <!-- 1 — Title -->
+  <section class="slide active title-wrap">
+    <div class="kicker">Week 1 of 5 — The vector store</div>
+    <h1>Making the company's data searchable by <em>meaning</em></h1>
+    <p class="lead">You've joined a company. The data is already in a database. This week: how do you let someone ask a question in plain English and find the right records — even when they don't share a single keyword?</p>
+  </section>
+
+  <!-- 2 — The week -->
+  <section class="slide">
+    <h2>This week</h2>
+    <ul>
+      <li>The problem: why the database you already have can't answer by <em>meaning</em></li>
+      <li>What a vector is, and how similarity works — by hand</li>
+      <li>The vectorize script: turn the notes into a searchable vector store</li>
+      <li>Run real semantic search over the clinical notes</li>
+      <li>Chunking, introduced — and why our notes don't need it (but the Bible does)</li>
+    </ul>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video — explain, in your own words, why keyword search isn't enough and what a vector fixes.</p>
+  </section>
+
+  <!-- 3 — Problem statement -->
+  <section class="slide">
+    <h2>The setup: the data is already here</h2>
+    <p>You join a clinic's engineering team. Years of records are already in <strong>Postgres</strong> — patients, diagnoses, medications, labs, and ~144,000 free-text clinical <strong>notes</strong>. Nobody needs you to build the database. It exists.</p>
+    <p class="lead">What they want: let a doctor ask <em>"which patients are short of breath?"</em> and actually find them — including the note that says <em>"dyspnea on exertion."</em></p>
+    <div class="cue"><b>Say it plainly:</b> we're not teaching them to store data — they have that. We're teaching the thing on top: search by meaning. That reframing is the whole course.</div>
+  </section>
+
+  <!-- 4 — Concept: why SQL can't -->
+  <section class="slide">
+    <h2>Why the database alone can't do it</h2>
+    <p>The obvious move is to search the notes column:</p>
+    <pre><code>SELECT * FROM notes WHERE content LIKE '%shortness of breath%';
+-- 0 rows.  The note says "dyspnea on exertion."</code></pre>
+    <div class="two">
+      <div class="card">
+        <h3>Keyword / SQL search</h3>
+        <p>Matches <strong>letters</strong>. "shortness of breath" ≠ "dyspnea" ≠ "winded climbing stairs" — zero shared words, so zero matches.</p>
+      </div>
+      <div class="card">
+        <h3>What we need</h3>
+        <p>Match <strong>meaning</strong>. All three phrases describe the same clinical fact. Find the note regardless of the words used.</p>
+      </div>
+    </div>
+    <div class="cue"><b>Facilitate:</b> ask the room for three more phrasings of the same symptom. The point lands when they generate the misses themselves.</div>
+  </section>
+
+  <!-- 5 — Concept: what a vector is -->
+  <section class="slide">
+    <h2>The fix: turn text into a point in space</h2>
+    <p>An <strong>embedding</strong> turns a piece of text into a list of numbers — a point in space — so that texts with <strong>similar meaning land near each other</strong>. Picture two dimensions:</p>
+    <pre><code>   "shortness of breath"  •   • "dyspnea on exertion"
+                                  • "winded climbing stairs"
+
+                                                • "broken ankle"</code></pre>
+    <p class="sub">Our model returns <strong>1,536 numbers</strong> per note — a point in 1,536-dimensional space. You can't picture that; two is enough for the intuition. "Near" is the whole game — next we make "near" precise.</p>
+  </section>
+
+  <!-- 6 — Concept: similarity -->
+  <section class="slide">
+    <h2>How "near" is measured: cosine similarity</h2>
+    <p>Two texts are similar if their vectors point the <strong>same direction</strong>. Measure the angle between them:</p>
+    <pre><code>similarity = cos(θ) = (A · B) / (|A| × |B|)
+             └ dot product ┘   └ their lengths ┘
+
+  1.0  → same direction  (nearly identical meaning)
+  0.0  → unrelated</code></pre>
+    <p class="sub">The <strong>dot product</strong> over the two lengths. Since these embeddings come back length-1, the dot product alone gives the same ranking. That's the entire engine under "search by meaning."</p>
+    <div class="cue"><b>Design point to land:</b> they should leave able to say what cosine measures in one sentence — direction, not distance-from-origin. This is the "understand it, don't black-box it" beat.</div>
+  </section>
+
+  <!-- 7 — Code walkthrough: be the vector DB -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>Be the vector database — by hand</h2>
+    <p>Before any vector store, do what one does, in ten lines: embed a tiny corpus, embed a query, rank by cosine.</p>
+    <pre><code>const docs = ['dyspnea on exertion', 'broken ankle', 'well-controlled diabetes'];
+const q = 'patient is short of breath';
+
+const [qv, ...dv] = await embed([q, ...docs]);
+docs
+  .map((d, i) =&gt; ({ d, score: cosine(qv, dv[i]) }))
+  .sort((a, b) =&gt; b.score - a.score)
+  .forEach(r =&gt; console.log(r.score.toFixed(3), r.d));
+// 0.71  dyspnea on exertion   ← no shared words, still #1
+// 0.18  broken ankle</code></pre>
+    <p class="sub">That loop <em>is</em> a vector database. A real one just does it fast, over millions of vectors, and stores them for you.</p>
+  </section>
+
+  <!-- 8 — Discussion -->
+  <section class="slide">
+    <span class="mode discuss">💬 Discussion</span>
+    <h2>Which of these needs meaning — and which is just a lookup?</h2>
+    <ul>
+      <li>"How many patients have diabetes?"</li>
+      <li>"Which patients mention trouble sleeping?"</li>
+      <li>"Notes that describe chest pain at night"</li>
+      <li>"List patients over 65"</li>
+      <li>"Anyone whose notes sound like they're struggling to cope?"</li>
+    </ul>
+    <div class="cue"><b>Facilitate:</b> drive to the split — counts/filters are exact (the DB already does them); "sounds like / describes / mentions" is meaning (needs vectors). That split becomes next week's routing agent.</div>
+  </section>
+
+  <!-- 9 — Concept: architecture -->
+  <section class="slide">
+    <h2>Two stores, one source of truth</h2>
+    <pre><code>   Postgres  ──(vectorize)──▶   Vector store (Pinecone)
+   system of record             derived search index
+   EVERYTHING:                  just the notes + metadata,
+   patients, meds, labs,        embedded so you can search
+   notes (full text)            them by meaning</code></pre>
+    <p class="sub"><strong>Postgres stays the source of truth.</strong> The vector store is a <em>derived</em> copy of the notes, built for one job: semantic search. If they disagree, Postgres wins — you just rebuild the index.</p>
+    <div class="cue"><b>Say it plainly:</b> this is the mental model that survives the whole course. The vector DB is never the truth; it's a searchable projection of the truth.</div>
+  </section>
+
+  <!-- 10 — Code walkthrough: vectorize -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>The vectorize script: DB → vector store</h2>
+    <p>Read the notes from Postgres, embed them, upsert them into the vector store. This is how you "service" existing company data for semantic search.</p>
+    <pre><code>const notes = await prisma.note.findMany({
+  include: { patient: { select: { firstName: true, lastName: true } } },
+});
+
+const chunks = notes.map((n) =&gt; ({
+  id: n.id,                       // reuse the note id → idempotent re-runs
+  content: n.content,
+  metadata: { patientId: n.patientId, type: n.type, date: n.date },
+}));
+
+await upsertChunks(chunks);        // embeds + upserts in batches</code></pre>
+    <pre><code>npm run vectorize -- --limit 200   # a cheap slice while you build</code></pre>
+  </section>
+
+  <!-- 11 — Concept: metadata -->
+  <section class="slide">
+    <h2>Metadata is what makes the index useful</h2>
+    <p>A bare vector answers "what's similar?" — but real questions are scoped: <em>this patient</em>, recent notes, a note <em>type</em>. So every vector carries structured tags copied from Postgres:</p>
+    <ul>
+      <li><code>patientId</code> — filter a search to one patient's notes</li>
+      <li><code>type</code>, <code>date</code> — "recent H&amp;P notes," not all notes ever</li>
+    </ul>
+    <p class="sub">Choosing the right metadata is a real design decision — it decides which questions you can answer. That's your homework prompt: look at the data and propose what to tag.</p>
+    <div class="cue"><b>Design point to land:</b> one patient has ~113 notes on average (up to 2,162). Without <code>patientId</code> on the vector, "summarize <em>this</em> patient" is impossible. Metadata isn't decoration.</div>
+  </section>
+
+  <!-- 12 — Mini-challenge: run search -->
+  <section class="slide">
+    <span class="mode challenge">🛠 Mini-challenge</span>
+    <h2>Search it — and try to make it miss</h2>
+    <ul>
+      <li>Vectorize a slice, then search: <em>"patient struggling to breathe"</em> — did it find the "dyspnea" notes?</li>
+      <li>Now try to <strong>break it</strong>: a query so vague everything matches a little ("patient has a problem"). Watch the scores flatten.</li>
+      <li>Filter by <code>patientId</code> — same query, one patient. Confirm no one else's notes leak in.</li>
+    </ul>
+    <div class="cue"><b>The point isn't the search call</b> — it's building the instinct to interrogate results: what did it rank #1, and does that make sense? "Looks right" isn't a measurement; we make it one later.</div>
+  </section>
+
+  <!-- 13 — Concept: chunking intro -->
+  <section class="slide">
+    <h2>One more question: what is "one piece"?</h2>
+    <p>You just embedded each note as a single vector. That worked because a clinical note is already the right size — <strong>one encounter, one topic, ~450 characters, self-contained.</strong> One note = one piece. No splitting needed.</p>
+    <div class="cue"><b>Say it plainly:</b> we got lucky — our data came pre-cut into perfect pieces. That is not normal. Most corpora don't.</div>
+  </section>
+
+  <!-- 14 — Concept: the Bible contrast -->
+  <section class="slide">
+    <h2>…but most text isn't so tidy</h2>
+    <p>Imagine the opposite: <strong>one enormous document</strong> — a 4-million-character book. Embed the whole thing as one vector and it "means" everything and matches nothing. So you must <strong>split it</strong> — but where? Mid-sentence? Every paragraph? By chapter?</p>
+    <p class="lead">That splitting decision is <strong>chunking</strong>, and it's a craft. You'll learn it on a corpus that truly needs it — the King James Bible — as this week's side project.</p>
+  </section>
+
+  <!-- 15 — Research / homework -->
+  <section class="slide">
+    <span class="mode research">🔍 Homework — side project (part 1)</span>
+    <h2>Chunking the Bible: propose a strategy</h2>
+    <ul>
+      <li>Skim the text (<code>scripts/bible/</code> has the tools). What are the natural seams — verses? chapters? fixed-size windows?</li>
+      <li><strong>Propose one chunking strategy</strong> and say why. What would each chunk contain? Where would it break?</li>
+      <li>Record a 2–3 min video explaining, in plain terms, <em>what chunking is</em> and the trade-off your strategy makes.</li>
+    </ul>
+    <p class="sub">Next week: you'll actually run it and measure whether your strategy was any good.</p>
+  </section>
+
+  <!-- 16 — Recap -->
+  <section class="slide">
+    <h2>Where you are</h2>
+    <ul>
+      <li>You can explain <strong>why</strong> keyword search fails and what a vector fixes — and measure similarity by hand</li>
+      <li>You built the <strong>vector store</strong> from the company's existing database, and searched it by meaning</li>
+      <li>You know what metadata buys you, and why our notes need no chunking — but most text does</li>
+    </ul>
+    <p class="lead">This week's video: keyword vs meaning, in your own words. Next week: an <strong>agent</strong> that decides — exact lookup or meaning search — and answers real questions using both.</p>
+  </section>
+
+</div>
+
+<div class="bar">
+  <span class="name">RAG &amp; AI Agents · Week 1 — The vector store</span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 16</span></span>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let i = 0;
+  const counter = document.getElementById('counter');
+  const progress = document.getElementById('progress');
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+    counter.textContent = (i + 1) + ' / ' + slides.length;
+    progress.style.width = ((i + 1) / slides.length * 100) + '%';
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(i + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+    if (e.key === 'n' || e.key === 'N') document.getElementById('deck').classList.toggle('notes');
+  });
+  document.getElementById('deck').addEventListener('click', (e) => {
+    show(i + (e.clientX < window.innerWidth / 2 ? -1 : 1));
+  });
+  show(0);
+</script>
+</body>
+</html>

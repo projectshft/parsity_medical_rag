@@ -21,11 +21,11 @@ export async function ensureStudent(): Promise<string | null> {
   return userId;
 }
 
-/** Set of lesson day-numbers this student has marked done. */
-export async function getCompletedDays(userId: string): Promise<Set<number>> {
+/** Set of lesson slugs this student has marked done. */
+export async function getCompletedSlugs(userId: string): Promise<Set<string>> {
   const rows = await lmsPrisma.lessonProgress.findMany({
     where: { studentId: userId },
-    select: { lessonDay: true },
+    select: { lessonSlug: true },
   });
-  return new Set(rows.map((r) => r.lessonDay));
+  return new Set(rows.map((r) => r.lessonSlug));
 }

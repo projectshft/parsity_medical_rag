@@ -1,16 +1,18 @@
 import Link from "next/link";
-import { getBlocks } from "@/lib/lms/curriculum";
-import { ensureStudent, getCompletedDays } from "@/lib/lms/progress";
+import { getLessons, getWeeks } from "@/lib/lms/curriculum";
+import { ensureStudent, getCompletedSlugs } from "@/lib/lms/progress";
 
 export default async function LearnPage() {
   const userId = await ensureStudent();
-  const [blocks, completed] = await Promise.all([
-    getBlocks(),
-    userId ? getCompletedDays(userId) : Promise.resolve(new Set<number>()),
+  const [weeks, lessons, completed] = await Promise.all([
+    getWeeks(),
+    getLessons(),
+    userId ? getCompletedSlugs(userId) : Promise.resolve(new Set<string>()),
   ]);
 
-  const total = blocks.reduce((n, b) => n + b.lessons.length, 0);
-  const done = completed.size;
+  // Total counts deduped lessons (a homework linked in two weeks counts once).
+  const total = lessons.length;
+  const done = lessons.filter((l) => completed.has(l.slug)).length;
   const pct = total ? Math.round((done / total) * 100) : 0;
 
   return (
@@ -33,21 +35,21 @@ export default async function LearnPage() {
       </div>
 
       <div className="mt-8 space-y-8">
-        {blocks.map((block) => (
-          <section key={block.name}>
+        {weeks.map((week) => (
+          <section key={week.name}>
             <div className="flex items-baseline justify-between">
-              <h2 className="text-lg font-semibold text-white">{block.name}</h2>
+              <h2 className="text-lg font-semibold text-white">{week.name}</h2>
               <span className="text-xs text-copilot-muted">
-                Days {block.startDay}&ndash;{block.endDay}
+                {week.lessons.length} {week.lessons.length === 1 ? "lesson" : "lessons"}
               </span>
             </div>
             <ul className="mt-3 divide-y divide-copilot-border overflow-hidden rounded-lg border border-copilot-border">
-              {block.lessons.map((lesson) => {
-                const isDone = completed.has(lesson.day);
+              {week.lessons.map((lesson) => {
+                const isDone = completed.has(lesson.slug);
                 return (
-                  <li key={lesson.day}>
+                  <li key={`${week.week}-${lesson.slug}`}>
                     <Link
-                      href={`/learn/${lesson.day}`}
+                      href={`/learn/${lesson.slug}`}
                       className="flex items-center gap-3 bg-copilot-sidebar px-4 py-3 transition-colors hover:bg-copilot-input"
                     >
                       <span
@@ -60,16 +62,21 @@ export default async function LearnPage() {
                       >
                         ✓
                       </span>
-                      <span className="text-sm text-copilot-muted">
-                        Day {lesson.day}
-                      </span>
                       <span className="flex-1 text-sm text-copilot-text">
                         {lesson.title}
                       </span>
+                      {lesson.isHomework && (
+                        <span
+                          className="shrink-0 rounded bg-copilot-input px-2 py-0.5 text-xs"
+                          title="Homework: self-paced side project"
+                        >
+                          📝
+                        </span>
+                      )}
                       {lesson.isDeliverable && (
                         <span
                           className="shrink-0 rounded bg-copilot-input px-2 py-0.5 text-xs"
-                          title="Deliverable: video submission"
+                          title="Deliverable: weekly video submission"
                         >
                           🎥
                         </span>

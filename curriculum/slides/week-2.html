@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Week 2 — Agentic / hybrid search · RAG &amp; AI Agents</title>
+<style>
+  :root {
+    --ink: #1b2330;
+    --muted: #5b6675;
+    --line: #e3e7ec;
+    --bg: #ffffff;
+    --panel: #f6f8fa;
+    --accent: #2563eb;       /* calm blue, no purple */
+    --code-bg: #f4f6f8;
+    /* engagement-mode accents, all muted */
+    --discuss: #b45309;      /* amber */
+    --code: #2563eb;         /* blue */
+    --challenge: #15803d;    /* green */
+    --research: #475569;     /* slate */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .deck { height: 100vh; position: relative; }
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 5vh 9vw 9vh;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .slide.active { display: flex; }
+  h1 { font-size: 2.6rem; line-height: 1.15; letter-spacing: -0.02em; }
+  h2 { font-size: 2rem; line-height: 1.2; letter-spacing: -0.01em; margin-bottom: 1.2rem; }
+  p, li { font-size: 1.25rem; line-height: 1.6; color: var(--ink); }
+  ul { padding-left: 1.3rem; }
+  li { margin: 0.5rem 0; }
+  .sub { color: var(--muted); font-size: 1.15rem; }
+  .lead { font-size: 1.45rem; color: var(--muted); margin-top: 0.8rem; }
+  strong { font-weight: 650; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.3rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: 1rem; line-height: 1.5; }
+
+  /* engagement-mode banner */
+  .mode { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.35rem 0.7rem; border-radius: 999px; margin-bottom: 1.4rem; align-self: flex-start; }
+  .mode.discuss { color: var(--discuss); background: #fef3e2; }
+  .mode.code { color: var(--code); background: #e8f0fe; }
+  .mode.challenge { color: var(--challenge); background: #e7f6ec; }
+  .mode.research { color: var(--research); background: #eef1f5; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 0.6rem; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem 1.4rem; background: var(--panel); }
+  .card h3 { font-size: 1.15rem; margin-bottom: 0.4rem; }
+  .card p { font-size: 1.05rem; color: var(--muted); }
+
+  /* instructor cue */
+  .cue { display: none; margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
+  .cue b { color: var(--ink); }
+  .cue::before { content: "PRESENTER NOTE"; display: block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.35rem; }
+  .deck.notes .cue { display: block; background: #fbfbe8; }
+
+  .title-wrap { gap: 0.4rem; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.95rem; }
+
+  /* footer / nav */
+  .bar { position: fixed; bottom: 0; left: 0; right: 0; height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 1.2rem; border-top: 1px solid var(--line); background: var(--bg); font-size: 0.85rem; color: var(--muted); }
+  .bar .name { font-weight: 600; color: var(--ink); }
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); transition: width 0.2s ease; }
+  .hint { font-size: 0.8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+  <!-- 1 — Title -->
+  <section class="slide active title-wrap">
+    <div class="kicker">Week 2 of 5 — Agentic / hybrid search</div>
+    <h1>An agent that <em>decides</em> — then answers from the records</h1>
+    <p class="lead">Last week you built the vector store. Now the real question: when a doctor types something in plain English, who should answer — the database, the notes, or both? This week you build the thing that decides, and answers grounded in what's actually there.</p>
+  </section>
+
+  <!-- 2 — The week -->
+  <section class="slide">
+    <h2>This week</h2>
+    <ul>
+      <li>Recap: you have two engines — the database (exact facts) and the vector store (meaning)</li>
+      <li>Structured outputs: turn the model into a <em>typed function</em> you can trust to route</li>
+      <li>The query analyzer: read a question → intent + what it's about → pick an engine</li>
+      <li>Three paths: exact lookup, meaning search, and <em>hybrid</em> — facts narrow, meaning ranks</li>
+      <li>The grounding contract: answer only from the records — and refuse what isn't there</li>
+    </ul>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video — show your agent answer one real question per path, and show it <em>refuse</em> a question the data can't answer.</p>
+  </section>
+
+  <!-- 3 — Problem statement -->
+  <section class="slide">
+    <h2>The setup: two engines, no driver</h2>
+    <p>After Week 1 you have two ways to find things. The database answers <strong>exact facts</strong> — "how many patients have diabetes?" is a <code>COUNT</code>. The vector store answers by <strong>meaning</strong> — "notes that describe shortness of breath" finds the one that says "dyspnea."</p>
+    <p class="lead">But a user doesn't know which engine they're hitting. They just type. Something has to <em>read the question and choose</em> — and choosing wrong means a right-sounding, wrong answer.</p>
+    <div class="cue"><b>Say it plainly:</b> Week 1 built the engines. This week builds the driver. The whole session is: how does software decide which tool a plain-English question needs?</div>
+  </section>
+
+  <!-- 4 — How it's solved -->
+  <section class="slide">
+    <h2>The move: let the model classify, then route in code</h2>
+    <p>We don't ask the model to answer the medical question. We ask it one narrow thing first: <strong>what kind of question is this, and what is it about?</strong> Then plain code routes to the right engine and hands the model only the records that came back.</p>
+    <div class="two">
+      <div class="card">
+        <h3>The model's job</h3>
+        <p>Read the question → return a small, typed label: the intent, the conditions/names mentioned, which engines are needed.</p>
+      </div>
+      <div class="card">
+        <h3>Your code's job</h3>
+        <p>Trust that label to run the database, the vector search, or both — then answer <em>only</em> from what came back.</p>
+      </div>
+    </div>
+    <div class="cue"><b>Design point to land:</b> the LLM is a router and a writer, never the source of facts. Splitting "decide" from "answer" is what makes this debuggable.</div>
+  </section>
+
+  <!-- 5 — Concept: structured outputs -->
+  <section class="slide">
+    <h2>Turning the model into a typed function</h2>
+    <p>Routing only works if the model's answer has a <strong>fixed shape</strong> you can branch on — not a paragraph you have to parse. So we hand it a schema and make it fill in the blanks:</p>
+    <pre><code>const QueryAnalysis = z.object({
+  intent: z.enum(['population_analytics', 'clinical_note_search',
+                  'hybrid_query', 'patient_summary', /* … */]),
+  requiresSQL:    z.boolean(),
+  requiresVector: z.boolean(),
+  semanticQuery:  z.string().nullable(),  // expanded terms for meaning search
+});</code></pre>
+    <p class="sub">The schema <em>is</em> the contract. The model can only answer inside these fields — so your <code>if (requiresSQL)</code> is always safe to write.</p>
+  </section>
+
+  <!-- 6 — Code walkthrough: the analyzer -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>The analyzer: <code>analyzeQuery()</code></h2>
+    <p>One call. A system prompt describing the two stores, the schema as the output format, and <code>temperature: 0</code> so the same question routes the same way every time.</p>
+    <pre><code>const response = await client.responses.parse({
+  model: 'gpt-4o-mini',
+  input: [
+    { role: 'system', content: SYSTEM_PROMPT },   // "you route medical queries…"
+    { role: 'user',   content: userQuery },
+  ],
+  temperature: 0,
+  text: { format: zodTextFormat(QueryAnalysis, 'queryAnalysis') },
+});
+
+return QueryAnalysis.parse(response.output_parsed);  // typed + validated</code></pre>
+    <p class="sub"><code>lib/query-analyzer.ts</code>. Note the pattern: <code>responses.parse()</code> + <code>zodTextFormat</code> + <code>output_parsed</code> — then <code>.parse()</code> again to be sure.</p>
+    <div class="cue"><b>Facilitate:</b> run it live on three questions (next section) and read the JSON aloud. The intent flip between them is the whole idea made visible.</div>
+  </section>
+
+  <!-- 7 — Concept: three paths -->
+  <section class="slide">
+    <h2>Three paths out of the analyzer</h2>
+    <pre><code>                    analyzeQuery(question)
+                            │
+         ┌──────────────────┼──────────────────┐
+         ▼                  ▼                  ▼
+   requiresSQL only   requiresVector only   both
+   ───────────────    ─────────────────    ────────────
+   "how many have     "notes describing    "notes about sleep
+    diabetes?"         shortness of breath"  for diabetics"
+         │                  │                  │
+     database            vector store       SQL then vector
+     COUNT / filter      meaning search     (hybrid)</code></pre>
+    <p class="sub">The flags <code>requiresSQL</code> and <code>requiresVector</code> pick the branch. Two booleans decide the entire route.</p>
+  </section>
+
+  <!-- 8 — Discussion -->
+  <section class="slide">
+    <span class="mode discuss">💬 Discussion</span>
+    <h2>Which path — and what could route it wrong?</h2>
+    <ul>
+      <li>"How many patients have high blood pressure?"</li>
+      <li>"Which notes mention trouble sleeping?"</li>
+      <li>"What do the notes say about coping for patients with depression?"</li>
+      <li>"Give me a summary of Abe Frami"</li>
+      <li>"Which patients are on insulin?"</li>
+    </ul>
+    <div class="cue"><b>Facilitate:</b> the last one is a trap — sounds like a clean count, but medication filtering isn't wired to the database yet, so the honest answer is "the router wants SQL, but there's no med filter behind it." Great lead-in to Week 4's analyzer evals. Don't sell it as a working demo.</div>
+  </section>
+
+  <!-- 9 — Concept: hybrid -->
+  <section class="slide">
+    <h2>Hybrid: facts narrow the world, meaning ranks what's left</h2>
+    <p>Some questions need both. "What do the notes say about sleep for patients with <strong>depression</strong>?" The word "depression" is an exact fact — the database knows exactly who has it. "About sleep" is meaning — only the notes know that.</p>
+    <pre><code>1.  SQL:    get the patient IDs who have the condition   → [id, id, …]
+2.  Vector: search "sleep quality insomnia rest" — but ONLY
+            within those patients' notes
+            └─ the fact is a filter on the meaning search</code></pre>
+    <p class="sub">Order matters: narrow first, then rank. Searching all 144k notes and hoping the depression ones float up is slower <em>and</em> leaks everyone else in.</p>
+    <div class="cue"><b>Say it plainly:</b> the SQL result isn't the answer — it's the <em>filter</em> the vector search runs inside. Hold this; the privacy bug on slide 14 is exactly this filter going empty.</div>
+  </section>
+
+  <!-- 10 — Code walkthrough: orchestration -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>The orchestrator: <code>executeQuery()</code></h2>
+    <p>The analysis flags pick the branch. Here's the hybrid path — the interesting one:</p>
+    <pre><code>if (analysis.requiresSQL &amp;&amp; analysis.requiresVector) {
+  let patientIds;
+  if (analysis.entities.conditions?.length) {
+    patientIds = await getPatientIdsByConditions(analysis.entities.conditions);
+  }
+  const notes = await searchClinicalNotes(analysis.semanticQuery, {
+    topK: 10,
+    patientIds: patientIds?.length ? patientIds : undefined,  // ← watch this
+  });
+}</code></pre>
+    <p class="sub"><code>lib/query-executor.ts</code>. That <code>patientIds?.length ? … : undefined</code> is doing something sneaky — we'll break it on purpose later.</p>
+  </section>
+
+  <!-- 11 — Concept: the grounding contract -->
+  <section class="slide">
+    <h2>The grounding contract</h2>
+    <p>Once the records come back, the model writes the answer — under a strict rule baked into its system prompt:</p>
+    <ul>
+      <li>Answer <strong>only</strong> from the retrieved records</li>
+      <li>If the information isn't there, <strong>say so</strong> — don't infer, don't fill the gap</li>
+      <li>Never invent a diagnosis, a med, or a number</li>
+    </ul>
+    <p class="lead">A confidently wrong medical assistant is worse than none. "I don't have that in the records" is a <em>correct</em> answer.</p>
+    <div class="cue"><b>Design point to land:</b> retrieval is what earns the model the right to speak. No record → no claim. This is the line between a demo and something you'd let near a chart.</div>
+  </section>
+
+  <!-- 12 — Concept: the failure beat -->
+  <section class="slide">
+    <h2>The tell: what happens when the answer isn't there</h2>
+    <p>Ask the agent something plausible that the data simply doesn't contain — a detail no note or record holds. Two possible behaviors:</p>
+    <div class="two">
+      <div class="card">
+        <h3>✅ Grounded</h3>
+        <p>"I don't see that in the records." It retrieved nothing relevant and refused to guess.</p>
+      </div>
+      <div class="card">
+        <h3>❌ Confabulated</h3>
+        <p>A smooth, specific, invented answer. Reads great. Is fiction. This is the failure that gets someone hurt.</p>
+      </div>
+    </div>
+    <p class="sub">You can't tell which you built by reading the happy path. You find out by <strong>feeding it bait</strong>.</p>
+  </section>
+
+  <!-- 13 — Mini-challenge -->
+  <section class="slide">
+    <span class="mode challenge">🛠 Mini-challenge</span>
+    <h2>Run it — then try to make it lie</h2>
+    <ul>
+      <li>Run one question per path: a count (diabetes), a note search (shortness of breath), a hybrid (sleep + depression). Read the routing JSON each time.</li>
+      <li><strong>Bait it:</strong> ask something the records can't hold. Did it refuse — or did it write fiction?</li>
+      <li><strong>Break the filter:</strong> send a hybrid query whose condition matches <em>no one</em>. Watch whose notes come back.</li>
+    </ul>
+    <div class="cue"><b>The point isn't that it works</b> — it's building the reflex to attack your own system. A grounded refusal and an empty-filter leak both hide until you go looking. We measure this properly in Week 4.</div>
+  </section>
+
+  <!-- 14 — Concept: the empty-filter bug -->
+  <section class="slide">
+    <h2>When the filter narrows to nobody</h2>
+    <p>Back to that hybrid line. If the condition matches <strong>zero</strong> patients, <code>patientIds</code> is an empty list — and <code>patientIds?.length ? … : undefined</code> quietly passes <code>undefined</code>, which means <em>no filter</em>:</p>
+    <pre><code>patientIds = []            // nobody matched the condition
+patientIds?.length         // 0 → falsy
+  ? patientIds
+  : undefined              // → search ALL 144k notes, every patient</code></pre>
+    <p class="lead">"Zero patients" should mean <strong>zero notes</strong>. Instead it means <em>everyone's</em> notes. The empty filter doesn't fail loudly — it silently widens to the whole corpus. That's a privacy leak, not a ranking bug.</p>
+    <div class="cue"><b>Say it plainly:</b> an empty filter that means "match everything" is one of the most common real RAG security bugs. The fix is to treat empty-narrowing as return-nothing, not fall-through. We fix it live in the break-it bank.</div>
+  </section>
+
+  <!-- 15 — Research / homework -->
+  <section class="slide">
+    <span class="mode research">🔍 Homework — side project (part 2)</span>
+    <h2>Chunk the Bible — actually upload it this time</h2>
+    <ul>
+      <li>Last week you <em>proposed</em> a chunking strategy. Now run it: the tools in <code>scripts/bible/</code> chunk the text and upsert the chunks into a vector store.</li>
+      <li>Search your chunks. Do the boundaries help or hurt? Find one query where a bad cut splits the answer across two chunks.</li>
+      <li>Record 2–3 min: show one search that worked, one that got tripped by a chunk boundary, and what you'd change.</li>
+    </ul>
+    <p class="sub">This closes the loop from Week 1's proposal — strategy on paper vs. what the retrieval actually does.</p>
+  </section>
+
+  <!-- 16 — Recap -->
+  <section class="slide">
+    <h2>Where you are</h2>
+    <ul>
+      <li>You can turn a model into a <strong>typed router</strong> with structured outputs — and explain why that makes routing trustworthy</li>
+      <li>You built the <strong>agent</strong>: analyze → route to SQL, vector, or hybrid → answer from the records</li>
+      <li>You know the <strong>grounding contract</strong> and can prove it by baiting the agent into refusing — and you've seen the empty-filter leak</li>
+    </ul>
+    <p class="lead">This week's video: one question per path, plus a clean refusal. Next week: how do we stop trusting "looks right" — and start <em>measuring</em> whether retrieval is any good?</p>
+  </section>
+
+</div>
+
+<div class="bar">
+  <span class="name">RAG &amp; AI Agents · Week 2 — Agentic / hybrid search</span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 16</span></span>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let i = 0;
+  const counter = document.getElementById('counter');
+  const progress = document.getElementById('progress');
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+    counter.textContent = (i + 1) + ' / ' + slides.length;
+    progress.style.width = ((i + 1) / slides.length * 100) + '%';
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(i + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+    if (e.key === 'n' || e.key === 'N') document.getElementById('deck').classList.toggle('notes');
+  });
+  document.getElementById('deck').addEventListener('click', (e) => {
+    show(i + (e.clientX < window.innerWidth / 2 ? -1 : 1));
+  });
+  show(0);
+</script>
+</body>
+</html>

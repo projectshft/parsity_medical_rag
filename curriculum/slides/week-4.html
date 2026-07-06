@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Week 4 — Agents, evals &amp; observability · RAG &amp; AI Agents</title>
+<style>
+  :root {
+    --ink: #1b2330;
+    --muted: #5b6675;
+    --line: #e3e7ec;
+    --bg: #ffffff;
+    --panel: #f6f8fa;
+    --accent: #2563eb;       /* calm blue, no purple */
+    --code-bg: #f4f6f8;
+    /* engagement-mode accents, all muted */
+    --discuss: #b45309;      /* amber */
+    --code: #2563eb;         /* blue */
+    --challenge: #15803d;    /* green */
+    --research: #475569;     /* slate */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .deck { height: 100vh; position: relative; }
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 5vh 9vw 9vh;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .slide.active { display: flex; }
+  h1 { font-size: 2.6rem; line-height: 1.15; letter-spacing: -0.02em; }
+  h2 { font-size: 2rem; line-height: 1.2; letter-spacing: -0.01em; margin-bottom: 1.2rem; }
+  p, li { font-size: 1.25rem; line-height: 1.6; color: var(--ink); }
+  ul { padding-left: 1.3rem; }
+  li { margin: 0.5rem 0; }
+  .sub { color: var(--muted); font-size: 1.15rem; }
+  .lead { font-size: 1.45rem; color: var(--muted); margin-top: 0.8rem; }
+  strong { font-weight: 650; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.3rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: 1rem; line-height: 1.5; }
+
+  /* engagement-mode banner */
+  .mode { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.35rem 0.7rem; border-radius: 999px; margin-bottom: 1.4rem; align-self: flex-start; }
+  .mode.discuss { color: var(--discuss); background: #fef3e2; }
+  .mode.code { color: var(--code); background: #e8f0fe; }
+  .mode.challenge { color: var(--challenge); background: #e7f6ec; }
+  .mode.research { color: var(--research); background: #eef1f5; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 0.6rem; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem 1.4rem; background: var(--panel); }
+  .card h3 { font-size: 1.15rem; margin-bottom: 0.4rem; }
+  .card p { font-size: 1.05rem; color: var(--muted); }
+
+  /* instructor cue */
+  .cue { display: none; margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
+  .cue b { color: var(--ink); }
+  .cue::before { content: "PRESENTER NOTE"; display: block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.35rem; }
+  .deck.notes .cue { display: block; background: #fbfbe8; }
+
+  .title-wrap { gap: 0.4rem; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.95rem; }
+
+  /* footer / nav */
+  .bar { position: fixed; bottom: 0; left: 0; right: 0; height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 1.2rem; border-top: 1px solid var(--line); background: var(--bg); font-size: 0.85rem; color: var(--muted); }
+  .bar .name { font-weight: 600; color: var(--ink); }
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); transition: width 0.2s ease; }
+  .hint { font-size: 0.8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+  <!-- 1 — Title -->
+  <section class="slide active title-wrap">
+    <div class="kicker">Week 4 of 5 — Agents, evals &amp; observability</div>
+    <h1>You built a system that answers. Now prove it works — and see why it did.</h1>
+    <p class="lead">This week you stop trusting the answers and start <em>measuring</em> them. Two instruments: a <strong>trace</strong> that replays what the system did, and an <strong>eval</strong> that puts a number on whether it's any good.</p>
+  </section>
+
+  <!-- 2 — The week -->
+  <section class="slide">
+    <h2>This week</h2>
+    <ul>
+      <li>The agent, one turn deeper: how many LLM calls answer a single question?</li>
+      <li>Observability: <code>traced()</code> — a debugger for the <em>past</em>, and the trace tree</li>
+      <li>Evals, the course's spine: <strong>no metric, no decision</strong></li>
+      <li>Two kinds of eval — exact-match (grade a classifier) and LLM-as-judge (grade an answer)</li>
+      <li>Cost is a metric too — count the calls, price the query</li>
+    </ul>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video — run one eval on your own system, report the number <em>compared to what</em>, and state what one query costs.</p>
+  </section>
+
+  <!-- 3 — Problem statement -->
+  <section class="slide">
+    <h2>Two questions you can't answer yet</h2>
+    <p>Your system works — mostly. A doctor asks <em>"which patients are short of breath?"</em> and it answers. But two questions have no answer you can defend:</p>
+    <div class="two">
+      <div class="card">
+        <h3>"Why did it answer <em>that</em>?"</h3>
+        <p>The reply streamed out and you have no idea which notes it read, or which step went wrong. You can't <code>console.log</code> your way through an LLM.</p>
+      </div>
+      <div class="card">
+        <h3>"Is it any <em>good</em>?"</h3>
+        <p>It feels right. But "feels right" isn't a number, and next week's change might quietly make it worse. You have no baseline.</p>
+      </div>
+    </div>
+    <div class="cue"><b>Say it plainly:</b> a non-deterministic system fails <em>statistically and silently</em>. Same input, different output, no stack trace. The rest of the week is the two instruments that fix that.</div>
+  </section>
+
+  <!-- 4 — How it's solved -->
+  <section class="slide">
+    <h2>The move: two instruments</h2>
+    <div class="two">
+      <div class="card">
+        <h3>Observability — see the past</h3>
+        <p>Wrap each step so a finished run is <strong>replayable</strong>. Open one answer and read exactly what happened: which step, how long, what text the model actually saw.</p>
+      </div>
+      <div class="card">
+        <h3>Evals — measure the present</h3>
+        <p>A repeatable test with a <strong>number</strong> at the end. Change a prompt, re-run, see if the number moved. Judgment becomes measurement.</p>
+      </div>
+    </div>
+    <p class="sub" style="margin-top:1rem">A trace tells you <em>what happened on one run</em>. An eval tells you <em>whether it's good across many</em>. You need both — one debugs, one decides.</p>
+  </section>
+
+  <!-- 5 — Concept: count the LLM calls -->
+  <section class="slide">
+    <h2>First, how many LLM calls is "one answer"?</h2>
+    <p>A single chat turn isn't one call to the model. Watch the agent handle one question:</p>
+    <pre><code>  "which patients are short of breath?"
+        │
+   1 ─► analyzeQuery      → intent + which engines to use   (LLM call)
+        │
+        ▼  run SQL / vector search  (retrieval — no LLM)
+        │
+   2 ─► stream the answer → grounded prose for the user     (LLM call)</code></pre>
+    <p class="sub">So <strong>~2 LLM calls per turn</strong> — an analyzer and an answerer — plus an embedding call on the search path. Most people guess one. That gap is exactly why you need to <em>see</em> inside.</p>
+    <div class="cue"><b>Land it:</b> every one of those calls costs money and can fail on its own. If you can't see them, you can't debug them and you can't price them — the two threads of the whole week.</div>
+  </section>
+
+  <!-- 6 — Concept: observability / traced -->
+  <section class="slide">
+    <h2>Observability: a debugger for the past</h2>
+    <p>You can't set a breakpoint on a request that already finished and streamed to a user. So instead you <strong>record</strong> each step as it runs, and read the recording afterward.</p>
+    <p>Wrap a step in <code>traced()</code> and it reports the step's name, inputs, outputs, duration, and any error to <strong>LangSmith</strong> — where the run shows up as a <em>tree</em>:</p>
+    <pre><code>execute_query                         820 ms
+ ├─ analyzeQuery        (llm)         310 ms
+ ├─ retrieval           (retriever)   120 ms
+ └─ answer              (llm)         390 ms</code></pre>
+    <p class="sub">Each box stores what went in and what came out. A trace is a <strong>witness</strong> to a run you can no longer watch live.</p>
+  </section>
+
+  <!-- 7 — Code walkthrough: the two rules of traced -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>The wrapper, and its two non-negotiable rules</h2>
+    <pre><code>export async function traced(name, fn, options) {
+  if (!isLangSmithEnabled()) return fn();   // no key → run untraced
+
+  const run = new RunTree({ name, ... });
+  try {
+    await run.postRun();
+    const result = await fn();
+    await run.end({ outputs: { result } });
+    return result;
+  } catch (error) {
+    await run.end({ error: String(error) });
+    throw error;               // ← re-throw the wrapped error
+  }
+}</code></pre>
+    <ul>
+      <li><strong>Re-throw what you wrapped</strong> — record the crime, then let it hit the caller. Swallow it and you've hidden the bug you were trying to see.</li>
+      <li><strong>Never throw your <em>own</em> error</strong> — no key, dead endpoint: the pipeline still answers. Observability watches; it never takes the request down with it.</li>
+    </ul>
+    <div class="cue"><b>Both from one idea:</b> a trace is a witness, not a participant. It reports the crash; it is never the crash.</div>
+  </section>
+
+  <!-- 8 — Code walkthrough: read a real trace -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>Open one real run and read it</h2>
+    <p>In LangSmith, click a hybrid query and walk the tree top to bottom:</p>
+    <ul>
+      <li><strong>analysis</strong> — intent + which engines fired. The first stack frame of every answer.</li>
+      <li><strong>retrieval</strong> — how many patients and notes came back.</li>
+      <li><strong>the rendered context</strong> — the <em>exact</em> text handed to the model. Read it aloud; this one field pays for the whole setup.</li>
+      <li><strong>timing</strong> — which step ate the wall-clock (usually an LLM call, not the database).</li>
+    </ul>
+    <div class="cue"><b>The 30-second fix:</b> "the AI hallucinated" almost always becomes "retrieval handed it the wrong context" — and the rendered-context field shows that instantly. Count the LLM boxes: it's 2.</div>
+  </section>
+
+  <!-- 9 — Discussion -->
+  <section class="slide">
+    <span class="mode discuss">💬 Discussion</span>
+    <h2>The answer was wrong. Where do you look first?</h2>
+    <p>A user asked about one patient's diabetes and got a confident answer about <em>someone else's</em>. You have the trace open. Walk it:</p>
+    <ul>
+      <li>Wrong <strong>intent or entities</strong> in the analysis step? → the fault is upstream, in the analyzer prompt.</li>
+      <li>Analysis right, but the <strong>rendered context</strong> holds the wrong patient's notes? → retrieval / filtering.</li>
+      <li>Context right, but the <strong>answer</strong> ignores it? → the grounding prompt.</li>
+    </ul>
+    <div class="cue"><b>Facilitate:</b> drive to the habit — <em>read the trace top-down, don't guess</em>. Without the trace, every one of these looks identical from the outside: "it lied." The trace tells you which door to open.</div>
+  </section>
+
+  <!-- 10 — Concept: evals, the spine -->
+  <section class="slide">
+    <h2>Evals: the spine of the whole course</h2>
+    <p>A trace explains <em>one</em> run. It can't tell you whether the system is <strong>good</strong>. For that you need the rule this course keeps coming back to:</p>
+    <p class="lead"><strong>No metric, no decision.</strong> You don't <em>argue</em> about whether a change helped — you measure it, and let the number decide.</p>
+    <p class="sub">An eval is embarrassingly simple machinery: a fixed set of inputs, a known-right answer for each, and a score at the end. Its value isn't today's number — it's the <em>next</em> time you tweak a prompt and a number you weren't watching moves.</p>
+    <div class="cue"><b>Say it plainly:</b> this is the difference between an engineer who <em>built</em> a system and one who finished a tutorial. You can show the number that made you keep a change — or drop it.</div>
+  </section>
+
+  <!-- 11 — Concept: exact-match eval (the classifier) -->
+  <section class="slide">
+    <h2>Kind 1: exact match — grade the classifier</h2>
+    <p>The analyzer is a <strong>classifier</strong>: it returns an intent and two booleans. Classifiers get the most satisfying eval there is — the answer either came back right or it didn't. Compare to labels <em>you wrote first, by hand</em>:</p>
+    <pre><code>const a = await analyzeQuery(c.query);
+intentOk += a.intent          === c.expectIntent  ? 1 : 0;
+sqlOk    += a.requiresSQL      === c.expectSQL     ? 1 : 0;
+vectorOk += a.requiresVector   === c.expectVector  ? 1 : 0;
+// example run → intent 84%   SQL 96%   vector 92%   (n=25)
+// (illustrative — your cases, your numbers; the point is you HAVE numbers)</code></pre>
+    <p class="sub">Score the booleans <em>separately</em> from intent — they're what the router actually branches on. No second model, no judgment call: just <code>===</code>.</p>
+  </section>
+
+  <!-- 12 — Concept: LLM-as-judge -->
+  <section class="slide">
+    <h2>Kind 2: LLM-as-judge — grade an answer</h2>
+    <p>Exact match works when there's one right answer. But "is this answer <em>grounded</em> in the notes?" has no string to compare against. So you ask a <strong>second model</strong> to grade the first:</p>
+    <pre><code>evaluateAnswerFaithfulness(context, answer)
+  → { score: 9, pass: true, reasoning: "every claim traces to the notes" }
+
+evaluateRetrievalRelevance(query, retrievedNotes)
+  → { score: 3, pass: false, reasoning: "notes are about a different visit" }</code></pre>
+    <p class="sub">A judge prompt with a 0–10 rubric, <code>temperature: 0</code>, threshold at 7. It's noisier than <code>===</code> and it <em>costs a call</em> — so you read it as a <strong>trend over runs</strong>, not a hard pass/fail gate.</p>
+    <div class="cue"><b>Pre-empt the smirk:</b> "using an LLM to grade an LLM?" Yes — grading is easier than generating, the judge sees the rubric, and you spot-check it against your own eyes. It's a thermometer, not a supreme court.</div>
+  </section>
+
+  <!-- 13 — Concept: retrieval eval / compared to what -->
+  <section class="slide">
+    <h2>Retrieval eval: hit@5, scored twice</h2>
+    <p>Back to the search itself. Build 15+ <strong>(query, expected-note)</strong> pairs from your own corpus — the query in a <em>user's</em> words, the note you know should surface. Then:</p>
+    <pre><code>hit@5 = (queries where the expected note lands in the top 5) / total
+
+   vector alone      → 73%
+   vector + reranker → 89%      (illustrative numbers)</code></pre>
+    <p class="lead">"Is 73% good?" The only honest answer is: <strong>compared to what?</strong></p>
+    <p class="sub">An eval doesn't hand you a grade — it hands you a <em>difference</em>. Two configurations, two numbers, and now the reranker's value is a fact, not a vibe.</p>
+    <div class="cue"><b>Land it:</b> plenty of real teams measure and <em>drop</em> the reranker; plenty keep it. The eval is what tells you which kind your system is. Keep a few pairs you never tune on.</div>
+  </section>
+
+  <!-- 14 — Concept: cost is a metric too -->
+  <section class="slide">
+    <h2>Cost is a metric too</h2>
+    <p>You now measure quality. You've never put a number on <strong>cost</strong> — and an LLM system with no cost number is one that surprises you with an invoice.</p>
+    <p>The trace already counts the calls. Price them:</p>
+    <pre><code>per chat turn:  2 LLM calls (analyzer + answerer) + 1 embedding
+                × tokens in/out × model price  →  a per-query $ figure</code></pre>
+    <p class="sub">Now a real decision lands with <em>both</em> numbers. A reranker that adds 16 points of hit@5 <strong>and triples the per-query cost</strong> isn't a default you flip on — it's a trade you make with the accuracy gain and the price tag side by side.</p>
+    <div class="cue"><b>Say it plainly:</b> "no metric, no decision" applies to cost too. The teams that get cost-surprised in production are the ones who never made it a metric.</div>
+  </section>
+
+  <!-- 15 — Mini-challenge -->
+  <section class="slide">
+    <span class="mode challenge">🛠 Mini-challenge</span>
+    <h2>Run the evals — then break them</h2>
+    <ul>
+      <li>Run <code>npm run test:evals</code>. Read the retrieval + judge numbers — that's your baseline. Write them down.</li>
+      <li><strong>Break the reranker silently:</strong> unset <code>COHERE_API_KEY</code> and re-run. Search still "works" — but reranked order now equals plain vector order, no error shown. Did your hit@5 quietly drop?</li>
+      <li><strong>Blind the trace:</strong> unset the LangSmith key. The app keeps answering; the trace project goes silent. You went blind without going down — on purpose.</li>
+    </ul>
+    <div class="cue"><b>The discipline:</b> a failure you can measure is a failure you can defend against. The silent-fallback one is the crowd favorite — nothing the user sees says reranking stopped. Only the eval catches it.</div>
+  </section>
+
+  <!-- 16 — Research + recap combined? No — Research -->
+  <section class="slide">
+    <span class="mode research">🔍 Research</span>
+    <h2>Go find out — and where you are</h2>
+    <ul>
+      <li>Your labels <em>are</em> the ground truth — you invented them. So how is grading against your own labels legitimate, and not circular? Where's the line between this and cheating?</li>
+      <li>Deterministic tests gate every commit; LLM evals don't. Why is a <em>paid, noisy</em> metric a bad commit gate but a good thing to <em>watch over time</em>?</li>
+    </ul>
+    <p class="lead">Where you are: you can <strong>see</strong> why the system answered (the trace) and <strong>prove</strong> whether it's good (the eval) — including what it costs. Judgment is now measured, not felt.</p>
+    <p class="sub">This week's deliverable: the 2–3 min eval video. Next: production gates and the capstone — the system with its blind spots documented, not assumed away.</p>
+  </section>
+
+</div>
+
+<div class="bar">
+  <span class="name">RAG &amp; AI Agents · Week 4 — Agents, evals &amp; observability</span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 16</span></span>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let i = 0;
+  const counter = document.getElementById('counter');
+  const progress = document.getElementById('progress');
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+    counter.textContent = (i + 1) + ' / ' + slides.length;
+    progress.style.width = ((i + 1) / slides.length * 100) + '%';
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(i + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+    if (e.key === 'n' || e.key === 'N') document.getElementById('deck').classList.toggle('notes');
+  });
+  document.getElementById('deck').addEventListener('click', (e) => {
+    show(i + (e.clientX < window.innerWidth / 2 ? -1 : 1));
+  });
+  show(0);
+</script>
+</body>
+</html>

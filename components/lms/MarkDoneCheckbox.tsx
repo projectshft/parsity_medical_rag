@@ -8,10 +8,10 @@ import { toggleLesson } from "@/app/learn/actions";
  * persists via the server action; reverts on failure.
  */
 export function MarkDoneCheckbox({
-  day,
+  slug,
   initialDone,
 }: {
-  day: number;
+  slug: string;
   initialDone: boolean;
 }) {
   const [done, setDone] = useState(initialDone);
@@ -21,7 +21,7 @@ export function MarkDoneCheckbox({
     setDone(next);
     startTransition(async () => {
       try {
-        await toggleLesson(day, next);
+        await toggleLesson(slug, next);
       } catch {
         setDone(!next); // revert
       }

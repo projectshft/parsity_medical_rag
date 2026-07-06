@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Week 3 — MCP + human-in-the-loop · RAG &amp; AI Agents</title>
+<style>
+  :root {
+    --ink: #1b2330;
+    --muted: #5b6675;
+    --line: #e3e7ec;
+    --bg: #ffffff;
+    --panel: #f6f8fa;
+    --accent: #2563eb;       /* calm blue, no purple */
+    --code-bg: #f4f6f8;
+    /* engagement-mode accents, all muted */
+    --discuss: #b45309;      /* amber */
+    --code: #2563eb;         /* blue */
+    --challenge: #15803d;    /* green */
+    --research: #475569;     /* slate */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .deck { height: 100vh; position: relative; }
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 5vh 9vw 9vh;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .slide.active { display: flex; }
+  h1 { font-size: 2.6rem; line-height: 1.15; letter-spacing: -0.02em; }
+  h2 { font-size: 2rem; line-height: 1.2; letter-spacing: -0.01em; margin-bottom: 1.2rem; }
+  p, li { font-size: 1.25rem; line-height: 1.6; color: var(--ink); }
+  ul { padding-left: 1.3rem; }
+  li { margin: 0.5rem 0; }
+  .sub { color: var(--muted); font-size: 1.15rem; }
+  .lead { font-size: 1.45rem; color: var(--muted); margin-top: 0.8rem; }
+  strong { font-weight: 650; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.3rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: 1rem; line-height: 1.5; }
+
+  /* engagement-mode banner */
+  .mode { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.35rem 0.7rem; border-radius: 999px; margin-bottom: 1.4rem; align-self: flex-start; }
+  .mode.discuss { color: var(--discuss); background: #fef3e2; }
+  .mode.code { color: var(--code); background: #e8f0fe; }
+  .mode.challenge { color: var(--challenge); background: #e7f6ec; }
+  .mode.research { color: var(--research); background: #eef1f5; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 0.6rem; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem 1.4rem; background: var(--panel); }
+  .card h3 { font-size: 1.15rem; margin-bottom: 0.4rem; }
+  .card p { font-size: 1.05rem; color: var(--muted); }
+
+  /* instructor cue */
+  .cue { display: none; margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
+  .cue b { color: var(--ink); }
+  .cue::before { content: "PRESENTER NOTE"; display: block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.35rem; }
+  .deck.notes .cue { display: block; background: #fbfbe8; }
+
+  .title-wrap { gap: 0.4rem; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.95rem; }
+
+  /* footer / nav */
+  .bar { position: fixed; bottom: 0; left: 0; right: 0; height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 1.2rem; border-top: 1px solid var(--line); background: var(--bg); font-size: 0.85rem; color: var(--muted); }
+  .bar .name { font-weight: 600; color: var(--ink); }
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); transition: width 0.2s ease; }
+  .hint { font-size: 0.8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+  <!-- 1 — Title -->
+  <section class="slide active title-wrap">
+    <div class="kicker">Week 3 of 5 — MCP + human-in-the-loop</div>
+    <h1>Your RAG stops being an app and becomes a <em>tool other AIs can call</em></h1>
+    <p class="lead">By the end of the week: your system is exposed as a tool any AI assistant can discover and use — through a front-office channel that's safe to leave open because it only speaks in non-identifying data — and it knows the difference between reading data and <em>acting</em> on it.</p>
+  </section>
+
+  <!-- 2 — The week -->
+  <section class="slide">
+    <h2>This week</h2>
+    <ul>
+      <li>MCP: turn your RAG into a tool other AI assistants can call</li>
+      <li>Wire it into Claude Desktop and Cursor; watch a foreign model use it</li>
+      <li>Make it safe to expose: a front-office channel — 3 non-PII tools, every response obscured</li>
+      <li>Human-in-the-loop: for actions that matter, the model <em>proposes</em>, a human <em>approves</em></li>
+      <li>Build it: add a new tool and prove a client can call it — with real names never leaving the door</li>
+    </ul>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video demoing a tool other AIs can call — and showing its results come back <em>obscured</em>, a real name never leaving the front-office channel.</p>
+  </section>
+
+  <!-- 3 — Problem statement -->
+  <section class="slide">
+    <h2>The problem this week solves</h2>
+    <p>Everything you've built answers questions through <em>your</em> chat box. But the people you'd build this for already live in other AI tools — Claude Desktop, Cursor, a dozen assistants.</p>
+    <p class="lead">Do you write a separate integration for each one? Or expose your system <strong>once</strong>, in a way any of them can discover and use?</p>
+    <div class="cue"><b>Say it plainly:</b> the question isn't "how do I add a feature." It's "how does my system become something <b>other software</b> plugs into."</div>
+  </section>
+
+  <!-- 4 — How it's solved: MCP -->
+  <section class="slide">
+    <h2>MCP: USB-C for AI</h2>
+    <p>The <strong>Model Context Protocol</strong> is an open standard for connecting AI apps to outside systems. You write <em>one</em> MCP <strong>server</strong> that exposes your RAG as <strong>tools</strong>; any MCP <strong>client</strong> can discover and call them.</p>
+    <pre><code>  Claude Desktop ─┐
+        Cursor ───┼──▶  YOUR MCP server  ──▶  your pipeline
+  any MCP client ─┘     (mcp-server/index.ts)   (search, notes, condition lists)</code></pre>
+    <p class="sub">A REST API needs a human to read docs and write glue code per client. MCP's contract is machine-readable: the client <em>discovers</em> your tools, schemas and all, at connect time. REST serves programmers; MCP serves models.</p>
+    <div class="cue"><b>Land the one line:</b> write one server, any client discovers your tools. The difference from REST is <b>discovery</b> — a model reads the contract, not a programmer.</div>
+  </section>
+
+  <!-- 5 — Concept: a tool is a prompt -->
+  <section class="slide">
+    <h2>A tool description is a prompt for a model you don't control</h2>
+    <pre><code>server.registerTool(
+  'query_notes',
+  { description: 'Search clinical notes using semantic search. Use this for
+     finding relevant medical notes, symptoms, treatments, or observations.',
+    inputSchema: {
+      query: z.string().describe('e.g. "chest pain", "breathing problems"'),
+      patientId: z.string().optional(),
+      topK: z.number().optional().default(5) } },
+  async ({ query, patientId, topK }) =&gt; { /* call your pipeline */ }
+);</code></pre>
+    <p class="sub">The client's LLM reads your name + description + parameter schema and <em>decides</em> when to call it. Vague description → wrong tool at the wrong time — and you can't fix it by editing their prompt. <strong>The description <em>is</em> your interface.</strong></p>
+  </section>
+
+  <!-- 6 — Code walkthrough: smoke-test the server -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>Talk to the server before any AI does</h2>
+    <pre><code># the server speaks JSON-RPC over stdin/stdout — pipe to it, no AI required
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
+  | npx ts-node mcp-server/index.ts</code></pre>
+    <p class="sub">Back comes a JSON listing of your tools with their schemas — proof the contract is <em>discoverable</em>. This is exactly what Claude Desktop sees at connect time. One rule that bites everyone: <strong>never <code>console.log</code> in this server.</strong> Stdout <em>is</em> the protocol channel; a stray log line corrupts the stream and the client disconnects. Log to <code>console.error</code> instead.</p>
+  </section>
+
+  <!-- 7 — Code walkthrough: wire into a client -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>Wire it into Claude Desktop, watch a foreign model use it</h2>
+    <pre><code>// ~/Library/Application Support/Claude/claude_desktop_config.json
+"mcpServers": {
+  "medical-rag": {
+    "command": "npx",
+    "args": ["ts-node", "/ABSOLUTE/path/to/mcp-server/index.ts"],
+    "env": { "DATABASE_URL": "...", "PINECONE_API_KEY": "...", "OPENAI_API_KEY": "..." }
+  }
+}</code></pre>
+    <p class="sub">Restart fully. Ask in plain words — <em>"how many patients have high blood pressure?"</em> — and watch it pick a tool, show its arguments, and wait for your approval. <strong>The path must be absolute</strong> (relative paths are the #1 failure). The client launches your server as a <em>subprocess</em> — crash and the tools vanish. And notice: you just pasted database credentials into a desktop app's config file.</p>
+  </section>
+
+  <!-- 8 — Discussion break -->
+  <section class="slide">
+    <span class="mode discuss">💬 Discussion</span>
+    <h2>You just opened a door onto patient data</h2>
+    <p>Any assistant that launches that server can now reach your patients. No login, no identity — the door is open to whoever connects.</p>
+    <ul>
+      <li>What's the worst thing that could leak through your tools right now?</li>
+      <li>You could bolt a login + permissions onto the door. What would that cost you to build and maintain?</li>
+      <li>Is there a cheaper move — one that makes the door <em>safe to leave open</em> instead of guarding it?</li>
+    </ul>
+    <div class="cue"><b>Facilitate:</b> don't rescue them yet. Let the discomfort land, then steer toward the cheaper move — <b>don't guard the sensitive thing, remove it from this path.</b> That's the securing segment. Breakout if &gt;8 people; debrief with the answer key.</div>
+  </section>
+
+  <!-- 9 — Concept: the security layers -->
+  <section class="slide">
+    <h2>Two channels, not one permission system</h2>
+    <div class="two">
+      <div class="card">
+        <h3>Clinician channel — the chat app</h3>
+        <p>Full data. Real names, real dates. For the person actually treating the patient.</p>
+      </div>
+      <div class="card">
+        <h3>Front-office channel — the MCP server</h3>
+        <p>Non-PII only. Pseudonyms, no patient-detail lookups. For scheduling, intake, counts.</p>
+      </div>
+    </div>
+    <p class="sub" style="margin-top:1rem">Which <strong>channel</strong> you came through decides what you see — no per-request "what are you allowed to do?" check, no login on the MCP door. It's safe to leave open because everything behind it is already non-identifying. <strong>You don't guard a room with nothing sensitive in it.</strong></p>
+  </section>
+
+  <!-- 10 — Concept: least privilege + the denial demo -->
+  <section class="slide">
+    <h2>What makes the front-office door safe</h2>
+    <p>Two design decisions, both already in <code>mcp-server/index.ts</code> — no scopes, no login, no audit log:</p>
+    <pre><code>// 1. A deliberately narrow tool set — 3 front-office tools, no patient-detail lookup
+   search_patients    query_notes    list_patients_by_condition
+// no get_patient, no find_patient_by_name — that absence IS the access control
+
+// 2. Every response obscured before it leaves — real name → Patient-A7B3
+   const formatted = formatResultsForLLM(result, true);   // true = obscure, always
+   const name = obscureName(fullName(patient));</code></pre>
+    <p class="sub">A permission system is a promise you can break (a tool forgets to check, a key is mis-scoped). A channel that <em>cannot</em> emit PII makes no promise to break. <strong>Remove the sensitive thing from the path instead of guarding it.</strong></p>
+    <div class="cue"><b>Design point to land:</b> match the control to what's behind the door. RBAC belongs on the clinician channel — real data, gate by <b>who the person is</b> (that's the final block). Here, structural safety beats a permission matrix you have to maintain.</div>
+  </section>
+
+  <!-- 11 — Concept: human-in-the-loop -->
+  <section class="slide">
+    <h2>The moment a system can <em>act</em>: does it act, or propose?</h2>
+    <p>Reads are safe. Now the system gets its first <em>write</em> — booking a follow-up appointment. So the design question that outranks all others:</p>
+    <pre><code>"schedule Smith ──▶ detect intent ──▶ confirmation card ──▶ confirm ──▶ book it
+ for Tue at 2"     (LLM, structured)   (human reviews)    │        (code, deterministic)
+                                                          └─ cancel ─▶ nothing happens</code></pre>
+    <p class="sub"><strong>The model never holds the trigger.</strong> Its authority ends at <em>proposing</em> structured parameters; a human reviews the actual values and clicks confirm; only then does deterministic code act.</p>
+  </section>
+
+  <!-- 12 — Code walkthrough: the propose→approve flow -->
+  <section class="slide">
+    <span class="mode code">💻 Code walkthrough</span>
+    <h2>Propose in the model, act in the code</h2>
+    <pre><code>// lib/scheduling.ts — the model only PROPOSES structured values
+const SchedulingIntentSchema = z.object({
+  isSchedulingRequest: z.boolean(),
+  patientName: z.string().nullable(),      // null, never a guessed name
+  suggestedDate: z.string().nullable(),    // "next Tuesday" resolved to YYYY-MM-DD
+  suggestedTime: z.string().nullable(),
+});
+// → renders a confirmation CARD the human edits and confirms
+// → only then does POST /api/schedule call the calendar (lib/calendar.ts)</code></pre>
+    <p class="sub">The card's values — the ones a human just reviewed — are the source of truth, not the model's raw extraction. Dates get resolved to a real <code>YYYY-MM-DD</code> in code, because "next Tuesday" needs today's date and the model doesn't reliably know it.</p>
+  </section>
+
+  <!-- 13 — Discussion: the reversibility grid -->
+  <section class="slide">
+    <span class="mode discuss">💬 Discussion</span>
+    <h2>Which actions are safe to automate — and which need a human?</h2>
+    <p>Sort these onto two axes: <strong>reversibility</strong> and <strong>cost of being wrong</strong>.</p>
+    <ul>
+      <li>Search a patient's records</li>
+      <li>Book an appointment on a real calendar</li>
+      <li>Send a refill request to a pharmacist</li>
+      <li>Send a referral letter under a doctor's name</li>
+    </ul>
+    <div class="cue"><b>Facilitate:</b> the question is never "can the model do it" — it's "what does wrong cost, and <b>who absorbs it</b>?" That's what decides the gate. Debrief with the answer key.</div>
+  </section>
+
+  <!-- 14 — Mini-challenge: build/secure + break the gate -->
+  <section class="slide">
+    <span class="mode challenge">🛠 Mini-challenge</span>
+    <h2>Prove the wall, then try to break it</h2>
+    <ul>
+      <li><strong>Prove the wall:</strong> call all three tools from a client → every result comes back with <em>pseudonyms, never a real name</em>. That's the channel holding.</li>
+      <li><strong>Break the channel:</strong> flip one tool's obscuring to <code>formatResultsForLLM(result, false)</code>, or add a <code>get_patient</code> tool → watch a real name leak out the front-office door. Feel why the narrow tool set + obscuring <em>is</em> the wall.</li>
+      <li><strong>Attack the human gate:</strong> make "confirm" post the <em>model's</em> values instead of the card's. Watch the human's edits vanish. Now the gate is decoration.</li>
+    </ul>
+    <div class="cue"><b>Land this:</b> don't just show it <em>working</em> — show the obscuring <b>holding</b>, then show exactly what breaks it. The leak you can cause on purpose is the lesson.</div>
+  </section>
+
+  <!-- 15 — Research -->
+  <section class="slide">
+    <span class="mode research">🔍 Research</span>
+    <h2>Go find out</h2>
+    <ul>
+      <li>The front-office channel never emits a real <em>name</em> — but a name isn't the only way to identify someone. Could an attacker re-identify a patient from obscured output plus a rare condition and a date? (Look up <em>quasi-identifiers</em> and <em>k-anonymity</em>.)</li>
+      <li>"next Tuesday" needs today's date, and the model doesn't reliably know it. Why resolve dates in <strong>code</strong>, not in the prompt — even though the model can <em>usually</em> do the math?</li>
+    </ul>
+    <p class="sub">Bring one finding back. The first question is a door obscuring alone doesn't fully close — you'll meet an attacker at it in the final week.</p>
+  </section>
+
+  <!-- 16 — Recap -->
+  <section class="slide">
+    <h2>Where you are</h2>
+    <ul>
+      <li>Your system is now <strong>infrastructure</strong> — tools any AI client can discover and call</li>
+      <li>Exposed through a <strong>front-office channel that's safe to leave open</strong> — 3 non-PII tools, every response obscured, no login needed</li>
+      <li>Access decided by <strong>channel, not per-request permission</strong> — the identified data lives on the clinician channel, a different door</li>
+      <li>And one <strong>human-gated write path</strong> — the model proposes, a person confirms, code acts</li>
+    </ul>
+    <p class="lead">This week's deliverable: the 2–3 min video — a tool other AIs can call, shown returning <em>obscured</em> results with a real name never leaving the door. Next week, the final block: the <strong>clinician</strong> channel gets locked down for people (RBAC), the system is attacked through its data, and judged end to end against the standard you've built all course.</p>
+  </section>
+
+</div>
+
+<div class="bar">
+  <span class="name">RAG &amp; AI Agents · Week 3 — MCP + human-in-the-loop</span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 16</span></span>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let i = 0;
+  const counter = document.getElementById('counter');
+  const progress = document.getElementById('progress');
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+    counter.textContent = (i + 1) + ' / ' + slides.length;
+    progress.style.width = ((i + 1) / slides.length * 100) + '%';
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(i + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+    if (e.key === 'n' || e.key === 'N') document.getElementById('deck').classList.toggle('notes');
+  });
+  document.getElementById('deck').addEventListener('click', (e) => {
+    show(i + (e.clientX < window.innerWidth / 2 ? -1 : 1));
+  });
+  show(0);
+</script>
+</body>
+</html>

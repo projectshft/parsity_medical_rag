@@ -2,6 +2,64 @@
 
 Working doc for building the day-by-day curriculum in batches. **Update the status table every batch.** The template and rules here are the spec — every day file must follow them so the course reads in one voice.
 
+## ▶▶ RESTRUCTURE IN PROGRESS (2026-07-05, rev 2) — read this first
+
+Big re-scope (Brian). **Core framing:** you're joining a company that *already has* its data in a database. The job = make it **semantically searchable** and build an **agent** on top. So the SQL/structured side is a **GIVEN — not taught, not uploaded live.** Front-load the working system; compress to **5 weeks**. README "Week index" is the canonical map; day files + decks are being reconciled.
+
+**Logistics decision — pre-loaded DB:** the Neon Postgres is PRE-LOADED (all patients/conditions/obs/meds/encounters/**note text** — done, 1278 patients / 143,946 notes in Neon) and students **copy it** (a dump / Neon branch) rather than running the ingest live. Removes all DB-setup time; Day 1 goes straight to the vector store.
+
+**Architecture (unchanged, validated):** Postgres = system of record (holds everything incl. note text — `Note` table done + populated). Pinecone = derived semantic index. The **vectorize script** reads notes from Postgres → embeds → upserts to Pinecone. Frame plainly: *"this is how you make existing company data searchable by meaning."* **NO drift/reconciliation exercise** (that was over-engineered — dropped).
+
+**New 5-week shape:**
+1. **The vector store** — problem statement (why a second DB for meaning-based search; SQL/`LIKE` matches letters not meaning — "dyspnea" ≠ "shortness of breath") → what a vector is + semantic similarity → the **vectorize script** (Postgres → Pinecone) → **implement vector search** (live, ideally day 1) → **chunking intro**: our notes are self-contained pieces (no chunking needed); the Bible is the opposite (needs it) — the contrast IS the point. DB pre-loaded.
+2. **Agentic / hybrid search** — the agent that routes and does BOTH SQL and vector search.
+3. **MCP + human-in-the-loop.**
+4. **Agents + evals + observability.**
+5. **Privacy & data** — PII, RBAC, access control.
+
+**Homework — Bible chunking as a 2-week side project (📝):**
+- Week 1: research chunking strategies, propose one, record a video explaining what chunking IS.
+- Week 2: actually chunk + upload. Uses `scripts/bible/`. Purely a side project for learning chunking (our medical notes don't need it).
+
+**Dropped from live weeks:** live SQL teaching (pre-loaded given); the standalone chunking week (→ side-project homework); poisoned-docs (→ optional homework, `CHALLENGE-POISONED-DOCS.md` exists); the standalone upload-API day (the vectorize script + pre-load cover ingestion). The old "no embeddings before Day 13" rule (14) is moot — vectors are the Week 1 subject now.
+
+**Week 1 must TEACH vector similarity (not black-box it).** Brian: students should *understand* how similarity works, not just call it. W1 includes hands-on similarity — cosine / dot product, "same direction = same meaning" — reusing material already written: `day-00.md` (vector-math primer), `day-13.md` (embeddings/cosine), `day-14.md` "be the vector DB by hand" (embed a tiny corpus → cosine → rank). So W1 = problem → **what a vector is + how similarity works (hands-on)** → vectorize script → vector search → chunking intro. Supersedes the earlier "black box in W1" idea — vectors ARE the W1 subject now.
+
+**Data model (confirmed):** one patient → MANY notes (avg 112.6; range 2–2,162; `Patient.notes = Note[]`). Vectorize emits one vector per note, tagged `patientId` so search can filter to a patient.
+
+**Execution phases:**
+1. ✅ Spine: README + this tracker (rev 2). (2026-07-05)
+2. ✅ Foundation: `Note` table (Postgres = system of record); Neon populated (1278/143,946). Shipped all branches.
+3. ✅ **Vectorize script** (`scripts/vectorize.ts` + `npm run vectorize`): read notes from Postgres → `upsertChunks` (embed + upsert) with metadata. Instructor solution (verified live, --limit 5) / main solution / student STUB. Shipped (fcd6f7b / 10ed3ed / 7b7388d).
+4. ⬜ Week 1 deck/runbook + day files (the big new content): problem → **vectors + similarity (hands-on)** → vectorize → vector search → chunking intro. Bible = homework part 1.
+5. ⬜ Week 2 (agentic/hybrid search) + Bible homework part 2.
+6. ⬜ Weeks 3–5 relabel/remap (MCP+HITL / agents+evals+obs / privacy).
+7. ⬜ Day-file renumbering + INSTRUCTOR-NOTES + deck kickers reconciled to the 5-week map.
+
+**Student-branch reconciliation plan (do alongside the phases):** `student` = skeletons + failing specs; it must track the restructure.
+- ✅ `scripts/vectorize.ts` = STUB on student (Week 1 build-it exercise); solution on instructor/main. (7b7388d)
+- ✅ `Note` table + `noteRowFromChunk` = provided infra on student. **Upload route REMOVED** (button + `app/upload/` + `app/api/upload/` + `CHALLENGE-UPLOAD-API.md` deleted): the company already has its data; students *sync* it (vectorize homework, `w1-06-vectorize.md`) rather than re-upload notes via a route.
+- ⬜ **Pre-loaded DB:** students do NOT run the FHIR ingest — they connect to the pre-loaded Neon DB (read-only role, or a per-student Neon branch). Update student setup/day-02 + `.env.example`: `DATABASE_URL` = the provided DB; no ingest step. `scripts/ingest-coherent.ts` stays only as reference (students don't run it).
+- ⬜ **Students still IMPLEMENT (keep as student stubs, just re-map to new week #s):** vectorize (W1, done), `searchClinicalNotes`/vector-search (W1), query analyzer + agent / hybrid search (W2), MCP server (W3), RBAC/PII (W5). Don't rewrite — relabel.
+- ⬜ **No student code to delete:** `scripts/bible/` stay (homework); poisoned-docs stays (optional homework). It's mostly re-labeling which week each stub belongs to.
+- ⬜ Re-run student suite after remap; expected red = still-unimplemented assignments. (vectorize has no test yet — run-it exercise; add a note→chunk mapping test if we want it graded.)
+
+**Day-file manifest (2026-07-06) — full renumber to 5 weeks.** New files `wN-MM-slug.md` (week-visible); old `day-NN.md` retired after. day-00 (foundations pre-work) kept.
+- **W1 vector store:** w1-01 what-rag-is (←day-01) · w1-02 setup/pre-loaded-DB (←day-02) · w1-03 meet-the-data (←day-03) · w1-04 embeddings (←day-13) · w1-05 similarity-by-hand (←day-14) · w1-06 vectorize (NEW, ←vectorize.ts + day-15) · w1-07 semantic-search + metadata (←day-15) · w1-08 chunking-intro (←day-07). HW: homework-bible-chunking (←day-08..12).
+- **W2 agentic search:** w2-01 structured-outputs (←19) · w2-02 query-analyzer (←20) · w2-03 orchestration (←21) · w2-04 hybrid-queries (←16) · w2-05 reranking (←17) · w2-06 chat-agent/grounding (←22) · w2-07 failure-day (←23).
+- **W3 MCP+HITL:** w3-01 mcp-intro (←25) · w3-02 wiring (←26) · w3-03 securing (←27) · w3-04 human-in-the-loop (←29) · w3-05 new-tool-audit (←30).
+- **W4 agents/evals/obs:** w4-01 observability (←28) · w4-02 retrieval-evals (←18) · w4-03 analyzer-evals (←24) · w4-04 evals-as-spine (←35).
+- **W5 privacy:** w5-01 rbac-sessions (←32) · w5-02 rbac-pii (←33) · w5-03 wrap-up (←36). HW: homework-poisoned-docs (←34). (Upload API DROPPED — company already has its data; remove route+spec+challenge doc from code too.)
+Cross-cutting reframes: SQL is a given (pre-loaded, not taught); Postgres=system of record, Pinecone=derived (vectorize builds it); no "no-embeddings-before-day-13" rule; refer to weeks not day numbers.
+
+**Two architecture changes (2026-07-06, Brian) — queued, affect code + content:**
+
+1. **Chat route → explicit multi-agent (Week 2 core).** Replace the linear `runAgent` (analyzer → execute → answer) with: **router** agent (massages the query, decides which sub-agents to run) → **parallel** sub-agents (a SQL agent + a vector agent, `Promise.all`) → **aggregator** agent (summarizes both result sets) → **stream** the answer via Vercel AI SDK `streamText` (the `ai` pkg is already a dep). Touches `lib/agent.ts` + `app/api/chat/route.ts`; recomposes existing pieces (`analyzeQuery`, `executeStructuredQuery`/`sql-queries`, `searchClinicalNotes`). Content to update after: `w2-03-orchestration.md` (routing → parallel → aggregate) and `w2-06-chat-agent.md` (the aggregator + streaming). Instructor/main = solution, student = stub.
+
+2. **MCP simplified — STAFF-only, no audit.** Drop `mcp-server/audit.ts` + all audit wiring/tests. Collapse the read/read_pii/admin scope system to a single check: **MCP is a front-office (STAFF) tool** → one valid key = access; tools return non-PII data only (consistent with STAFF sees no PII). Touches `mcp-server/index.ts`, `mcp-server/auth.ts` (+ tests), `docs/CHALLENGE-MCP-AUTH.md`. Content to update: `w3-03-securing-mcp.md` (one key, not 3 scopes) and `w3-05-new-tool-audit.md` (retitle — no audit). Note (tradeoff, not a blocker): an access audit trail is genuinely valuable for medical data; dropping it is a deliberate simplification for teaching scope.
+
+Everything below predates the restructure — treat as historical until reconciled.
+
 ## ▶ Pick up here (updated 2026-06-13 — ALL 36 DAYS DONE)
 
 **The curriculum is content-complete.** No more day files to write. What remains before students can use it, in priority order:
@@ -56,7 +114,7 @@ Done so far: README (rev 2), day-01 (rev 3), days 02–06 (Batch 2), days 07–1
 | 28 | Observability: implement traced(), debugger-for-the-past | ✅ written | 6 |
 | 29 | HITL scheduling: propose/approve/execute, Cal.com | ✅ written | 6 |
 | 30 | Build day: 4th tool + audit trail + adversarial demo (🎥) | ✅ written | 6 |
-| 31 | Upload API: additive + idempotent (CHALLENGE-UPLOAD-API) | ✅ written | 7 |
+| 31 | ~~Upload API~~ REMOVED — sync-not-upload; vectorize homework replaces it | ✅ dropped | — |
 | 32 | RBAC I: sessions/login/guard (CHALLENGE-RBAC P1-3) | ✅ written | 7 |
 | 33 | RBAC II: role-shaped responses + PII (CHALLENGE-RBAC P4) | ✅ written | 7 |
 | 34 | Adversarial: poisoned document (CHALLENGE-POISONED-DOCS) | ✅ written | 7 |
@@ -200,4 +258,6 @@ Verify any NEW link with WebFetch before adding it to a day file, then record it
 - 2026-06-06 · Text-based markdown, GitHub-rendered mermaid, screenshot placeholders for later capture.
 - 2026-06-07 · Moved to the `instructor` branch (was a standalone `curriculum` branch, now deleted). Repo is storage only — content ships via another platform; students never see `curriculum/` in the repo.
 - 2026-06-06 · Chunking taught on the KJV Bible (corpus that needs it) precisely because the medical notes don't — the contrast IS the lesson (decide from data, not habit).
+- 2026-06-27 · The "AI Engineering Certificate Program" Form B proposal is the governance/reference doc for THIS repo's curriculum — cleaned-up copy saved to `docs/AI-Engineering-Certificate-Program.md`. Sparse+dense hybrid **stays optional research** (Day 16's "Going further (optional)" section unchanged) — here the lexical/exact-match half is owned by Postgres, so sparse vectors aren't needed. Per Brian: address the curriculum and its spirit; reconcile only glaring objective/assessment contradictions — do NOT chase the proposal module-for-module.
+- 2026-06-22 · Added `day-00.md` (Day Zero — optional pre-work: LLM + vector-math primer with the cosine formula written out, plus assignments to research `text-embedding-3-small` and watch the 3B1B videos). This **intentionally** front-loads embeddings/vectors before Day 13 — a conscious, Brian-approved exception to Rule 14, because it's framed as optional prerequisite grounding, not part of the build's unlock order (the hands-on proof still lands on Days 13–14). Also added two foundations recap slides to the Week 3 deck (`slides/week-3.html`, now 21 slides). Day Zero is listed in the README index but is NOT a deliverable day.
 - 2026-06-14 · Brian: mechanism/under-the-hood understanding is REQUIRED, not optional theory. Added Day 14 Step 1 "Build the search by hand first" (text→vectors→cosine/dot-product ranking = a vector DB's core op, in the main Implementation flow, not further reading) — answers "how vector DBs work under the hood" by having students BE one before using Pinecone. Fits the existing build-naive-by-hand motif (Days 8, 16). Also: Day 13 gained a dot-product note (cosine = normalized dot product) + 3B1B linear-algebra videos in further reading; Day 1 gained 3B1B "But what is a GPT?" for the LLM-internals "why". 3B1B videos are further-reading (can't gate on a YouTube watch); the hands-on exercise is the required part.
