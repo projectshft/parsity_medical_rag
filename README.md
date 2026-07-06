@@ -70,7 +70,8 @@ Traditional search fails because:
 ### Prerequisites
 
 - Node.js 18+
-- Free accounts: [Neon](https://neon.tech), [Pinecone](https://pinecone.io), [OpenAI](https://platform.openai.com)
+- Your own free accounts: [Pinecone](https://pinecone.io) and [OpenAI](https://platform.openai.com) — you build the vector store, so these are yours.
+- The **provided, read-only Postgres** connection string (Neon). The company's data is already loaded; you do **not** create or seed a database. Drop it into `DATABASE_URL`.
 
 ### Setup
 
@@ -81,15 +82,17 @@ npm install
 # Copy environment template
 cp .env.example .env
 
-# Add your API keys to .env, then:
+# Add your API keys + the provided DATABASE_URL to .env, then generate
+# the Prisma client (local codegen — this does NOT touch the database):
 npm run db:generate
-npm run db:push
 
 # Start the app
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
+
+> No `db:push` / no ingest: the Postgres data is pre-loaded and read-only. You point at it and build the vector store on top (`npm run vectorize`). Peek at the data anytime with `npm run db:studio`.
 
 ---
 
@@ -114,10 +117,7 @@ medical-rag/
 ├── scripts/
 │   └── ingest-coherent.ts  # Data ingestion
 ├── data/                   # Patient data (Synthea)
-└── docs/
-    ├── WEEK1-INTRO.html    # Presentations
-    ├── WEEK2-CHUNKING.html
-    └── ...
+└── docs/                   # Challenge specs + reference docs
 ```
 
 ---
