@@ -13,10 +13,8 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:migrate": "prisma migrate dev",
     "ingest": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/ingest-coherent.ts",
     "vectorize": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/vectorize.ts",
-    "search": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/search.ts",
     "bible:fixed": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/chunk-fixed.ts",
     "bible:smart": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/chunk-smart.ts",
     "bible:audit": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/audit.ts"
