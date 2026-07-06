@@ -8,6 +8,28 @@ export const pinecone = new Pinecone({
 export const INDEX_NAME = process.env.PINECONE_INDEX || "medical-notes";
 
 /**
+ * Retry a Pinecone call on transient network errors. Bulk upserts intermittently
+ * hit ECONNRESET / "fetch failed" / PineconeConnectionError on some networks;
+ * without a retry the whole ingest aborts partway. Retries with backoff.
+ */
+async function withPineconeRetry<T>(fn: () => Promise<T>, tries = 5): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const code = (err as { cause?: { code?: string } })?.cause?.code;
+      const transient =
+        code === "ECONNRESET" ||
+        code === "EPIPE" ||
+        /ECONNRESET|EPIPE|fetch failed|Request failed to reach Pinecone|network/i.test(msg);
+      if (!transient || attempt >= tries) throw err;
+      await new Promise((r) => setTimeout(r, 1000 * attempt));
+    }
+  }
+}
+
+/**
  * Ensure the Pinecone index exists, create if not
  */
 export async function ensureIndexExists(): Promise<void> {
@@ -75,7 +97,7 @@ export async function upsertChunks(chunks: MedicalChunk[]): Promise<number> {
       },
     }));
 
-    await index.upsert(vectors);
+    await withPineconeRetry(() => index.upsert(vectors));
     totalUpserted += vectors.length;
   }
 
