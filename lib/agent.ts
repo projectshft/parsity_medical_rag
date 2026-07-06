@@ -1,28 +1,35 @@
 import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { executeQuery, formatResultsForLLM } from "./query-executor";
-import { findPatientByName } from "./sql-queries";
+import { analyzeQuery } from "./query-analyzer";
+import type { QueryAnalysis } from "./query-analyzer";
+import { executeStructuredQuery, findPatientByName } from "./sql-queries";
+import { searchClinicalNotes } from "./vector-search";
+import { formatResultsForLLM } from "./query-executor";
+import type { QueryResult } from "./types";
 import { traced } from "./langsmith";
 import { detectSchedulingIntent } from "./scheduling";
 
-const SYSTEM_PROMPT = `You are a helpful medical records assistant. You help users query and understand medical records from FHIR data.
+/**
+ * Multi-agent chat pipeline:
+ *
+ *   router  →  [ sql agent ‖ vector agent ]  →  aggregator  →  stream
+ *
+ * 1. ROUTER      — reads the question, decides which specialist agents to run.
+ * 2. SPECIALISTS — the SQL agent (exact facts) and the vector agent (meaning)
+ *                  run IN PARALLEL; each returns only its slice.
+ * 3. AGGREGATOR  — an LLM synthesizes both slices into one grounded answer,
+ *                  streamed back to the client (Vercel AI SDK `streamText`).
+ */
 
-Important guidelines:
-- Provide accurate information based only on the retrieved medical records
-- If information is not in the records, clearly state that
-- Never make up or infer medical information that isn't explicitly in the records
-- Present information in a clear, organized manner
-- Use medical terminology appropriately but explain it when needed
-- Respect patient privacy - only discuss records in the context provided
-- If asked about multiple patients, organize responses by patient
-- Highlight important medical information like diagnoses, medications, and allergies
-- Include dates when available to provide temporal context
+const AGGREGATOR_PROMPT = `You are a medical records assistant. Two specialist agents have already retrieved data for you: a SQL agent (exact facts — patients, conditions, medications, labs, counts) and a vector-search agent (relevant clinical notes, matched by meaning). Your job is to synthesize their results into one clear answer.
 
-When presenting medical information:
-- Group related information together (e.g., all medications, all conditions)
-- Note any potentially concerning findings
-- Provide context for lab values when available
-- When the records include a population statistic or count, report that number directly`;
+Guidelines:
+- Answer ONLY from the retrieved data below. If it isn't there, say so plainly — never invent or infer medical information.
+- When the data includes a count or population statistic, report that number directly.
+- Group related information (all conditions, all medications) and include dates for temporal context.
+- Explain medical terminology when it helps; flag anything potentially concerning.
+- If asked about multiple patients, organize the response by patient.
+- Respect privacy: discuss only the records provided.`;
 
 const SCHEDULING_SYSTEM_PROMPT = `You are a helpful medical records assistant that can also help schedule patient appointments.
 
@@ -48,43 +55,72 @@ export interface AgentResponse {
   };
 }
 
+// --- The agents -----------------------------------------------------------
+
+/** ROUTER: massage the question into a plan — which agents to run, with what. */
+async function routeQuery(query: string): Promise<QueryAnalysis> {
+  return traced("router", () => analyzeQuery(query), {
+    runType: "chain",
+    inputs: { query },
+  });
+}
+
+/** SQL AGENT: exact structured facts from Postgres. */
+async function runSqlAgent(analysis: QueryAnalysis) {
+  return traced("sql_agent", () => executeStructuredQuery(analysis), {
+    runType: "chain",
+    inputs: { intent: analysis.intent },
+  });
+}
+
+/** VECTOR AGENT: meaning-based search over the clinical notes. */
+async function runVectorAgent(analysis: QueryAnalysis, query: string) {
+  const semanticQuery = analysis.semanticQuery || query;
+  return traced("vector_agent", () => searchClinicalNotes(semanticQuery, { topK: 10 }), {
+    runType: "retriever",
+    inputs: { query: semanticQuery },
+  });
+}
+
+// --- Orchestration --------------------------------------------------------
+
 export async function runAgent(
   query: string,
   conversationHistory: Message[] = []
 ): Promise<AgentResponse> {
-  // Check for scheduling intent first (pass conversation history for context)
+  // Scheduling is a separate intent detector (unchanged). Only offer a
+  // scheduling card when the named patient actually exists in the records.
   const schedulingIntent = await detectSchedulingIntent(query, conversationHistory);
-
-  // Only schedule if the named patient actually exists in the records.
-  // A request with no name, or a name that matches no patient, must NOT
-  // produce a scheduling card.
   let matchedPatient: { firstName: string | null; lastName: string | null } | null = null;
   if (schedulingIntent.isSchedulingRequest && schedulingIntent.patientName) {
     const matches = await findPatientByName(schedulingIntent.patientName);
     matchedPatient = matches[0] ?? null;
   }
-  const willSchedule =
-    schedulingIntent.isSchedulingRequest && matchedPatient !== null;
+  const willSchedule = schedulingIntent.isSchedulingRequest && matchedPatient !== null;
 
-  // Run the hybrid query system: analyze the query, route it to SQL and/or
-  // vector search, and format the combined result for the LLM. This is the
-  // same executeQuery the /api/query endpoint uses — so the chat answers
-  // structured questions (counts, filters) AND semantic ones.
-  const queryResult = await traced(
-    "execute_query",
-    () => executeQuery(query, { vectorTopK: 10 }),
-    { runType: "chain", inputs: { query } }
-  );
+  // 1. ROUTER — decide which specialist agents to run.
+  const analysis = await routeQuery(query);
+  const useSql = analysis.requiresSQL;
+  // Fall back to a note search when the router is unsure (neither flag set).
+  const useVector = analysis.requiresVector || (!analysis.requiresSQL && !analysis.requiresVector);
 
-  const context = formatResultsForLLM(queryResult);
+  // 2. SPECIALIST AGENTS — run in parallel; each returns only its slice.
+  const [sqlResults, vectorResults] = await Promise.all([
+    useSql ? runSqlAgent(analysis) : Promise.resolve(undefined),
+    useVector ? runVectorAgent(analysis, query) : Promise.resolve(undefined),
+  ]);
 
-  const analysisInfo = `Query Analysis:
-- Intent: ${queryResult.analysis.intent}
-- Requires SQL: ${queryResult.analysis.requiresSQL}
-- Requires Vector Search: ${queryResult.analysis.requiresVector}`;
+  // 3. AGGREGATOR — hand both slices to the LLM to synthesize and stream.
+  const result: QueryResult = { analysis };
+  if (sqlResults) result.sqlResults = sqlResults;
+  if (vectorResults) result.vectorResults = vectorResults;
+  const context = formatResultsForLLM(result);
 
-  // If the user asked to schedule but no patient matched, tell the model to
-  // say so and book nothing (the UI will show no scheduling card).
+  const analysisInfo = `Routing plan:
+- Intent: ${analysis.intent}
+- SQL agent: ${useSql ? "ran" : "skipped"}
+- Vector agent: ${useVector ? "ran" : "skipped"}`;
+
   const schedulingNote =
     schedulingIntent.isSchedulingRequest && !matchedPatient
       ? `\n\nNote: The user asked to schedule an appointment${
@@ -92,10 +128,8 @@ export async function runAgent(
         }, but no matching patient was found in the records. Tell the user you could not find that patient and ask them to verify the name. Do NOT confirm or suggest an appointment.`
       : "";
 
-  // Use the scheduling prompt only when we'll actually offer to schedule.
-  const systemPrompt = willSchedule ? SCHEDULING_SYSTEM_PROMPT : SYSTEM_PROMPT;
+  const systemPrompt = willSchedule ? SCHEDULING_SYSTEM_PROMPT : AGGREGATOR_PROMPT;
 
-  // Build messages array
   const messages = [
     ...conversationHistory.map((m) => ({
       role: m.role as "user" | "assistant",
@@ -103,18 +137,16 @@ export async function runAgent(
     })),
     {
       role: "user" as const,
-      content: `${analysisInfo}\n\nRetrieved Data:\n${context}\n\nUser question: ${query}${schedulingNote}`,
+      content: `${analysisInfo}\n\nRetrieved data:\n${context}\n\nUser question: ${query}${schedulingNote}`,
     },
   ];
 
-  // Stream response
   const stream = streamText({
     model: openai("gpt-4o-mini"),
     system: systemPrompt,
     messages,
   });
 
-  // Return a scheduling action only when a real patient was matched.
   return {
     stream,
     schedulingAction:
