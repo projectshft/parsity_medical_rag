@@ -38,7 +38,7 @@ Big re-scope (Brian). **Core framing:** you're joining a company that *already h
 
 **Student-branch reconciliation plan (do alongside the phases):** `student` = skeletons + failing specs; it must track the restructure.
 - ✅ `scripts/vectorize.ts` = STUB on student (Week 1 build-it exercise); solution on instructor/main. (7b7388d)
-- ✅ `Note` table + `noteRowFromChunk` = provided infra on student; upload route stays a STUB (still CHALLENGE-UPLOAD-API).
+- ✅ `Note` table + `noteRowFromChunk` = provided infra on student. **Upload route REMOVED** (button + `app/upload/` + `app/api/upload/` + `CHALLENGE-UPLOAD-API.md` deleted): the company already has its data; students *sync* it (vectorize homework, `w1-06-vectorize.md`) rather than re-upload notes via a route.
 - ⬜ **Pre-loaded DB:** students do NOT run the FHIR ingest — they connect to the pre-loaded Neon DB (read-only role, or a per-student Neon branch). Update student setup/day-02 + `.env.example`: `DATABASE_URL` = the provided DB; no ingest step. `scripts/ingest-coherent.ts` stays only as reference (students don't run it).
 - ⬜ **Students still IMPLEMENT (keep as student stubs, just re-map to new week #s):** vectorize (W1, done), `searchClinicalNotes`/vector-search (W1), query analyzer + agent / hybrid search (W2), MCP server (W3), RBAC/PII (W5). Don't rewrite — relabel.
 - ⬜ **No student code to delete:** `scripts/bible/` stay (homework); poisoned-docs stays (optional homework). It's mostly re-labeling which week each stub belongs to.
@@ -114,7 +114,7 @@ Done so far: README (rev 2), day-01 (rev 3), days 02–06 (Batch 2), days 07–1
 | 28 | Observability: implement traced(), debugger-for-the-past | ✅ written | 6 |
 | 29 | HITL scheduling: propose/approve/execute, Cal.com | ✅ written | 6 |
 | 30 | Build day: 4th tool + audit trail + adversarial demo (🎥) | ✅ written | 6 |
-| 31 | Upload API: additive + idempotent (CHALLENGE-UPLOAD-API) | ✅ written | 7 |
+| 31 | ~~Upload API~~ REMOVED — sync-not-upload; vectorize homework replaces it | ✅ dropped | — |
 | 32 | RBAC I: sessions/login/guard (CHALLENGE-RBAC P1-3) | ✅ written | 7 |
 | 33 | RBAC II: role-shaped responses + PII (CHALLENGE-RBAC P4) | ✅ written | 7 |
 | 34 | Adversarial: poisoned document (CHALLENGE-POISONED-DOCS) | ✅ written | 7 |
