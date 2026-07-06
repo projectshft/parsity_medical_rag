@@ -81,6 +81,10 @@ export async function findPatientByName(name: string) {
         orderBy: { effectiveDate: 'desc' },
         take: 20,
       },
+      encounters: {
+        orderBy: { startDate: 'desc' },
+        take: 20,
+      },
     },
     take: 5,
   });
@@ -105,10 +109,40 @@ export async function getPatientSummary(patientId: string) {
         orderBy: { effectiveDate: 'desc' },
         take: 50,
       },
+      encounters: {
+        orderBy: { startDate: 'desc' },
+      },
     },
   });
 
   return patient;
+}
+
+// Encounter class codes (HL7 v3 ActCode) -> human labels
+export const ENCOUNTER_CLASS_LABELS: Record<string, string> = {
+  AMB: 'ambulatory',
+  EMER: 'emergency',
+  IMP: 'inpatient',
+  ACUTE: 'inpatient acute',
+  NONAC: 'inpatient non-acute',
+  OBSENC: 'observation',
+  SS: 'short stay',
+  VR: 'virtual',
+};
+
+/** All encounters (visits) for a patient, most recent first */
+export async function getPatientEncounters(patientId: string) {
+  return prisma.encounter.findMany({
+    where: { patientId },
+    orderBy: { startDate: 'desc' },
+  });
+}
+
+/** Count encounters of a class — e.g. countEncountersByClass('EMER') for ER visits */
+export async function countEncountersByClass(classCode: string) {
+  return prisma.encounter.count({
+    where: { classCode: classCode.toUpperCase() },
+  });
 }
 
 /**

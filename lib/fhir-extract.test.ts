@@ -5,6 +5,7 @@ import {
   processBundle,
   extractPatient,
   extractNote,
+  noteRowFromChunk,
   cleanName,
   FHIRBundle,
   FHIRResource,
@@ -102,6 +103,18 @@ const fullBundle: FHIRBundle = {
         subject: { reference: 'urn:uuid:patient-123' },
       },
     },
+    {
+      resource: {
+        resourceType: 'Encounter',
+        id: 'enc-1',
+        status: 'finished',
+        class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB' },
+        type: [{ coding: [{ display: 'Encounter for problem' }] }],
+        period: { start: '2001-05-10T02:05:40-04:00', end: '2001-05-10T02:20:40-04:00' },
+        serviceProvider: { display: 'PCP123' },
+        subject: { reference: 'urn:uuid:patient-123' },
+      },
+    },
     { resource: makeDocumentReference() },
     { resource: makeDocumentReference({ id: 'doc-2' }) },
     // Resources we intentionally don't extract should be ignored, not crash
@@ -150,6 +163,21 @@ describe('extractNote (what goes into Pinecone)', () => {
     const doc = makeDocumentReference({ type: undefined });
     const note = extractNote(doc, 'patient-123', 'Abe Frami');
     expect(note?.metadata.type).toBe('Clinical Note');
+  });
+});
+
+describe('noteRowFromChunk (what goes into Postgres — the system of record)', () => {
+  it('maps a note chunk to a Postgres row', () => {
+    const chunk = extractNote(makeDocumentReference(), 'patient-123', 'Abe Frami')!;
+    const row = noteRowFromChunk(chunk);
+    expect(row).toMatchObject({
+      id: 'doc-1',
+      patientId: 'patient-123',
+      type: 'History and physical note',
+      content: NOTE_TEXT,
+    });
+    expect(row.date).toBeInstanceOf(Date);
+    expect(row.date?.toISOString().slice(0, 10)).toBe('1926-06-19');
   });
 });
 
@@ -249,6 +277,18 @@ describe('processBundle (structured rows)', () => {
         id: 'med-1',
         display: 'Simvastatin 10 MG Oral Tablet',
         status: 'stopped',
+      }),
+    ]);
+  });
+
+  it('extracts encounters with class code, type, and status', () => {
+    expect(extracted.encounters).toEqual([
+      expect.objectContaining({
+        id: 'enc-1',
+        patientId: 'patient-123',
+        classCode: 'AMB',
+        type: 'Encounter for problem',
+        status: 'finished',
       }),
     ]);
   });

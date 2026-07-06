@@ -10,13 +10,15 @@ const QueryRequestSchema = z.object({
 });
 
 /**
- * Direct query endpoint for programmatic access to the hybrid RAG system
+ * Direct query endpoint for the hybrid RAG system (the clinician channel).
+ *
+ * Access is channel-based, not login-based: this direct endpoint returns full
+ * data by default. The front-office channel (the MCP server) is the one that
+ * always obscures PII. Callers here may still opt into obscuring.
  *
  * POST /api/query
  * Body: { query: string, vectorTopK?: number, obscurePII?: boolean, format?: 'raw' | 'formatted' }
  * Headers: X-Obscure-PII: true (optional, overrides body.obscurePII)
- *
- * Returns: QueryResult with analysis, SQL results, and vector results
  */
 export async function POST(request: Request) {
   try {
@@ -24,16 +26,14 @@ export async function POST(request: Request) {
       await request.json()
     );
 
-    // Check header for PII obscuring (takes precedence over body)
-    const headerObscure = request.headers.get('x-obscure-pii');
-    const shouldObscure = headerObscure === 'true' ? true :
-                          headerObscure === 'false' ? false :
-                          obscurePII;
+    // Optional PII obscuring: header takes precedence over body.
+    const headerObscure = request.headers.get("x-obscure-pii");
+    const shouldObscure =
+      headerObscure === "true" ? true : headerObscure === "false" ? false : obscurePII;
 
     const result = await executeQuery(query, { vectorTopK, obscurePII: shouldObscure });
 
-    // Return formatted text if requested
-    if (format === 'formatted') {
+    if (format === "formatted") {
       return NextResponse.json({
         ...result,
         formatted: formatResultsForLLM(result, shouldObscure),
@@ -47,9 +47,7 @@ export async function POST(request: Request) {
     }
     console.error("Query error:", error);
     return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Internal server error",
-      },
+      { error: error instanceof Error ? error.message : "Internal server error" },
       { status: 500 }
     );
   }

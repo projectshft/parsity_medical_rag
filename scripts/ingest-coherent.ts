@@ -18,18 +18,56 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { upsertChunks, deleteAllChunks, MedicalChunk } from '../lib/pinecone';
-import { processBundle, ExtractedBundle, FHIRBundle } from '../lib/fhir-extract';
+import { processBundle, noteRowFromChunk, ExtractedBundle, FHIRBundle } from '../lib/fhir-extract';
 
-const prisma = new PrismaClient();
+// Bulk loads are far more reliable on Neon's DIRECT (non-pooled) connection —
+// the transaction pooler drops long-running bulk sessions (P1017/P1001). Derive
+// the direct URL from DATABASE_URL by dropping the "-pooler" suffix (Neon
+// convention), or set DIRECT_URL explicitly.
+const directUrl =
+  process.env.DIRECT_URL ?? process.env.DATABASE_URL?.replace('-pooler.', '.');
 
-const SQL_BATCH_SIZE = 1000;
+const prisma = new PrismaClient(
+  directUrl ? { datasources: { db: { url: directUrl } } } : undefined
+);
+
+const SQL_BATCH_SIZE = 500;
+
+/**
+ * Neon's pooled connection can drop during a long bulk load (the full dataset
+ * has ~670k observations). Retry transient connection drops — Prisma reopens
+ * the connection on the next query — so a from-scratch full ingest completes.
+ */
+async function withRetry<T>(fn: () => Promise<T>, tries = 5): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const code = (err as { code?: string })?.code;
+      const transient =
+        code === 'P1017' || // server closed the connection (pooler drop)
+        code === 'P1001' || // can't reach server (Neon compute waking / transient)
+        /closed the connection|reach database server|ECONNRESET|Connection terminated|timeout/i.test(
+          msg
+        );
+      if (!transient || attempt >= tries) throw err;
+      console.warn(`  (transient DB drop, retry ${attempt}/${tries - 1})`);
+      await new Promise((r) => setTimeout(r, 2000 * attempt));
+    }
+  }
+}
 
 async function clearDatabase() {
-  // Children first (cascades would handle it, but be explicit)
-  await prisma.medication.deleteMany();
-  await prisma.observation.deleteMany();
-  await prisma.condition.deleteMany();
-  await prisma.patient.deleteMany();
+  // TRUNCATE, not DELETE: DELETE leaves dead rows that still count against
+  // Neon's project size limit, so a re-ingest can blow the cap while the old
+  // data is still occupying space. TRUNCATE reclaims it immediately. CASCADE
+  // clears the child tables via their foreign keys.
+  await withRetry(() =>
+    prisma.$executeRawUnsafe(
+      'TRUNCATE TABLE "notes","observations","medications","encounters","conditions","patients" CASCADE'
+    )
+  );
 }
 
 async function insertBatched<T>(
@@ -40,7 +78,7 @@ async function insertBatched<T>(
   let inserted = 0;
   for (let i = 0; i < rows.length; i += SQL_BATCH_SIZE) {
     const batch = rows.slice(i, i + SQL_BATCH_SIZE);
-    const result = await insert(batch);
+    const result = await withRetry(() => insert(batch));
     inserted += result.count;
   }
   console.log(`  ${label}: ${inserted} rows`);
@@ -72,6 +110,7 @@ async function main() {
   const conditions: ExtractedBundle['conditions'] = [];
   const observations: ExtractedBundle['observations'] = [];
   const medications: ExtractedBundle['medications'] = [];
+  const encounters: ExtractedBundle['encounters'] = [];
   const notes: MedicalChunk[] = [];
 
   for (const file of files) {
@@ -88,6 +127,7 @@ async function main() {
       conditions.push(...extracted.conditions);
       observations.push(...extracted.observations);
       medications.push(...extracted.medications);
+      encounters.push(...extracted.encounters);
       notes.push(...extracted.notes);
     } catch (err) {
       console.error(`  Error processing ${file}:`, err);
@@ -97,7 +137,7 @@ async function main() {
   console.log(
     `Extracted: ${patients.length} patients, ${conditions.length} conditions, ` +
       `${observations.length} observations, ${medications.length} medications, ` +
-      `${notes.length} clinical notes\n`
+      `${encounters.length} encounters, ${notes.length} clinical notes\n`
   );
 
   // --- Postgres ---
@@ -116,6 +156,14 @@ async function main() {
   );
   await insertBatched('medications', medications, (batch) =>
     prisma.medication.createMany({ data: batch, skipDuplicates: true })
+  );
+  await insertBatched('encounters', encounters, (batch) =>
+    prisma.encounter.createMany({ data: batch, skipDuplicates: true })
+  );
+  // Notes go to Postgres too — it's the system of record. Pinecone (below) is
+  // a derived index built from these rows.
+  await insertBatched('notes', notes.map(noteRowFromChunk), (batch) =>
+    prisma.note.createMany({ data: batch, skipDuplicates: true })
   );
 
   // --- Pinecone ---

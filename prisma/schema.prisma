@@ -39,6 +39,8 @@ model Patient {
   conditions   Condition[]
   observations Observation[]
   medications  Medication[]
+  encounters   Encounter[]
+  notes        Note[]
 
   @@index([lastName, firstName])
   @@map("patients")
@@ -93,4 +95,36 @@ model Medication {
   @@index([patientId])
   @@index([display])
   @@map("medications")
+}
+
+// Clinical notes live here too: Postgres is the system of record for ALL data.
+// Pinecone is a DERIVED index (note text + metadata) kept in sync from this table.
+model Note {
+  id        String    @id // DocumentReference id — also the vector id in Pinecone
+  patientId String
+  type      String? // e.g. "History and physical note"
+  date      DateTime?
+  content   String // the full note text (~450 chars avg); the source of truth
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("notes")
+}
+
+model Encounter {
+  id              String    @id
+  patientId       String
+  classCode       String? // HL7 v3 ActCode: AMB (ambulatory) | EMER (emergency) | IMP (inpatient)
+  type            String? // e.g. "Encounter for problem", "General examination of patient"
+  status          String? // finished | in-progress | planned | cancelled
+  startDate       DateTime?
+  endDate         DateTime?
+  serviceProvider String? // organization display, if present
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([classCode])
+  @@map("encounters")
 }

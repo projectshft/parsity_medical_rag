@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import Link from "next/link";
 
 interface Message {
   role: "user" | "assistant";
@@ -23,6 +22,15 @@ interface SchedulingState {
   isSubmitting: boolean;
   result?: { success: boolean; message: string };
 }
+
+// Example queries that show the range: structured counts, a specific
+// patient, semantic note search, and a human-in-the-loop action.
+const EXAMPLE_QUERIES = [
+  "How many patients have hypertension?",
+  "Which patients have had a stroke?",
+  "What do the clinical notes say about smoking?",
+  "Summarize the health history of one of the patients",
+];
 
 export default function Home() {
   const [input, setInput] = useState("");
@@ -54,11 +62,9 @@ export default function Home() {
     return { text: content };
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isStreaming) return;
+  const sendQuery = async (userMessage: string) => {
+    if (!userMessage.trim() || isStreaming) return;
 
-    const userMessage = input.trim();
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsStreaming(true);
@@ -124,6 +130,11 @@ export default function Home() {
     } finally {
       setIsStreaming(false);
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendQuery(input.trim());
   };
 
   const handleScheduleSubmit = async () => {
@@ -206,12 +217,6 @@ export default function Home() {
             Medical Records Assistant
           </h1>
         </div>
-        <Link
-          href="/upload"
-          className="px-4 py-2 text-sm bg-copilot-input hover:bg-copilot-border rounded-lg transition-colors text-copilot-text"
-        >
-          Upload Records
-        </Link>
       </header>
 
       {/* Messages */}
@@ -233,11 +238,28 @@ export default function Home() {
                 />
               </svg>
             </div>
-            <p className="text-lg mb-2">Ask about medical records</p>
-            <p className="text-sm text-center max-w-md">
-              Query patient information, lab results, medications, diagnoses,
-              and more. You can also schedule appointments by saying &quot;schedule [patient name]&quot;.
+            <p className="text-lg mb-2 text-copilot-text">
+              Ask anything about your patient records
             </p>
+            <p className="text-sm text-center max-w-lg">
+              Patient data is split between structured fields (diagnoses,
+              medications, labs) and free-text clinical notes. This assistant
+              searches <strong className="text-copilot-text">both</strong> —
+              exact counts and filters from the database, meaning-based search
+              over the notes — and answers in plain English, grounded in the
+              actual records. You can also schedule appointments.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-2 max-w-lg">
+              {EXAMPLE_QUERIES.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => sendQuery(q)}
+                  className="px-3 py-2 text-sm rounded-lg border border-copilot-border bg-copilot-sidebar text-copilot-text hover:border-copilot-accent transition-colors"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="max-w-3xl mx-auto space-y-4">
