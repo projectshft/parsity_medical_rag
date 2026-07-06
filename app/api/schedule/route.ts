@@ -10,6 +10,8 @@ import { traced } from '@/lib/langsmith';
 
 export async function POST(request: Request) {
 	try {
+		// The gate here is the human-in-the-loop confirmation in the UI, not a
+		// login — a scheduling card only posts after the user confirms it.
 		const body = await request.json();
 		const { patientName, dateTime, notes } = body;
 
