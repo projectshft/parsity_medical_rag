@@ -6,7 +6,7 @@
 
 - Give the system its first ability to *act* on the world — booking appointments
 - Build the human-in-the-loop pattern: AI proposes, human approves, code executes
-- Read the intent detection (structured outputs again), the confirmation card, and the audited action
+- Read the intent detection (structured outputs again), the confirmation card, and the traced action
 
 ## Concept
 
@@ -54,7 +54,7 @@ Two things to notice. First, the nullable fields: `patientName` is `.nullable()`
 
 Run the loop in the chat UI: *"schedule Abe for next Tuesday at 2pm"* → a card appears with extracted values → adjust the time → confirm.
 
-> **Known caveat — the schedule button returns 401.** On the finished system, `app/api/schedule/route.ts` sits behind an RBAC check (`requireAuth(request, ['STAFF'])`) built in the final block — scheduling is a STAFF-only action. There is **no login UI yet** and no seeded users, so a normal browser session is unauthenticated and the confirm button returns **401**. This is *expected*, not a bug. The propose → approve *flow* is fully built: the model's proposal, the confirmation card, the extraction — all work and are worth watching. It's the wall in front of the route that stops the final POST. Treat it as the seam where this block (a human gate for *actions*) meets the next (access control for *people*, not just API keys). If you want a real booking end-to-end, hit the route with a STAFF-authenticated request, or relax the role check on a throwaway branch.
+> **What gates this route is the confirmation, not a login.** There's no auth check in front of `/api/schedule` — the gate is the human click on the card. That's the whole point of the pattern: the action is held back not by *who* you are but by *the requirement that a person approve the actual parameters*. The only thing that stops a real booking is configuration: `isCalConfigured()` guards `scheduleAppointment`, so without `CAL_API_KEY` + `CAL_EVENT_TYPE_ID` the route returns a clean **503** rather than booking. The propose → approve *flow* is fully built and worth watching regardless — the model's proposal, the confirmation card, the extraction all work. If you want a real booking end-to-end, set the two Cal.com env vars and confirm the card.
 
 ### Common mistakes
 
@@ -67,7 +67,7 @@ Run the loop in the chat UI: *"schedule Abe for next Tuesday at 2pm"* → a card
 
 Spend **no more than 45 minutes** here.
 
-1. Trigger the flow in the chat UI and watch the card appear with extracted values. (The confirm may 401 — expected, see the caveat. The proposal step is what you're studying.) If you have Cal.com configured and a way past the RBAC wall, book one real appointment and find the trace.
+1. Trigger the flow in the chat UI and watch the card appear with extracted values. (Without Cal.com configured the confirm returns a clean 503 — expected; the proposal step is what you're studying.) If you have Cal.com configured, book one real appointment and find the trace.
 2. Probe the gate: try to schedule with no patient name; with a date in the past; while mid-conversation about a *different* patient (`detectSchedulingIntent` reads the last 4 messages — does that help or grab the wrong name from history?). Record behaviors in your failure notes — these are new bait categories for a system that can act.
 3. In your notes: list two more actions this system might someday take (refill request? referral letter?) and, for each, place it on the reversibility/cost grid — gate, or no gate?
 
@@ -81,7 +81,7 @@ Spend **no more than 45 minutes** here.
 
 **The boundary:** the LLM produces a *proposal* — structured, nullable-where-unknown parameters for a human to review; it never holds the trigger that causes the external effect. (MCP taught you the same shape from the client side; the confirmation card is your version of Claude Desktop's approval prompt.)
 
-**Re-validation at the route:** the route is an HTTP endpoint, and the UI is only its *polite* caller — anything that can POST can hit it with missing or malformed fields. Validation at the boundary belongs to the boundary; trusting upstream callers is how "the UI validates it" becomes a postmortem sentence. This is also exactly why the finished route grows an auth check — the 401 you hit isn't the flow failing, it's the boundary doing its job before there's a login to satisfy it.
+**Re-validation at the route:** the route is an HTTP endpoint, and the UI is only its *polite* caller — anything that can POST can hit it with missing or malformed fields. Validation at the boundary belongs to the boundary; trusting upstream callers is how "the UI validates it" becomes a postmortem sentence. The confirmation card is a UX gate, not a security boundary — the route re-validates because the card can be bypassed by anything that speaks HTTP.
 
 **The history-contamination probe** (scheduling while discussing another patient) is the subtle one — extraction over conversation history can grab a *contextually present but wrong* name with full confidence. If you caught it: that's a few-shot example for the scheduling prompt *and* a permanent battery case. If you didn't catch it — it's in the battery now, which is the entire point of keeping one.
 

@@ -119,10 +119,9 @@ Measure and trace a non-deterministic system so "it feels better" becomes a numb
 4. [Evals as the spine: no metric, no decision](w4-04-evals-as-spine.md) 🎥
 
 **Week 5 — Privacy & data**
-Show identifying details only to those allowed to see them.
-1. [RBAC I: sessions, login, and the auth guard](w5-01-rbac-sessions.md)
-2. [RBAC II: role-shaped responses and PII](w5-02-rbac-pii.md)
-3. [Wrap-up: what you built, and where to go next](w5-03-wrap-up.md) 🎥
+Show identifying details only where they belong — no login, just the channel. The front-office (MCP) door always obscures PII; the clinician (direct app) door sees full data.
+1. [PII de-identification and the channel access model](w5-02-rbac-pii.md)
+2. [Wrap-up: what you built, and where to go next](w5-03-wrap-up.md) 🎥
 - 📝 [Homework — Adversarial / poisoned documents](homework-poisoned-docs.md)
 
 🎥 = weekly video deliverable · 📝 = homework (self-paced side project)

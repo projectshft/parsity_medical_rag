@@ -32,15 +32,20 @@ Name this connection when you teach the production-gates block — it turns
 
 | HIPAA requirement | Where the course builds it |
 |---|---|
-| Minimum-necessary access | RBAC (Days 32–33): STAFF can't see PII; role-shaped responses |
-| De-identification | PII obscuring (`lib/pii.ts`, CHALLENGE-PII): pseudonymized names, redacted dates/locations |
-| Audit trail | Audit logging (`mcp-server/audit.ts`, Day 30): who accessed which patient |
+| Minimum-necessary access | The **channel access model** (Week 5): the front-office (MCP) channel exposes only non-identifying tools and never surfaces PII; the direct app is the clinician channel. Enforced by the entry point, not by roles. |
+| De-identification | PII obscuring (`lib/pii.ts`, CHALLENGE-PII): pseudonymized names, redacted dates/locations, scrubbed note text |
 | Don't overshare / leak | Grounding + refusals (Days 22–23), injection defenses (Day 34) |
+
+> **Not built:** an audit trail and RBAC/login. Earlier drafts had role-based
+> access + audit logging; both were removed. Minimum-necessary is now enforced
+> by the **channel** (which door a request comes through), not by roles, and
+> there is no access log. If you want to teach "accountable access / audit," name
+> it as a control a real deployment would add — it isn't in this build.
 
 ### The honest caveat (teach this — don't hide it)
 The course teaches the **technical controls**, not full compliance. Real
 HIPAA compliance also requires: **BAAs with every vendor** (OpenAI,
-Pinecone, Neon, Clerk, Cohere, LangSmith, Cal.com), **HIPAA-eligible
+Pinecone, Neon, Cohere, LangSmith, Cal.com), **HIPAA-eligible
 service tiers** (e.g. OpenAI's zero-retention/BAA path; Pinecone/Neon HIPAA
 tiers), encryption, risk assessments, written policies, training, and breach
 procedures. The **default consumer setups of these APIs are NOT
@@ -73,22 +78,12 @@ suite passes because it mocks external services). They are *intended
 consequences of the build order*, not bugs — but know them before a live
 demo.
 
-### Scheduling from the chat UI returns "Authentication required" (expected)
-- **Why:** Day 29 builds the human-in-the-loop scheduling flow against an
-  open `/api/schedule`. Day 33 (RBAC) then gates that route to
-  `requireAuth(['STAFF'])`. But the chat UI has no sign-in, the `users`
-  table is empty, and there's no `seed-users.ts` on instructor — so the
-  Confirm button POSTs with no session and gets a 401 (shown in the card).
-- **This is correct post-RBAC behavior.** Decision (2026-06-17): leave it.
-  Scheduling *should* require a STAFF login; the UI just doesn't provide one
-  yet.
-- **To make the flow work end-to-end later:** write + run a `seed-users.ts`
-  (a STAFF + a DOCTOR user) and add a minimal sign-in to the UI that POSTs
-  to the existing `/api/auth/login` (sets the httpOnly cookie; same-origin
-  schedule calls then carry it). STAFF can schedule, DOCTOR is 403 — the
-  Day 33 behavior, now visible in the product. Teaching point: the RBAC
-  block produces a login *API* but no login *UI* — closing that gap is a
-  natural exercise/discussion.
+### Scheduling (no auth — the gate is the human confirmation)
+- There is **no login anywhere** in the course. `/api/schedule` is open; the
+  gate on it is the human-in-the-loop confirmation card, not a session. So the
+  Confirm button POSTs and books (when Cal.com is configured) — no 401, no
+  role. If Cal.com isn't configured the route returns 503; the propose→approve
+  flow still demos (the confirmation card appears regardless).
 
 ### Medication queries return nothing useful
 - "Which patients take lisinopril?" — the analyzer extracts the medication,

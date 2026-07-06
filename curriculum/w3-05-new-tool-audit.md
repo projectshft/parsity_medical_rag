@@ -1,61 +1,58 @@
-# Build: A New Tool, with an Audit Trail
+# Build: Add a New Tool
 
-**Needs: the secured MCP server; the traced pipeline**
+**Needs: the connected MCP server; the traced pipeline**
 
 ## Today you will
 
-- Design and ship a new MCP tool, end to end: spec → scopes → implementation → audit → proof
-- Make the audit trail answer real questions — the third security layer, now load-bearing
+- Design and ship a new MCP tool, end to end: spec → implementation → obscuring → proof
+- Make it inherit the front-office contract — non-PII shaped, always-obscured output
+- Prove a foreign model (or the inspector) can discover and call it
 - Record this block's deliverable video
 
-This is a **build**. The training wheels from the earlier MCP lessons are off: you make every decision yourself — what the tool does, what it requires, what it logs, and how you *prove* all three.
+This is a **build**. The training wheels from the earlier MCP lessons are off: you make every decision yourself — what the tool does, what it returns, how it stays non-identifying, and how you *prove* all three by calling it the way a real client would.
 
 ## Concept
 
-Inventory of what this block assembled: your system is now **infrastructure** — tools other AIs call (MCP), with identity and least privilege (keys + scopes), a flight recorder (tracing), and one human-gated write path (scheduling). Today's build forces it all to work *together*, because that's where gaps hide: a new tool is only as secured as the wrapper you remember to apply, and only as accountable as the entries it writes.
+Inventory of what this block assembled: your system is now **infrastructure** — tools other AIs call (MCP), served through a front-office channel that's safe to expose because its tools are non-identifying and every response is obscured, plus a flight recorder (tracing) and one human-gated write path (scheduling). Today's build forces the MCP half to work *for real*, because that's where the design either holds or leaks: a new tool is only as safe as the contract you remember to honor when you write it.
 
-The audit half deserves design thought before code. Logging *that* a tool ran is trivial; an audit trail is designed backwards from **questions someone will one day ask under pressure**:
+The contract from the securing lesson is the whole game here. This channel is safe **because** of two properties, and a new tool has to preserve both or it breaks the door for every tool:
 
-- *Who accessed patient X's records last month?* → entries need key identity + which patients each call touched
-- *What did the key we just revoked actually do while it was live?* → entries queryable by key, with timestamps
-- *Is anyone hitting permission denials repeatedly?* → denials are entries too — failed access is the most interesting access
-- *Did we serve PII, and to whom?* → entries record the scope under which results went out
+- **Non-PII shaped.** The tool answers a front-office question — search, count, summarize-in-aggregate — not "hand me everything about this one named person." A tool whose *purpose* is to emit an identified chart doesn't belong on this channel no matter how you format it.
+- **Obscured output.** Whatever names or identifiers do appear in the result get run through `obscureName` / `formatResultsForLLM(result, true)` before the text leaves. No flag, no exception.
 
-The provided `mcp-server/audit.ts` has the machinery: structured entries, `redactSensitiveFields`, a `withAudit` wrapper, a `logSecurityEvent` for denials, even `withAuthAndAudit` composing the layers. Machinery isn't a trail — the design is choosing entry contents so those four questions have answers.
+Get those right and the new tool is safe by construction, same as the three that shipped. Skip them and you've quietly turned the front-office door into a PII leak with no error to catch it.
 
 ## Implementation
 
 ### 1. Pick your tool
 
-Use the sixth-tool spec you wrote on the wiring lesson if you have one. Otherwise, candidates in rough order of ambition:
+Use the extra-tool spec you wrote on the wiring lesson if you have one. Otherwise, candidates in rough order of ambition:
 
-- `list_conditions` — distinct conditions with patient counts (analytics; `read` scope)
-- `compare_lab_across_patients` — one lab, several patients, values side by side (the brute-force gap many found on the wiring lesson; `read` or `read_pii`? — *a real decision: are lab values attached to patient ids PII?*)
-- `summarize_patient` — narrative summary via your own LLM call *inside* the tool (`read_pii`, and now the costliest tool on the server — relevant below)
+- `list_conditions` — distinct conditions with patient counts (pure aggregate; no names to obscure at all — the *easiest* fit for this channel)
+- `compare_lab_across_patients` — one lab, several patients, values side by side (the brute-force gap many found on the wiring lesson; patient labels must be obscured pseudonyms, and it's *a real decision*: are lab values attached to pseudonymous ids still safe to emit here?)
+- `summarize_patient` — narrative summary via your own LLM call *inside* the tool (front-office-legal *only* if the name is obscured and the summary carries no raw PII from the notes — and now the costliest tool on the server, relevant below)
 
 ### 2. Ship it like it's real
 
 The checklist is the lesson — each item exists because skipping it bit someone:
 
-1. **Spec first**: name, description-as-prompt (the colleague test applies), zod params with `.describe()` on everything
-2. **Scope decision, written down**: which scopes and one sentence why — then added to `TOOL_SCOPES` in `auth.ts`
-3. **Implementation** behind the same auth + audit pattern as the existing tools — if you built `withAuthAndAudit` during the challenge, this is one wrapper call; *feel* the payoff of structural security
-4. **Audit entries** that can answer the four questions for this tool
-5. **Tracing** if the tool makes LLM or retrieval calls — the flight recorder doesn't skip new aircraft
+1. **Spec first**: name, description-as-prompt (the colleague test applies — the description *is* the interface for a model you don't control), zod `inputSchema` with `.describe()` on every field.
+2. **Register it with `registerTool`** (not the deprecated `server.tool`) — match the shape of the three existing tools exactly: `registerTool(name, { description, inputSchema }, handler)`.
+3. **Implementation** thin, calling your existing `lib/` functions — the hard parts already live there. The MCP-specific requirement is the return shape: `{ content: [{ type: 'text', text: '...' }] }`, text for a model to read.
+4. **Honor the contract**: any name or identifier in the output goes through `obscureName` / `formatResultsForLLM(result, true)`. If your tool renders notes, make sure raw PII in the note body is handled the same way the existing formatters handle it. This is the step that keeps the door safe.
+5. **Tracing** if the tool makes LLM or retrieval calls — the flight recorder doesn't skip new aircraft.
 
-### 3. Prove it — the adversarial demo
+### 3. Prove it — the client can call it
 
-Don't show it working; show it **refusing, recording, and recovering**. Run this sequence and capture the output of each step:
+Don't just show the code; show a client *discovering and calling* it. Run this sequence and capture the output of each step:
 
-1. `tools/list` shows the new tool, schema intact
-2. A correctly-scoped key (`MCP_ADMIN_KEY`, or whatever the tool requires) calls it successfully → an audit entry exists in `logs/mcp-audit-<date>.jsonl` with key identity, params (redacted where sensitive), and result summary
-3. An *under*-scoped key (`MCP_API_KEY`, read + read_pii) is denied cleanly → the denial is readable by the calling model, **and the denial is in the log**
-4. A malformed call (bad param types) errors without crashing the server
-5. The log file answers question #1 ("who touched patient X today?") with a one-liner:
+1. `tools/list` (raw pipe, or the inspector) shows the new tool, schema intact:
    ```bash
-   jq -c 'select(.success==false)' logs/mcp-audit-$(date +%F).jsonl
+   echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | npx ts-node mcp-server/index.ts
    ```
-   `grep`/`jq` is fine; the point is the entry *contains* the answer.
+2. A `tools/call` round-trip (inspector is painless, or a plain-language ask in Claude Desktop) invokes it successfully and returns well-shaped text.
+3. **The obscuring check**: the returned text contains **pseudonyms, never a real name.** This is the proof that matters — a new tool that returns real names failed the build even if it "works."
+4. A malformed call (bad param types) errors without crashing the server — the handler's `try/catch` returns `isError: true` text, not a dead process.
 
 ### 4. Close the loop on cost
 
@@ -63,28 +60,28 @@ One question, answered with the trace data you now have: **what does one call to
 
 ### Common mistakes
 
-- **Auth added, audit forgotten (or vice versa).** They're separate layers and it's easy to wire one. The adversarial demo catches this: step 3 requires *both* (a denial that's denied but not logged fails the demo).
-- **Audit entries that summarize too aggressively.** `"called compare_lab"` can't answer "who touched patient X" — the patient ids belong in the entry. But the *lab values* might not (that's serving PII into a log file). Redaction is a per-field decision, and `redactSensitiveFields` is a starting point, not an exemption from thinking.
-- **A demo of the happy path.** If your proof sequence has no denial and no malformed call, you proved the tool runs, not that it's secured. The refusals are the deliverable.
-- **Scope inflation by convenience.** "I'll just require `read` so testing is easier" — and now lab values flow to analytics keys forever, because nobody revisits scope decisions. The one-sentence-why in writing is the antidote: future-you can re-litigate a decision that has a recorded rationale.
+- **A new tool that returns real names.** The single most important failure to catch. The three existing tools obscure on every path; your new one has to as well, or it breaks the front-office contract for the whole channel. Your proof sequence's step 3 exists to catch exactly this.
+- **A tool whose *job* is a named chart.** `get_patient`-shaped tools don't belong on this door — obscuring the name while dumping the full identified record is theater. If the tool's purpose can't survive pseudonymization, it's a clinician-channel tool, not an MCP tool.
+- **Using the deprecated `server.tool`.** The API here is `registerTool(name, { description, inputSchema }, handler)`. Copy the shape of the existing three; don't reintroduce the old signature.
+- **A demo of the happy path only.** If your proof has no obscuring check and no malformed call, you proved the tool runs, not that it's *safe* and *robust*. The obscuring check is the deliverable.
 
 ## Your turn
 
-This *is* the your-turn: the tool, the checklist, the five-step adversarial demo with captured output, and the cost figure. Spend **no more than 30 minutes** on tool choice — the value is in steps 2–4, not in tool novelty.
+This *is* the your-turn: the tool, the checklist, the four-step proof sequence with captured output, and the cost figure. Spend **no more than 30 minutes** on tool choice — the value is in steps 2–4, not in tool novelty.
 
 ## Check yourself
 
-- Your audit log shows a burst of denials from one key at 2am. Walk through what you can determine from the entries alone, and what you'd do next.
-- Why is "denials are logged" arguably more important than "successes are logged"?
+- You add a tool that returns clinical-note text. What's your obscuring responsibility, and where does it live in the code?
+- Why is "a client can discover and call it" a stronger proof than "the function returns the right data when I call it directly"?
 
 <details>
 <summary>Solution / discussion</summary>
 
-**The 2am burst:** from entries alone you can read *which key* (identity → which client/team it was issued to), *which tools* it tried (denied scope reveals what it was reaching for), *the parameters* it attempted (redacted, but shapes — e.g., sequential patient ids — tell you if it's enumeration), and *the cadence* (human-paced or scripted). Next moves, in order: revoke or suspend the key (cheap, reversible — the HITL grid applies to incident response too), then contact the key's owner — a compromised client and a curious teammate look identical in logs, and only one of them is an incident.
+**The note-text tool:** your responsibility is that no PII leaves in the text — the patient label obscured to a pseudonym (`obscureName`), *and* raw identifiers inside the note body (names, SSNs, phones) handled the way the existing formatters do. It lives in the tool's return path, right before you build the `text` string — the same place `search_patients` calls `formatResultsForLLM(result, true)` and the notes formatter runs each name through `obscureName`. Obscuring is a property of what you *emit*, so it belongs at the emission point, not scattered through the query.
 
-**Denials over successes:** successes mostly tell you the system worked as designed; denials tell you someone wanted what they couldn't have — misconfiguration, confusion, or attack, but never noise. A trail that only records successes is a diary; one that records refusals is a tripwire. (Both matter: the *who touched patient X* question is answered by successes. The four questions need both halves.)
+**Discovery as proof:** calling your function directly tests *your* code in *your* process, with your assumptions. `tools/list` + `tools/call` tests the actual contract a foreign client consumes — that the schema is well-formed, the description is legible to a model you don't control, the return shape is `{ content: [...] }`, and the transport carries it cleanly. Plenty of tools "work" when you call the function and fail when a client discovers them (bad schema, wrong return shape, a stray stdout write). The client round-trip is the only test that exercises the thing that's actually shipped.
 
-**On the cost figure:** typical findings — `list_conditions` ≈ one SQL query, effectively free; `query_notes` ≈ one embedding call, fractions of a cent; `summarize_patient` ≈ retrieval + a full LLM completion over a rendered chart, 10–100× the others. The habit being built: **a tool's price tag is part of its spec**, same as its scopes. You'll formalize this instinct in the final block's gates.
+**On the cost figure:** typical findings — `list_conditions` ≈ one SQL query, effectively free; `query_notes` ≈ one embedding call, fractions of a cent; `summarize_patient` ≈ retrieval + a full LLM completion over a rendered chart, 10–100× the others. The habit being built: **a tool's price tag is part of its spec.** You'll formalize this instinct in the final block's gates.
 
 </details>
 
@@ -92,14 +89,14 @@ This *is* the your-turn: the tool, the checklist, the five-step adversarial demo
 
 Record **2–3 minutes**, phone camera is fine. Pick one:
 
-- **Defend the design:** Your new tool — why this tool, why these scopes, what its audit entry contains and what it deliberately omits, and what one call costs. Name the alternative scope decision you rejected. The demo must show it **refusing, recording, and recovering** — an under-scoped key denied cleanly *and* that denial visible in `logs/mcp-audit-*.jsonl` — not just working.
-- **Teach back:** Explain to a non-engineer why "the AI can book appointments" required a confirmation card, but "the AI can search records" didn't — and how the same reversibility/cost logic decides which future features need a human gate.
+- **Defend the design:** Your new tool — why this tool, what it returns, how it stays non-identifying (which names it obscures and where), and what one call costs. The demo must show a client **discovering and calling it** (`tools/list` then a `tools/call`) and the returned text carrying **pseudonyms, never a real name** — not just the source code.
+- **Teach back:** Explain to a non-engineer why the MCP server can safely answer "how many patients have diabetes?" for any assistant that connects, but the clinician's chat app can't be left open the same way — and how the front-office channel's design makes that difference structural.
 
-**Grade against one question:** *does the demo show a refusal that is both denied **and** logged?* A happy-path demo proves the tool runs; it does not prove the tool is secured. The denial is the deliverable.
+**Grade against one question:** *does the demo show a client calling the tool and getting back obscured, non-PII text?* Source code that returns the right data proves the function works; it does not prove the tool honors the channel. The obscured client round-trip is the deliverable.
 
 **Submit:** [Typeform — submission](https://form.typeform.com/to/PLACEHOLDER-W3) <!-- PLACEHOLDER: replace with real Typeform URL -->
 
 ## Further reading (optional)
 
-- [modelcontextprotocol.io — security best practices](https://modelcontextprotocol.io/specification/draft/basic/security_best_practices) — reread after building; note which practices your server now actually implements
+- [modelcontextprotocol.io — security best practices](https://modelcontextprotocol.io/specification/draft/basic/security_best_practices) — reread after building; note how much of "secure MCP" reduces to *be deliberate about what your tools can return*
 </content>

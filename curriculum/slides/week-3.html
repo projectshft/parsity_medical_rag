@@ -85,7 +85,7 @@
   <section class="slide active title-wrap">
     <div class="kicker">Week 3 of 5 — MCP + human-in-the-loop</div>
     <h1>Your RAG stops being an app and becomes a <em>tool other AIs can call</em></h1>
-    <p class="lead">By the end of the week: your system is exposed as a tool any AI assistant can discover and use — locked behind a key with the right permissions — and it knows the difference between reading data and <em>acting</em> on it.</p>
+    <p class="lead">By the end of the week: your system is exposed as a tool any AI assistant can discover and use — through a front-office channel that's safe to leave open because it only speaks in non-identifying data — and it knows the difference between reading data and <em>acting</em> on it.</p>
   </section>
 
   <!-- 2 — The week -->
@@ -94,11 +94,11 @@
     <ul>
       <li>MCP: turn your RAG into a tool other AI assistants can call</li>
       <li>Wire it into Claude Desktop and Cursor; watch a foreign model use it</li>
-      <li>Secure it: API keys + permission scopes (read / read_pii / admin)</li>
+      <li>Make it safe to expose: a front-office channel — 3 non-PII tools, every response obscured</li>
       <li>Human-in-the-loop: for actions that matter, the model <em>proposes</em>, a human <em>approves</em></li>
-      <li>Break it: watch an under-scoped key get refused — cleanly, and on the record</li>
+      <li>Build it: add a new tool and prove a client can call it — with real names never leaving the door</li>
     </ul>
-    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video demoing a tool other AIs can call — and showing it <em>refuse</em> a caller that lacks the right permission.</p>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video demoing a tool other AIs can call — and showing its results come back <em>obscured</em>, a real name never leaving the front-office channel.</p>
   </section>
 
   <!-- 3 — Problem statement -->
@@ -115,7 +115,7 @@
     <p>The <strong>Model Context Protocol</strong> is an open standard for connecting AI apps to outside systems. You write <em>one</em> MCP <strong>server</strong> that exposes your RAG as <strong>tools</strong>; any MCP <strong>client</strong> can discover and call them.</p>
     <pre><code>  Claude Desktop ─┐
         Cursor ───┼──▶  YOUR MCP server  ──▶  your pipeline
-  any MCP client ─┘     (mcp-server/index.ts)   (search, notes, patient detail)</code></pre>
+  any MCP client ─┘     (mcp-server/index.ts)   (search, notes, condition lists)</code></pre>
     <p class="sub">A REST API needs a human to read docs and write glue code per client. MCP's contract is machine-readable: the client <em>discovers</em> your tools, schemas and all, at connect time. REST serves programmers; MCP serves models.</p>
     <div class="cue"><b>Land the one line:</b> write one server, any client discovers your tools. The difference from REST is <b>discovery</b> — a model reads the contract, not a programmer.</div>
   </section>
@@ -123,13 +123,14 @@
   <!-- 5 — Concept: a tool is a prompt -->
   <section class="slide">
     <h2>A tool description is a prompt for a model you don't control</h2>
-    <pre><code>server.tool(
+    <pre><code>server.registerTool(
   'query_notes',
-  'Search clinical notes using semantic search. Use this for finding
-   relevant medical notes, symptoms, treatments, or observations.',
-  { query: z.string().describe('e.g. "chest pain", "breathing problems"'),
-    patientId: z.string().optional(),
-    topK: z.number().optional().default(5) },
+  { description: 'Search clinical notes using semantic search. Use this for
+     finding relevant medical notes, symptoms, treatments, or observations.',
+    inputSchema: {
+      query: z.string().describe('e.g. "chest pain", "breathing problems"'),
+      patientId: z.string().optional(),
+      topK: z.number().optional().default(5) } },
   async ({ query, patientId, topK }) =&gt; { /* call your pipeline */ }
 );</code></pre>
     <p class="sub">The client's LLM reads your name + description + parameter schema and <em>decides</em> when to call it. Vague description → wrong tool at the wrong time — and you can't fix it by editing their prompt. <strong>The description <em>is</em> your interface.</strong></p>
@@ -163,42 +164,45 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
   <!-- 8 — Discussion break -->
   <section class="slide">
     <span class="mode discuss">💬 Discussion</span>
-    <h2>You shipped a patient database with no front door</h2>
-    <p>Anyone who can launch that server has unrestricted access to every tool — no identity, no permissions, no record of who asked what.</p>
+    <h2>You just opened a door onto patient data</h2>
+    <p>Any assistant that launches that server can now reach your patients. No login, no identity — the door is open to whoever connects.</p>
     <ul>
-      <li>What's the worst thing a stranger could do with your tools right now?</li>
-      <li>Which credentials are sitting in plaintext, and where?</li>
-      <li>For medical data, is this a missing <em>feature</em> — or a missing <em>wall</em>?</li>
+      <li>What's the worst thing that could leak through your tools right now?</li>
+      <li>You could bolt a login + permissions onto the door. What would that cost you to build and maintain?</li>
+      <li>Is there a cheaper move — one that makes the door <em>safe to leave open</em> instead of guarding it?</li>
     </ul>
-    <div class="cue"><b>Facilitate:</b> don't rescue them yet. Let the discomfort land — that discomfort <em>is</em> the securing segment. Breakout if &gt;8 people; debrief with the answer key.</div>
+    <div class="cue"><b>Facilitate:</b> don't rescue them yet. Let the discomfort land, then steer toward the cheaper move — <b>don't guard the sensitive thing, remove it from this path.</b> That's the securing segment. Breakout if &gt;8 people; debrief with the answer key.</div>
   </section>
 
   <!-- 9 — Concept: the security layers -->
   <section class="slide">
-    <h2>"Secured" means three layers</h2>
+    <h2>Two channels, not one permission system</h2>
     <div class="two">
       <div class="card">
-        <h3>Authentication — who's calling?</h3>
-        <p>API keys. The caller presents one; the server validates it. The caller is a <em>process</em>, not a person — so keys, not logins.</p>
+        <h3>Clinician channel — the chat app</h3>
+        <p>Full data. Real names, real dates. For the person actually treating the patient.</p>
       </div>
       <div class="card">
-        <h3>Authorization — what may they do?</h3>
-        <p><strong>Scopes</strong> on the key, checked per tool: <code>read</code> (search), <code>read_pii</code> (named patient detail), <code>admin</code> (bulk listing).</p>
+        <h3>Front-office channel — the MCP server</h3>
+        <p>Non-PII only. Pseudonyms, no patient-detail lookups. For scheduling, intake, counts.</p>
       </div>
     </div>
-    <p class="sub" style="margin-top:1rem"><strong>Audit — who did what, when?</strong> A log entry for every call, allowed <em>or denied</em>. The modules are provided (<code>mcp-server/auth.ts</code>, <code>audit.ts</code>); you wire them in through one wrapper.</p>
+    <p class="sub" style="margin-top:1rem">Which <strong>channel</strong> you came through decides what you see — no per-request "what are you allowed to do?" check, no login on the MCP door. It's safe to leave open because everything behind it is already non-identifying. <strong>You don't guard a room with nothing sensitive in it.</strong></p>
   </section>
 
   <!-- 10 — Concept: least privilege + the denial demo -->
   <section class="slide">
-    <h2>Least privilege: one key per client, smallest scope that works</h2>
-    <p>Two callers, same system. A <code>read</code>+<code>read_pii</code> key can search and pull a patient chart — but is <strong>denied</strong> the admin-only bulk-listing tool. An admin key runs the same call and gets the data.</p>
-    <pre><code>list_patients_by_condition  ("high blood pressure")
+    <h2>What makes the front-office door safe</h2>
+    <p>Two design decisions, both already in <code>mcp-server/index.ts</code> — no scopes, no login, no audit log:</p>
+    <pre><code>// 1. A deliberately narrow tool set — 3 front-office tools, no patient-detail lookup
+   search_patients    query_notes    list_patients_by_condition
+// no get_patient, no find_patient_by_name — that absence IS the access control
 
-  read + read_pii key  →  DENIED: key lacks 'admin' scope   ← clean text, not a crash
-  admin key            →  returns the list                  ← same call, two worlds</code></pre>
-    <p class="sub">When a key leaks — and keys leak — the blast radius is the <strong>scope</strong>, not the database. And the key is revocable on its own, without rotating your infrastructure.</p>
-    <div class="cue"><b>Design point to land:</b> wire auth through one <code>withAuth</code> wrapper, not tool-by-tool. The next tool you add ships protected because it <em>can't</em> skip the wrapper.</div>
+// 2. Every response obscured before it leaves — real name → Patient-A7B3
+   const formatted = formatResultsForLLM(result, true);   // true = obscure, always
+   const name = obscureName(fullName(patient));</code></pre>
+    <p class="sub">A permission system is a promise you can break (a tool forgets to check, a key is mis-scoped). A channel that <em>cannot</em> emit PII makes no promise to break. <strong>Remove the sensitive thing from the path instead of guarding it.</strong></p>
+    <div class="cue"><b>Design point to land:</b> match the control to what's behind the door. RBAC belongs on the clinician channel — real data, gate by <b>who the person is</b> (that's the final block). Here, structural safety beats a permission matrix you have to maintain.</div>
   </section>
 
   <!-- 11 — Concept: human-in-the-loop -->
@@ -244,13 +248,13 @@ const SchedulingIntentSchema = z.object({
   <!-- 14 — Mini-challenge: build/secure + break the gate -->
   <section class="slide">
     <span class="mode challenge">🛠 Mini-challenge</span>
-    <h2>Secure a tool, then try to break it</h2>
+    <h2>Prove the wall, then try to break it</h2>
     <ul>
-      <li><strong>Prove the wall:</strong> call the admin tool with a <code>read</code> key → watch it refuse; swap in the admin key → watch it succeed. Same call, two callers.</li>
-      <li><strong>Prove the record:</strong> find that denial in the audit log — <code>grep</code> "who tried to access what, and were they denied?"</li>
-      <li><strong>Attack the gate:</strong> make "confirm" post the <em>model's</em> values instead of the card's. Watch the human's edits vanish. Now the gate is decoration.</li>
+      <li><strong>Prove the wall:</strong> call all three tools from a client → every result comes back with <em>pseudonyms, never a real name</em>. That's the channel holding.</li>
+      <li><strong>Break the channel:</strong> flip one tool's obscuring to <code>formatResultsForLLM(result, false)</code>, or add a <code>get_patient</code> tool → watch a real name leak out the front-office door. Feel why the narrow tool set + obscuring <em>is</em> the wall.</li>
+      <li><strong>Attack the human gate:</strong> make "confirm" post the <em>model's</em> values instead of the card's. Watch the human's edits vanish. Now the gate is decoration.</li>
     </ul>
-    <div class="cue"><b>Land this:</b> don't show it <em>working</em> — show it <b>refusing, recording, and recovering</b>. The refusals are the deliverable, not the happy path.</div>
+    <div class="cue"><b>Land this:</b> don't just show it <em>working</em> — show the obscuring <b>holding</b>, then show exactly what breaks it. The leak you can cause on purpose is the lesson.</div>
   </section>
 
   <!-- 15 — Research -->
@@ -258,10 +262,10 @@ const SchedulingIntentSchema = z.object({
     <span class="mode research">🔍 Research</span>
     <h2>Go find out</h2>
     <ul>
-      <li>Your <code>read</code> key can't pull a named chart — but it <em>can</em> walk the whole database politely, one call at a time. Auth doesn't stop that. What does? (Look up rate limiting and anomaly detection.)</li>
+      <li>The front-office channel never emits a real <em>name</em> — but a name isn't the only way to identify someone. Could an attacker re-identify a patient from obscured output plus a rare condition and a date? (Look up <em>quasi-identifiers</em> and <em>k-anonymity</em>.)</li>
       <li>"next Tuesday" needs today's date, and the model doesn't reliably know it. Why resolve dates in <strong>code</strong>, not in the prompt — even though the model can <em>usually</em> do the math?</li>
     </ul>
-    <p class="sub">Bring one finding back. The first question is a door nobody guards yet — you'll meet an attacker at it in the final week.</p>
+    <p class="sub">Bring one finding back. The first question is a door obscuring alone doesn't fully close — you'll meet an attacker at it in the final week.</p>
   </section>
 
   <!-- 16 — Recap -->
@@ -269,11 +273,11 @@ const SchedulingIntentSchema = z.object({
     <h2>Where you are</h2>
     <ul>
       <li>Your system is now <strong>infrastructure</strong> — tools any AI client can discover and call</li>
-      <li>With <strong>identity and least privilege</strong> — keys + scopes, one per client, revocable on its own</li>
-      <li>Every call is on the record — <strong>allowed or denied</strong>, who and what</li>
+      <li>Exposed through a <strong>front-office channel that's safe to leave open</strong> — 3 non-PII tools, every response obscured, no login needed</li>
+      <li>Access decided by <strong>channel, not per-request permission</strong> — the identified data lives on the clinician channel, a different door</li>
       <li>And one <strong>human-gated write path</strong> — the model proposes, a person confirms, code acts</li>
     </ul>
-    <p class="lead">This week's deliverable: the 2–3 min video — a tool other AIs can call, shown <em>refusing</em> an under-scoped caller and logging the refusal. Next week, the final block: the system gets locked down for <strong>people</strong>, attacked through its data, and judged end to end against the standard you've built all course.</p>
+    <p class="lead">This week's deliverable: the 2–3 min video — a tool other AIs can call, shown returning <em>obscured</em> results with a real name never leaving the door. Next week, the final block: the <strong>clinician</strong> channel gets locked down for people (RBAC), the system is attacked through its data, and judged end to end against the standard you've built all course.</p>
   </section>
 
 </div>

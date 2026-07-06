@@ -19,9 +19,9 @@ Everything you built answers that opening problem and then keeps going:
 - **Meaning-based search** over the clinical notes — the vector index that finds "dyspnea" when you ask about shortness of breath. The thing keyword search couldn't do.
 - **The structured half** it was always paired with — counts, filters, lookups the database already served — and an **agent that routes** each question to the right engine, or both.
 - **A grounding contract**: answers point at real records, and the system *refuses* rather than guesses.
-- **Exposure to other tools** through an MCP server with scoped auth and an audit trail, plus tracing so you can debug the past.
+- **Exposure to other tools** through an MCP server — the front-office channel, which exposes only non-identifying tools and de-identifies every response — plus tracing so you can debug the past.
 - **A human-gated action** — proposing an appointment a person confirms.
-- **The production gates** you just finished: it knows *who is asking* and shapes what they see, server-side, in a way the client can't switch off.
+- **The production gates** you just finished: PII de-identification plus a channel-based access model — the front-office channel (the MCP server) always obscures identifying detail, while the direct clinician channel returns full data.
 - **A regression suite** measuring most of it — so "it feels better" became a number.
 
 That last clause is the through-line. The distance between the keyword-search demo you started with and the system you have now is not features — it's *evidence*. You can prove each claim.
@@ -36,10 +36,10 @@ Here's the thing about systems: anyone can screen-record a happy path. What prov
 
 Pick one. Small and complete beats large and half-built — the point is to run the full loop one more time, unaided:
 
-- **A login UI + `seed-users.ts`** — the system has an auth *API* but no sign-in *form*. Seed one STAFF and one DOCTOR, add a minimal login that POSTs to `/api/auth/login`, and make the role-shaping *visible in the running product*: DOCTOR sees the real name, STAFF sees `Patient-A7B3`. This closes the most concrete gap in the build.
+- **A "obscured view" toggle in the chat UI** — the direct app returns full data, but `/api/query` already honors an `obscurePII` flag. Wire a toggle in the UI that sends it, and make the channel idea *visible in the running product*: flip it and watch `Maria Gonzalez · 1975-04-12` become `Patient-A7B3 · 1975-XX-XX`. This makes the de-identification layer tangible end to end.
 - **Reranking, decided properly** — wire reranking into the live retrieval path and let your eval suite decide whether it stays. Ship the *decision*, with the number.
-- **A new MCP tool** — a fourth tool, fully scoped and audited.
-- **A third role** — a `RESEARCHER` who sees de-identified data across all patients but can't schedule or see names, giving `lib/pii.ts` a second consumer. Write the spec first, then make it pass.
+- **A new front-office MCP tool** — a fourth tool on the front-office channel, PII-obscured like the rest, that a caller cannot coax into leaking a real name.
+- **Harden `obscureContent`** — find an identifier format the regex misses (an all-lowercase name, an unusual phone format), add a failing case to `lib/pii.test.ts`, then fix the pattern. Ship the closed gap *and* the test that proves it.
 - **Your own idea** — if you have one, it's probably better than this list.
 
 Whatever you pick: build it, measure it, and gate it on the suite. One extension, run the way the whole course taught — that's the ship.
@@ -50,16 +50,16 @@ Architecture and the *why* behind it. Not "what the code does" — the tradeoffs
 
 - The two-engine split (structured store + meaning-based search) and why not one store
 - One chunking decision — including the call that the medical notes *don't* need chunking, justified by the measurement (they average a few hundred characters), against the Bible corpus that *did*
-- One security decision (role-shaping? the override-proof flag? the schedule gate?) and the alternative you rejected
+- One privacy decision (the channel model over login+RBAC? de-identifying at the channel vs. in the UI? pseudonymizing names instead of dropping them?) and the alternative you rejected
 - One thing you'd build differently starting over
 
 ### 3. The postmortem (the real deliverable)
 
 This is the credibility artifact. It's not a summary; it's an *honest account of contact with a system that fought back*. Structure:
 
-- **What broke.** Real failures you hit — a hybrid query that returned the wrong patient's notes, a reranker that didn't help, a login that leaked which emails existed, a STAFF response that almost leaked a count. Name them.
+- **What broke.** Real failures you hit — a hybrid query that returned the wrong patient's notes, a reranker that didn't help, a front-office response that almost leaked a real name, an `obscureContent` regex that mangled "Chief Complaint" or missed a lowercase name. Name them.
 - **What you changed, and the number that told you to.** Each fix tied to its measurement. "I added a few-shot example and analyzer accuracy went 84% → 92%." This is where "no metric, no decision" becomes your voice, not the course's.
-- **What you deliberately did not build, and why.** The injection attack your defenses still miss. The eval you named but didn't write. The login UI you scoped out. *Naming what you chose not to do is the strongest possible signal of judgment* — it proves you saw the whole board and made calls, rather than building until you ran out of time.
+- **What you deliberately did not build, and why.** The injection attack your defenses still miss. The eval you named but didn't write. The full login+RBAC layer you chose *not* to build because the channel model already draws the boundary. *Naming what you chose not to do is the strongest possible signal of judgment* — it proves you saw the whole board and made calls, rather than building until you ran out of time.
 - **What you'd do differently.** The decision you'd remake with what you know now.
 
 A model can write your code. A model cannot write your postmortem, because it wasn't the one who watched the system lie and decided what to do about it. That asymmetry is the entire value of the document — and of the month you just spent.
@@ -85,15 +85,15 @@ Take the time it needs. This is the thing you point to.
 
 - Could a stranger read your postmortem and tell you *stressed* this system rather than just assembled it? If not, the failures are too sanitized.
 - For your shipped extension: can you state, in one sentence with a number, why it's in the system?
-- Can you explain, in your own words, why a control the caller can switch off is decoration — and point at the line in your code that enforces the role server-side?
+- Can you explain, in your own words, why a control the caller can switch off is decoration — and point at the line in the front-office channel that obscures PII no matter what the caller sends?
 
 ## Deliverable 🎥
 
 The final one. Record 3–5 minutes (a little longer is fine for the capstone):
 
-- **The walkthrough:** Demo your shipped extension. Then — and this is the part that matters — show the privacy boundary holding: the same query returning two shapes (DOCTOR sees the real name and full birth date, STAFF sees `Patient-A7B3` and `1975-XX-XX`), and *try to cheat it on camera* — send the body flag, the header flag, a forged role — and show all three fail because the role comes from the signed session, not the client. Close with one honest limitation: an identifier your regex scrubber would still miss, the login UI you'd add, or the gap between "sound architecture" and "shippable on real records."
+- **The walkthrough:** Demo your shipped extension. Then — and this is the part that matters — show the privacy boundary holding: the same question answered through both channels (the direct clinician channel returns `Maria Gonzalez · 1975-04-12`; the front-office MCP channel returns `Patient-A7B3 · 1975-XX-XX`), and *try to cheat it on camera* — hunt for any argument that makes the front-office channel hand back a real name, and show there isn't one, because obscuring is the channel's non-negotiable default. Close with one honest limitation: an identifier your regex scrubber would still miss, the full login+RBAC layer you scoped out, or the gap between "sound architecture" and "shippable on real records."
 
-Grade yourself against one thing: can you explain *why a control the caller can switch off is decoration*, and demonstrate your system enforcing the boundary server-side? A flawless happy-path demo with no cheat attempt and no named limitation is a press release, not evidence you stressed the system.
+Grade yourself against one thing: can you explain *why a control the caller can switch off is decoration*, and demonstrate the front-office channel obscuring server-side no matter what the caller sends? A flawless happy-path demo with no cheat attempt and no named limitation is a press release, not evidence you stressed the system.
 
 This video plus your three written artifacts is your portfolio. It's what you show a school, an employer, or yourself in six months.
 
@@ -101,9 +101,9 @@ This video plus your three written artifacts is your portfolio. It's what you sh
 
 ## You're done
 
-You started able to *describe* RAG. Now you've built one: two retrieval engines feed it, it routes its own queries, it refuses what it should, other AIs can call it through a scoped and audited door, it books real appointments behind a human gate, it knows who's asking and shapes what they see server-side, and you can *prove* every one of those claims because you measured it.
+You started able to *describe* RAG. Now you've built one: two retrieval engines feed it, it routes its own queries, it refuses what it should, other AIs can call it through a scoped front-office door that de-identifies every response, it books real appointments behind a human gate, and its direct clinician channel returns the full chart — and you can *prove* every one of those claims because you measured it.
 
-One honest closing note, because this is medical-shaped data: what you built are the *technical controls* a real deployment needs — minimum-necessary access, de-identification, an audit trail, refusals — practiced on fully synthetic patients so they were safe to break. Real-world deployment on actual records would need more around this architecture: vendor agreements, compliance-eligible service tiers, encryption, policies. That gap between "the architecture is sound" and "this is shippable on real people" is worth naming — it's a sharp discussion, and a sharp line in your postmortem.
+One honest closing note, because this is medical-shaped data: what you built are the *technical controls* a real deployment needs — minimum-necessary access (enforced by the channel boundary), de-identification, refusals — practiced on fully synthetic patients so they were safe to break. Real-world deployment on actual records would need more around this architecture: vendor agreements, compliance-eligible service tiers, encryption, policies. That gap between "the architecture is sound" and "this is shippable on real people" is worth naming — it's a sharp discussion, and a sharp line in your postmortem.
 
 The person who can articulate concepts but never confronted a system that lied to them is the one who falls apart on the job. You confronted yours. Repeatedly. With numbers.
 

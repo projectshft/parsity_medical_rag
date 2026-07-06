@@ -85,7 +85,7 @@
   <section class="slide active title-wrap">
     <div class="kicker">Week 5 of 5 — Privacy &amp; data</div>
     <h1>Who is asking — and what are they allowed to see?</h1>
-    <p class="lead">This is medical data. The last gate before a demo becomes a system: the same question, asked by two different people, must come back <em>differently shaped</em> — and every access has to be accountable. This is the final week.</p>
+    <p class="lead">This is medical data. The last gate before a demo becomes a system: the same question, reaching the data through <em>two different doors</em>, must come back differently shaped — full for the clinician, de-identified for the front office. This is the final week.</p>
   </section>
 
   <!-- 2 — The week -->
@@ -93,144 +93,149 @@
     <h2>This week — the last one</h2>
     <ul>
       <li>The problem: a medical assistant that shows everyone everything is a leak, not a feature</li>
-      <li>Identity: login → a signed session → <code>requireAuth</code> on every protected route</li>
-      <li>Roles that shape the answer: front desk vs doctor see the same query differently</li>
-      <li>De-identification: pseudonymized names, hidden dates, scrubbed note text</li>
-      <li>Server-enforced, not client-requested — and every access accountable</li>
+      <li>De-identification: <code>lib/pii.ts</code> — pseudonymized names, year-only dates, scrubbed note text</li>
+      <li>The channel access model: which <em>door</em> a request comes through decides what it may see</li>
+      <li>Front-office channel (the MCP server) always obscures; the direct clinician channel returns full data</li>
+      <li>No login, no roles — the boundary is the entry point, and the front-office default can't be switched off</li>
     </ul>
-    <p class="sub" style="margin-top:1rem">This week's deliverable: a 3–5 min video — show the same query returning two shapes for two roles, and prove a client can't cheat the boundary. The portfolio piece the whole course built toward.</p>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 3–5 min video — show the same question returning two shapes through the two channels, and prove a caller can't coax a real name out of the front-office door. The portfolio piece the whole course built toward.</p>
   </section>
 
   <!-- 3 — Problem statement -->
   <section class="slide">
     <h2>The problem: everyone sees everything</h2>
     <p>Your assistant answers real questions about patient records, and it works. Ask <em>"look up Maria Gonzalez"</em> and back comes her name, her birth date, her notes. Perfect — <strong>if you're her doctor.</strong></p>
-    <p class="lead">But the front-desk scheduler runs the exact same query and gets the exact same chart. That's not a helpful assistant; that's a privacy leak with a chat box on top. A medical system must show identifying detail only to those allowed to see it.</p>
+    <p class="lead">But the same tool, wired into a front-desk assistant or an outside integration, hands over the exact same chart. That's not a helpful assistant; that's a privacy leak with a chat box on top. A medical system must show identifying detail only where the job needs it.</p>
     <div class="cue"><b>Say it plainly:</b> sit in the gap. The system already works — so why isn't it done? Because "works" and "safe to point at real people" are different bars. This week is the second bar.</div>
   </section>
 
   <!-- 4 — How it's solved -->
   <section class="slide">
-    <h2>The move: the server decides, from who you are</h2>
+    <h2>The move: the channel is the access level</h2>
     <p>Two ideas do all the work this week:</p>
     <ul>
-      <li><strong>Authentication</strong> — prove who is asking. A login mints a signed session; every request carries it.</li>
-      <li><strong>Authorization</strong> — the <em>server</em> reads the role off that signed session and decides what the answer looks like. Not the client. Never the client.</li>
+      <li><strong>De-identification</strong> — a real function, <code>lib/pii.ts</code>, that turns a name into <code>Patient-A7B3</code>, a date into <code>1975-XX-XX</code>, and scrubs identifiers out of note text.</li>
+      <li><strong>The channel</strong> — which <em>door</em> a request comes through decides whether it gets full data or the de-identified view. No login, no roles, no client-sent access flag to forge.</li>
     </ul>
-    <p class="lead">Same question in, differently-shaped answer out — and the shape is chosen on the server, where the caller can't reach.</p>
+    <p class="lead">Same question in, differently-shaped answer out — and the shape is decided by the entry point, on the server, where the caller can't reach.</p>
+    <div class="cue"><b>Why not login+RBAC?</b> That's the heavier tool for when one endpoint serves many human roles. Here the trust boundary lines up with the entry point — so modeling it as a channel is simpler and removes a whole class of forged-role bugs.</div>
   </section>
 
-  <!-- 5 — Concept: identity -->
+  <!-- 5 — Concept: the two doors -->
   <section class="slide">
-    <h2>Who is this caller?</h2>
-    <p>The system has had no humans in it all course. Now it gets a front door: log in, get a signed token, present it on every protected route.</p>
-    <pre><code>          login (email + password)
-                │  verify hash
-        ┌───────▼────────────┐
-        │ signed JWT (8h)    │  ← httpOnly cookie, page scripts can't read it
-        └───────┬────────────┘
-        every protected route:
-        requireAuth(request)  →  a Session, or throw 401</code></pre>
-    <p class="sub">One reusable guard — <code>requireAuth</code> in <code>lib/auth.ts</code>, built on <code>jose</code>. The token lives in a cookie the browser scripts cannot read, and never in the response body.</p>
-    <div class="cue"><b>Land it:</b> httpOnly matters — if JavaScript can read the token, one injected script steals the session. The cookie is the safe place precisely because the page can't touch it.</div>
-  </section>
-
-  <!-- 6 — Concept: roles, not a ranking -->
-  <section class="slide">
-    <h2>Two roles — and neither outranks the other</h2>
+    <h2>Two doors into the same data</h2>
     <div class="two">
       <div class="card">
-        <h3>STAFF (front desk)</h3>
-        <p>Books appointments. Sees pseudonyms, not names — no business reading the chart. <strong>Can</strong> schedule.</p>
+        <h3>Front-office channel — the MCP server</h3>
+        <p>Reached by Claude Desktop / Cursor and outside tools. Exposes <strong>only non-identifying tools</strong> (search, notes, condition lists). <strong>Always</strong> de-identified — no off switch.</p>
       </div>
       <div class="card">
-        <h3>DOCTOR</h3>
-        <p>Reads the full chart — real names, dates, note detail. <strong>Cannot</strong> book the calendar.</p>
+        <h3>Clinician channel — the direct app</h3>
+        <p>The chat UI and <code>/api/query</code>. Returns the <strong>full chart</strong> by default: real names, dates, note detail. May opt <em>into</em> obscuring.</p>
       </div>
     </div>
-    <p class="sub">Each can do something the other can't. This is <strong>not</strong> a permission ladder where doctor &gt; staff — a single "level 1, 2, 3" integer could never express it. Roles, scoped per action.</p>
-    <div class="cue"><b>The trap to surface:</b> students reach for a numeric permission level. Ask: which number is "can schedule but can't read charts"? There isn't one. That's why real systems use roles + per-action checks.</div>
+    <p class="sub">Which door you came through <em>is</em> your permission. The front-office door only <em>has</em> de-identified tools — there's no patient-detail lookup on it to abuse.</p>
+    <div class="cue"><b>The trap to surface:</b> students reach for a client-sent "role" field. Ask: where would the server even read it from? There isn't one. The channel already encodes the trust level — that's the point.</div>
   </section>
 
-  <!-- 7 — Concept: role-shaped responses -->
+  <!-- 6 — Concept: de-identification overview -->
   <section class="slide">
-    <h2>Same query, two shapes</h2>
-    <p>"Look up patient 4c2a" — one endpoint, one code path, two outputs decided by the role on the session:</p>
-    <pre><code>DOCTOR →  Maria Gonzalez · born 1975-04-12 · note: "reports feeling winded…"
-STAFF  →  Patient-A7B3   · born 1975-XX-XX · note: identifiers scrubbed</code></pre>
-    <p class="sub">STAFF still gets a <em>useful</em> answer — a stable pseudonym they can reference, a year for age math — just none of the identifying detail. The diff between those two lines is the whole lesson.</p>
-    <div class="cue"><b>Say it plainly:</b> role-shaped ≠ "STAFF gets an error." STAFF gets a real, working answer — de-identified. Denial and redaction are different tools; here we redact.</div>
+    <h2>How the shaping happens: <code>lib/pii.ts</code></h2>
+    <p>When a response must be de-identified, every patient object passes through <code>lib/pii.ts</code> before it leaves the server:</p>
+    <div class="two">
+      <div class="card">
+        <h3>Structured fields</h3>
+        <p><code>obscureName</code> → stable pseudonym (<code>Patient-A7B3</code>). <code>obscureDate</code> → <code>1975-XX-XX</code>. <code>obscureLocation</code> → redacted city/state/zip.</p>
+      </div>
+      <div class="card">
+        <h3>Free-text notes</h3>
+        <p><code>obscureContent</code> — regex scrub over the note body: names, SSNs, phones, emails, addresses → <code>[REDACTED]</code>. The clinical meaning stays; the identifiers go.</p>
+      </div>
+    </div>
+    <p class="sub"><code>obscurePatient</code> orchestrates all of it, field by field. Pseudonymize what must stay referenceable; redact what doesn't.</p>
+  </section>
+
+  <!-- 7 — Concept: pseudonym vs redaction -->
+  <section class="slide">
+    <h2>Pseudonym, not deletion — and why the year stays</h2>
+    <pre><code>obscureName("Maria Gonzalez")  →  "Patient-A7B3"   // SHA-256, first 4 hex
+obscureDate("1975-04-12")      →  "1975-XX-XX"     // keep year, hide day
+obscureContent("Call Mr. Smith at 617-555-0142")
+                               →  "Call [NAME] at [PHONE REDACTED]"</code></pre>
+    <p class="sub"><code>obscureName</code> is <strong>deterministic</strong> (same name → same tag, so records stay linkable) and <strong>one-way</strong> (you can't run the hash back to the name). The date keeps the year so age-based reasoning still works. A <code>NON_NAME_WORDS</code> set stops the name regex from mangling "Chief Complaint" or "Blood Pressure."</p>
+    <div class="cue"><b>Land the distinction:</b> a pseudonym is <i>not</i> anonymization — it's a stable, one-way tag still tied to a real row on the server. De-identification reduces exposure; it doesn't make the data anonymous.</div>
   </section>
 
   <!-- 8 — Discussion / breakout -->
   <section class="slide">
     <span class="mode discuss">💬 Discussion</span>
-    <h2>Given a role — what should they see, and how would you cheat it?</h2>
-    <p>Half the room is STAFF, half is DOCTOR. For your role, answer three things:</p>
+    <h2>Given a channel — what should it expose, and how would you cheat it?</h2>
+    <p>Half the room takes the front-office (MCP) channel, half takes the direct clinician channel. For your channel, answer three things:</p>
     <ul>
-      <li>What <strong>should</strong> you be able to see and do?</li>
-      <li>What must you be <strong>blocked</strong> from?</li>
-      <li>You're a malicious client — how would you <strong>try to cheat</strong> the boundary and pull data your role shouldn't have?</li>
+      <li>What <strong>should</strong> this door expose?</li>
+      <li>What must it <strong>never</strong> hand back?</li>
+      <li>You're a malicious client — how would you <strong>try to cheat</strong> the boundary and pull identifying data the front-office door shouldn't give?</li>
     </ul>
-    <div class="cue"><b>Facilitate:</b> the cheat-attempt answer is the gold. Anyone who reaches for a client-sent role, a header flag, or "read it in the network tab" is reproducing broken access control in real time — name it, then show slide 9 answers it.</div>
+    <div class="cue"><b>Facilitate:</b> the cheat-attempt answer is the gold. Anyone who reaches for "pass an obscure:false arg to the MCP tool" or "read the raw response in the network tab" is probing the boundary — name it, then show slide 9 answers it.</div>
   </section>
 
-  <!-- 9 — Concept: server-enforced -->
+  <!-- 9 — Concept: the non-negotiable default -->
   <section class="slide">
-    <h2>The role decides — the client can't opt out</h2>
-    <p>Today <code>obscurePII</code> is client-controlled, which means it's <strong>not a security control at all</strong>. The fix is one line, on the server:</p>
-    <pre><code>const session = await requireAuth(request);   // role from the SIGNED session
-// STAFF are always obscured; a doctor may opt in
-const shouldObscure = session.role === 'STAFF' ? true : clientRequested;</code></pre>
-    <p class="sub">A STAFF caller sending <code>obscurePII: false</code> in the body <em>and</em> <code>X-Obscure-PII: false</code> in the header still gets <code>Patient-A7B3</code>. There's a test for each door, because a half-locked door is an unlocked door.</p>
-    <div class="cue"><b>Land the principle:</b> a control the caller can switch off is decoration. The role comes from a signed, server-issued session — a client can't mint a DOCTOR session without the server's secret.</div>
+    <h2>The front-office default can't be switched off</h2>
+    <p>On the front-office channel, obscuring is hard-coded — there's no argument a caller can pass to turn it off:</p>
+    <pre><code>// mcp-server/index.ts — every tool, always
+const result = await executeQuery(query, { sqlLimit: limit });
+const formatted = formatResultsForLLM(result, true);   // ← always obscured</code></pre>
+    <p class="sub">The direct clinician channel is the opposite: full by default, and the caller <em>may</em> opt into obscuring (<code>obscurePII</code> in the body, or the <code>X-Obscure-PII</code> header, which wins). That flag is a <em>convenience</em> on an already-trusted door — not the security boundary. The boundary is the front-office default nobody can reach.</p>
+    <div class="cue"><b>Land the principle:</b> a control the caller can switch off is decoration. The front-office channel is a real control precisely because it offers no switch.</div>
   </section>
 
-  <!-- 10 — Code walkthrough: the specs -->
+  <!-- 10 — Code walkthrough -->
   <section class="slide">
     <span class="mode code">💻 Code walkthrough</span>
-    <h2>The spec is the proof — run it</h2>
-    <pre><code>npm run test:run        # the RBAC specs go green
+    <h2>The de-identification is real code — run it</h2>
+    <pre><code>npx vitest run lib/pii.test.ts   # the de-id layer, pinned
 
-# lib/auth.test.ts              → token round-trips; 401 vs 403; tampered token → null
-# app/api/query/route.test.ts   → STAFF forced obscured (body + header can't override)
-# app/api/schedule/route.test.ts→ STAFF can book; DOCTOR POST → 403</code></pre>
-    <p class="sub">We prove the role-shaped behavior through the <strong>specs</strong>, not a click-through — the tests attack from the body, the header, and a missing session, and pin every outcome. The scheduling gate is the inverse: DOCTOR is blocked, proving authorization is per-action, not a global rank.</p>
-    <div class="cue"><b>Why specs, not the UI:</b> there's no sign-in screen yet (no seed users), so the running app can't assume a STAFF vs DOCTOR identity. The specs already exercise both roles end to end — that gap is in the runbook, and closing it is a natural extension.</div>
+# obscureName        → same name → same Patient-XXXX; case-insensitive
+# obscureDate        → "1985-03-15" → "1985-XX-XX"
+# obscureContent     → SSN / phone / email / Dr.-name scrubbed…
+#                    → …but "Chief Complaint" / "Blood Pressure" preserved</code></pre>
+    <p class="sub">Then open the two consumers: <code>mcp-server/index.ts</code> passes <code>true</code> to <code>formatResultsForLLM</code> on every tool (front-office, non-negotiable), and <code>app/api/query/route.ts</code> threads an optional flag (clinician, opt-in). Same <code>lib/pii.ts</code>, two channels.</p>
+    <div class="cue"><b>Why the specs:</b> the de-id tests mock nothing external and run on any network — they're the source of truth. Show one over-redaction case and one under-redaction gap; the imperfection is the honest part.</div>
   </section>
 
-  <!-- 11 — Concept: de-identification -->
+  <!-- 11 — Concept: de-identification is imperfect -->
   <section class="slide">
-    <h2>How the shaping happens: de-identification</h2>
-    <p>When the role says "obscure," every patient object passes through <code>lib/pii.ts</code> before it leaves the server:</p>
+    <h2>Regex de-identification is always imperfect</h2>
+    <p><code>obscureContent</code> is pattern-based, so it fails in <em>both</em> directions — and knowing which is the whole skill:</p>
     <div class="two">
       <div class="card">
-        <h3>Structured fields</h3>
-        <p>Name → stable pseudonym (<code>Patient-A7B3</code>, same name always same tag). Birth date → <code>1975-XX-XX</code>. City/state → redacted.</p>
+        <h3>Over-redacts</h3>
+        <p>A capitalized medical term looks like a name. That's why <code>NON_NAME_WORDS</code> exists — to keep "Blood Pressure" from becoming <code>[NAME]</code>.</p>
       </div>
       <div class="card">
-        <h3>Free-text notes</h3>
-        <p>Regex scrubbing over the note body: names, SSNs, phones, emails, addresses → <code>[REDACTED]</code>. The clinical meaning stays; the identifiers go.</p>
+        <h3>Under-redacts</h3>
+        <p>An all-lowercase name, an unusual phone format, a novel identifier — the regex misses it, and a real name ships.</p>
       </div>
     </div>
-    <p class="sub">Pseudonymize what must stay referenceable; redact what doesn't. The pseudonym is a hash — consistent across responses, but it can't be reversed into the name.</p>
+    <p class="sub">A redactor you trust blindly is worse than one you know the limits of. Naming one identifier your scrubber would <em>still</em> leak is exactly the honest sentence for your final video.</p>
   </section>
 
-  <!-- 12 — Concept: minimum-necessary + audit -->
+  <!-- 12 — Concept: minimum-necessary -->
   <section class="slide">
-    <h2>Two principles under all of it</h2>
+    <h2>The principle under it: minimum necessary</h2>
     <div class="two">
       <div class="card">
         <h3>Minimum necessary</h3>
-        <p>Each role gets exactly what its job needs — no more. The front desk schedules without ever reading a chart.</p>
+        <p>Each channel exposes exactly what its job needs — no more. The front-office door schedules and searches without ever surfacing a real name.</p>
       </div>
       <div class="card">
-        <h3>Accountable access</h3>
-        <p>Every look at a record is attributable: who asked, for which patient, when. Redaction limits exposure; the log makes access reviewable.</p>
+        <h3>De-identify at the boundary</h3>
+        <p>Obscuring happens server-side, in the response, before it crosses the wire. The browser is part of the threat model.</p>
       </div>
     </div>
-    <p class="sub">These aren't invented for this app — they're the standard shape of handling sensitive records. You've been building the technical controls behind them all along.</p>
-    <div class="cue"><b>Backstage:</b> this is where the HIPAA connection lives — minimum-necessary access + audit trail are named requirements. Keep the law in the runbook; on the slide it's just "how you handle sensitive data." Never say "HIPAA-compliant."</div>
+    <p class="sub">This isn't invented for this app — "minimum necessary" is the standard shape of handling sensitive records. The channel model is one clean way to enforce it: the door that doesn't need PII never has it.</p>
+    <div class="cue"><b>Backstage:</b> this is where the HIPAA connection lives — minimum-necessary access is a named requirement. Keep the law in the runbook; on the slide it's just "how you handle sensitive data." Never say "HIPAA-compliant."</div>
   </section>
 
   <!-- 13 — Mini-challenge: break it -->
@@ -238,12 +243,12 @@ const shouldObscure = session.role === 'STAFF' ? true : clientRequested;</code><
     <span class="mode challenge">🛠 Mini-challenge</span>
     <h2>Try to cheat the boundary — and watch it hold</h2>
     <ul>
-      <li>As STAFF, send <code>obscurePII: false</code> in the body — confirm you <strong>still</strong> get <code>Patient-A7B3</code>.</li>
-      <li>Now try the <code>X-Obscure-PII: false</code> header — confirm both doors are locked.</li>
-      <li>Try claiming <code>role: DOCTOR</code> from the client — confirm the server ignores it (the role comes from the signed session).</li>
+      <li>On the front-office (MCP) channel, hunt for <strong>any</strong> argument that makes a tool return a real name — confirm there isn't one.</li>
+      <li>On the clinician channel, send <code>obscurePII: false</code> in the body with <code>X-Obscure-PII: true</code> in the header — confirm the header wins.</li>
       <li>Move the obscuring into the front-end instead, then read the real name off the raw response in the network tab — see <em>why</em> it must be server-side.</li>
+      <li>Feed <code>obscureContent</code> an all-lowercase name or an odd phone format — find one identifier it misses.</li>
     </ul>
-    <div class="cue"><b>The point:</b> if any of the first three <i>succeed</i>, you've found a real broken-access-control bug — fix it and add the test. The last one shows the browser is inside the threat model: redact before the boundary, or you haven't redacted.</div>
+    <div class="cue"><b>The point:</b> if the front-office door <i>ever</i> leaks a real name, you've found a real bug — fix it and add the test. The network-tab one shows the browser is inside the threat model: de-identify before the boundary, or you haven't de-identified.</div>
   </section>
 
   <!-- 14 — Research / homework -->
@@ -251,7 +256,7 @@ const shouldObscure = session.role === 'STAFF' ? true : clientRequested;</code><
     <span class="mode research">🔍 Homework — go find out</span>
     <h2>Could you point this at real patients?</h2>
     <ul>
-      <li>Map each control you built to a real-world requirement: roles → <em>minimum-necessary access</em>, de-identification → <em>redaction</em>, the access log → <em>audit</em>. What law are those drawn from?</li>
+      <li>Map each control you built to a real-world requirement: the channel boundary → <em>minimum-necessary access</em>, <code>lib/pii.ts</code> → <em>de-identification</em>. What law are those drawn from — and what are its two recognized de-id methods?</li>
       <li>Find three things you'd <strong>still</strong> need before touching one real record — think vendor agreements, encryption, service tiers.</li>
     </ul>
     <p class="sub">The system teaches the technical controls; it is <strong>not</strong> a compliant deployment. The gap between "sound architecture" and "shippable on real records" is itself a sharp thing to write up in your final video.</p>
@@ -260,9 +265,9 @@ const shouldObscure = session.role === 'STAFF' ? true : clientRequested;</code><
   <!-- 15 — Recap / send-off -->
   <section class="slide">
     <h2>Where you are — and where to go next</h2>
-    <p>Week 1 you couldn't answer <em>"which patients are short of breath?"</em> because the database matched keywords, not meaning — so you built a second engine that searches by meaning. Five weeks later that system routes its own queries, calls tools, refuses what it shouldn't, knows who's asking, and <strong>shapes what they see</strong>.</p>
-    <p class="lead">You can build it, stress it, and defend every decision — including who's allowed to see a name. That's the difference between describing a RAG system and having built one.</p>
-    <p class="sub" style="margin-top:1rem">The final deliverable: the video where you show the two shapes and try to cheat the boundary. Go build one thing past where we stopped — a sign-in screen, a third role, an audit log — and make it the one where you sound like someone who built, broke, and defended a real system. Because you did.</p>
+    <p>Week 1 you couldn't answer <em>"which patients are short of breath?"</em> because the database matched keywords, not meaning — so you built a second engine that searches by meaning. Five weeks later that system routes its own queries, calls tools, refuses what it shouldn't, and <strong>de-identifies what the front office sees</strong>.</p>
+    <p class="lead">You can build it, stress it, and defend every decision — including which door is allowed to see a name. That's the difference between describing a RAG system and having built one.</p>
+    <p class="sub" style="margin-top:1rem">The final deliverable: the video where you show the two channels and try to cheat the front-office boundary. Go build one thing past where we stopped — an obscured-view toggle in the UI, a new front-office tool, a hardened scrubber — and make it the one where you sound like someone who built, broke, and defended a real system. Because you did.</p>
   </section>
 
 </div>

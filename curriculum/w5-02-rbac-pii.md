@@ -1,111 +1,118 @@
-# RBAC II — Role-Shaped Responses and PII
+# PII De-identification and the Channel Access Model
 
-**Needs: the working auth from the previous lesson; the remaining RBAC specs**
+**Needs: the working query system; `lib/pii.ts`; the MCP server from Week 3**
 
 ## Today you will
 
-- Make the same endpoint return different data to different roles
 - Give the PII-obscuring layer the consumer it has been waiting for since early in the course
-- Clear the last of the auth tests — and watch a course-long counter hit zero
+- Read `lib/pii.ts` closely — how each function de-identifies a different kind of data
+- Learn the *channel* access model: which door a request comes through decides what it may see
 
 ## Concept
 
-Last time answered "who is this." Today answers "what may *this person* see" — and the answer isn't just "more" or "less," it's *differently shaped*. Two roles, two genuinely different jobs:
+Ask *"look up Maria Gonzalez"* and back comes her name, her birth date, her notes. Perfect — **if you're her doctor.** But a medical assistant that hands the same chart to everyone who can type is a leak with a chat box on top. The last gate before a demo becomes a system is this: identifying detail should reach only the people whose job needs it.
 
-| | STAFF (front desk) | DOCTOR |
+There are two honest ways to draw that boundary. One is to build logins, sessions, and roles — prove *who* each caller is, then decide per-person. That's a real approach, and a heavy one. The other — the one this system uses — is simpler and, for a data assistant, often cleaner: **the channel is the access level.** Which door you come through *is* your permission.
+
+| | Front-office channel (the MCP server) | Clinician channel (the direct app) |
 |---|---|---|
-| Real names, birth dates, locations | no — obscured (`Patient-A7B3`, `1975-XX-XX`) | yes |
-| Clinical content (conditions, meds, notes) | blocked / scrubbed | full |
-| Run a query (`/api/query`) | yes — PII-scrubbed | yes — full |
-| Make appointments (`/api/schedule`) | yes | no |
+| How you reach it | MCP tools from Claude Desktop / Cursor | `/api/query`, the chat UI |
+| Real names, dates, locations | **always** obscured (`Patient-A7B3`, `1975-XX-XX`) | full by default |
+| Which tools exist | only non-identifying ones (search / notes / condition lists) | the whole query surface |
+| Who it's for | front-desk staff, external assistants | clinicians who need the chart |
 
-Notice this is **not a hierarchy**. STAFF can do something DOCTOR cannot (schedule) and vice versa (read clinical content). "Permissions ladder" is the wrong mental model; "different jobs, different views" is right. Front-desk staff need a real name and phone number to call a patient — but have no business reading their clinical notes. A doctor reads charts but doesn't book their own calendar. A single integer "permission level" could never express "can schedule but can't read charts," which is exactly why real systems use roles plus per-action scoped checks.
+The front-office door only *has* de-identified tools — there is no patient-detail lookup on it to abuse. The clinician door returns full data. **The server decides the default from the channel; there's no role field on the request to forge, because there's no role at all.** This is a smaller idea than login+RBAC and it removes an entire category of bug: you can't send the wrong role if roles don't exist.
 
-And here's the crucial part: for STAFF, the shaped response isn't an *error* — it's a real, working, *de-identified* answer. STAFF asking "look up this patient" gets back `Patient-A7B3` and a birth date of `1975-XX-XX`, not a wall. **Redaction, not denial.** A 403 (denial) and a pseudonym (redaction) are different tools for different situations, and you'll use both today: the query route redacts, the schedule route denies.
+And here's the thread that finally ties off. You have `lib/pii.ts` — name pseudonymization, date obscuring, content redaction — and it has sat there, complete, since early in the course. Today it gets its consumer: the front-office channel runs every response through it. The obscuring you built on faith now defends a real boundary.
 
-This is where a thread from early in the course finally ties off. You have `lib/pii.ts` — name pseudonymization, date obscuring, content redaction — and it has sat there, complete and unused, the whole time. Today it gets its consumer: the STAFF view runs every response through it. The obscuring you built on faith now defends a real boundary.
-
-And the gate that makes it a *security control* rather than a UI preference: **the role decides, and the client cannot override it.** Right now the query endpoint takes an `obscurePII` flag from the request — which means it's not a security control at all, because anyone can set it to `false`. After today, a STAFF session is obscured no matter what the body or headers say. **A control the caller can switch off is decoration.**
+One nuance to hold onto: **the front-office default is not negotiable, but the clinician channel lets the caller opt *into* obscuring.** A clinician can ask `/api/query` to obscure (via a body flag or a header) — because on that channel, obscuring is a *convenience*, not the security boundary. On the front-office channel there's no toggle at all: it obscures no matter what the caller sends. A control the caller can switch *off* is decoration; the front-office channel simply doesn't offer the switch.
 
 ## Implementation
 
-The full spec is `docs/CHALLENGE-RBAC.md` Part 4. The shape:
+### 1. Read `lib/pii.ts` — the de-identification is real code, not magic
 
-### 1. Role-shaped query responses
+This is the heart of the week. Open it and read every function; each de-identifies a *different shape* of data, and the choices are deliberate:
 
-In `app/api/query/route.ts`, after `requireAuth` gives you the session, the role drives the obscuring. The override-proof line, and it's exactly this small:
+- **`obscureName`** — SHA-256 of the lowercased name → `Patient-A7B3`. Two properties that matter: **deterministic** (the same name always yields the same pseudonym, so records stay *linkable* across responses) and **one-way** (you can't run the hash backward to recover the name). That's a *pseudonym*, not anonymization — still tied to a real record on the server, just not readable.
+- **`obscureDate`** — keeps the year, hides month and day: `1985-03-15` → `1985-XX-XX`. Enough for age-based reasoning ("patients over 60"), nothing for identifying a specific person by birthday.
+- **`obscureLocation`** — full redaction of city / state / zip → `[LOCATION REDACTED]`. Location narrows a person fast, so it goes entirely.
+- **`obscureContent`** — regex scrub over free-text note bodies: names (`Mr./Mrs./Dr.` patterns and likely full names), SSNs, phone numbers, emails, addresses, MRNs, specific dates → `[NAME]`, `[SSN REDACTED]`, etc. The clinical *meaning* stays; the identifiers go. Note the `NON_NAME_WORDS` set — it stops the name regex from mangling "Chief Complaint" or "Blood Pressure," because a de-identifier that over-redacts the medicine is its own kind of broken.
+- **`obscurePatient`** — orchestrates all of the above over a patient object, field by field (name → pseudonym, birth/death dates → year-only, phone → redacted, note content → scrubbed).
+- **`shouldObscurePII`** — resolves the flag: an explicit boolean wins, otherwise it falls back to the `OBSCURE_PII` env var.
 
-```typescript
-const session = await requireAuth(request);
-// ... read the client's requested flag from body and header ...
-// The role wins: STAFF are always obscured; doctors may opt in.
-const shouldObscure = session.role === 'STAFF' ? true : clientObscure;
-```
-
-The route already reads the client's wish from both the request body (`obscurePII`) and an `X-Obscure-PII` header. That wish is *advisory for a DOCTOR* and *ignored for STAFF*. A STAFF caller sending `obscurePII: false` still gets `Patient-A7B3`. The tests attack this from both the body and the header — both must fail to override.
-
-The actual obscuring is done by `lib/pii.ts`, which `executeQuery` calls when you pass `obscurePII: true`. It's real code, not magic:
-
-- `obscureName` — SHA-256 of the name → `Patient-A7B3`. Deterministic (same name, same pseudonym, so records stay linkable) and one-way (you can't run it backward to the name)
-- `obscureDate` — keep the year, hide month/day: `1975-04-12` → `1975-XX-XX`, so age-based queries still work
-- `obscureLocation` — full redaction of city/state/zip
-- `obscureContent` — regex scrub of names, SSNs, phones, emails, and addresses inside free-text note bodies
-- `obscurePatient` — orchestrates all of the above over a patient object
-
-### 2. Role-gated actions
-
-`app/api/schedule/route.ts` becomes STAFF-only:
-
-```typescript
-await requireAuth(request, ['STAFF']);
-```
-
-A DOCTOR POST returns 403, and the calendar is never called for a rejected request. This is the *inverse* gate from the query route, and together they prove the point: authorization is per-action, not a global rank.
-
-### 3. Zero
+`lib/pii.test.ts` pins this behavior — consistent pseudonyms, year-only dates, SSN/phone/email scrubbing, and the *non*-redaction of medical terms. Run it and read a few cases:
 
 ```bash
-npm run test:run
+npx vitest run lib/pii.test.ts
 ```
 
-If RBAC is complete, the counter that read `24 failed` for weeks reads `0 failed`. Every assignment the course shipped as a failing test is now satisfied. Sit with that — the progress bar you've watched for a month is full.
+### 2. See where each channel wires it in
 
-> **Note on running the product vs. running the specs.** The system has a login *API* but no login *UI* yet, and the users table starts empty — so you demonstrate role-shaping through the **specs**, which build STAFF and DOCTOR sessions directly with `createSessionToken`. The three files to read are `lib/auth.test.ts`, `app/api/query/route.test.ts`, and `app/api/schedule/route.test.ts`. (Closing that gap — a `seed-users.ts` plus a minimal sign-in form POSTing to `/api/auth/login` — is a natural extension, and a good capstone.)
+The obscuring is *applied* at the channel, by passing `obscurePII` down into the query layer:
+
+```typescript
+// executeQuery threads the flag into both retrieval halves
+const result = await executeQuery(userQuery, { obscurePII: true });
+// and the formatter obscures the rendered text for the LLM
+const formatted = formatResultsForLLM(result, /* obscure */ true);
+```
+
+**Front-office channel (`mcp-server/index.ts`).** Every tool hard-codes obscuring on — there is no way for a caller to turn it off:
+
+```typescript
+const result = await executeQuery(query, { sqlLimit: limit });
+const formatted = formatResultsForLLM(result, true);   // always true, front-office
+```
+
+and patient lists run each name through `obscureName` directly. The file's own header says it: *"this is a FRONT-OFFICE (STAFF) tool… every response here is PII-obscured, and only non-identifying tools are exposed."*
+
+**Clinician channel (`app/api/query/route.ts`).** Full data by default; the caller *may* opt into obscuring, header taking precedence over body:
+
+```typescript
+const headerObscure = request.headers.get("x-obscure-pii");
+const shouldObscure =
+  headerObscure === "true" ? true : headerObscure === "false" ? false : obscurePII;
+const result = await executeQuery(query, { vectorTopK, obscurePII: shouldObscure });
+```
+
+The important reading: on this channel obscuring is *opt-in* and reversible, because the channel itself is the trusted one. The security boundary is the *front-office channel's non-negotiable default* — not this flag.
 
 ### Common mistakes
 
-- **Obscuring in the UI instead of the API.** If the server *sends* real names and the browser hides them, the data is one dev-tools panel away — replay the request with `curl` and read the raw JSON. Redaction happens server-side, in the response, before it leaves the building. The browser is part of the threat model.
-- **A STAFF 403 that leaks what it's hiding.** "You can't see the diagnosis for these 3 patients" tells staff exactly what they weren't allowed to learn. The refusal names the *category* ("this query requires clinical access"), never the contents — and never the count.
-- **Forgetting the header override.** Students plug the body flag and miss `X-Obscure-PII`. Two doors, both locked — and a test for each, because a half-locked control is an unlocked control.
-- **Treating obscured data as safe to log.** Obscuring the *response* doesn't obscure the *internal* objects you might trace or log along the way. If you log the pre-obscured data, the PII left through the back door. (Recall the observability work: audit what your `inputs` contain.)
+- **Obscuring in the UI instead of at the channel.** If the server *sends* real names and the browser hides them, the data is one dev-tools panel away — replay the request with `curl` and read the raw JSON. De-identification happens server-side, in the response, before it leaves the building. The browser is part of the threat model.
+- **Adding an "off switch" to the front-office channel.** The moment the MCP tools accept an `obscure: false` from the caller, the boundary is gone. The front-office default is non-negotiable *on purpose* — don't parameterize it.
+- **Thinking a pseudonym is anonymous.** `Patient-A7B3` is stable and one-way, but it still points at a real row on the server. De-identification reduces exposure; it doesn't make the data anonymous. Don't treat obscured output as safe to publish.
+- **Logging the pre-obscured object.** Obscuring the *response* doesn't obscure the *internal* objects you traced or logged on the way there. If you log the raw patient before `obscurePatient` runs, the PII left through the back door. (Recall the observability work — audit what your traced `inputs` actually contain.)
 
 ## Your turn
 
-The challenge Part 4 is the your-turn. Additionally, in your notes:
-
-1. The same query, run as DOCTOR and as STAFF, with both responses pasted — the diff *is* the lesson.
-2. Your attempt to defeat your own control: send a STAFF request with `obscurePII: false` in the body **and** `X-Obscure-PII: false` in the header. Confirm both fail. If either succeeds, you've found a real bug — fix it and add the test.
-3. One sentence: which role can do something the other cannot, in *both* directions — and why that proves authorization is not a ranking.
+1. **Read `lib/pii.ts` end to end** and, in your notes, write one sentence per `obscure*` function: what it takes, what it returns, and *why that particular treatment* (why keep the year? why hash the name instead of dropping it?).
+2. **The channel diff.** Run the same conceptual query through both doors — the MCP `search_patients` tool and a direct `POST /api/query` — and paste both outputs. The diff between `Patient-A7B3 · 1975-XX-XX` and `Maria Gonzalez · 1975-04-12` *is* the lesson.
+3. **Try to defeat the front-office default.** From the MCP side, is there *any* argument a caller can pass to get an unobscured name back? Confirm there isn't. Then, on the clinician channel, send `obscurePII: false` in the body with `X-Obscure-PII: true` in the header and confirm the header wins.
+4. **Find a leak in `obscureContent`.** Feed it a note with an all-lowercase name or an unusual phone format and find one identifier the regex misses. Naming an identifier your scrubber would *still* leak is exactly the honest sentence that belongs in your final video.
 
 ## Check yourself
 
-- Why is hiding PII in the front-end a security failure even if users never see the data on screen?
-- A STAFF user requests a list of diabetic patients. What does your endpoint return, and what does it deliberately not say?
+- Why is hiding PII in the front-end a de-identification failure even if users never see the data on screen?
+- The front-office channel obscures *by default and offers no override*, while the clinician channel lets the caller opt in. Why is only one of those a security boundary?
+- `obscureName` is deterministic — the same name always maps to the same pseudonym. What does that buy you, and why is it still not anonymization?
 
 <details>
 <summary>Solution / discussion</summary>
 
-**Front-end obscuring fails** because the API response is the actual artifact, and it traveled over the network to a client you don't control. Anyone who opens the network tab, replays the request with `curl`, or reads the JSON the page received gets the unobscured data — the front-end "hiding" never touched it. Security boundaries live where the trusted system ends, and the trusted system ends at your server's response. Everything past that is the user's machine, the user's browser, the user's choice. Redact before the boundary or don't call it redacted.
+**Front-end obscuring fails** because the API response is the actual artifact, and it traveled over the network to a client you don't control. Anyone who opens the network tab, replays the request with `curl`, or reads the JSON the page received gets the unobscured data — the front-end "hiding" never touched it. Boundaries live where the trusted system ends, and the trusted system ends at your server's response. De-identify before that boundary or don't call it de-identified.
 
-**The diabetic-patients request as STAFF** returns a 403 whose message says the query requires clinical access — and deliberately doesn't return, hint at, or count the matching patients. The trap is a "helpful" refusal: "I can't show you the 14 diabetic patients' details" has already leaked that 14 patients match, which is clinical information a front-desk role shouldn't extract. The refusal is informative about *the rule*, silent about *the data*. Same discipline as the identical-login-errors: the failure path is an information channel, and you close it.
+**Only the front-office default is a boundary** because the caller cannot turn it off — that's the whole definition of a control. The clinician-channel flag is a *convenience* on an already-trusted door: the caller can flip it either way, so it protects nothing on its own. A control the caller can switch off is decoration; the security lives in the channel whose default the caller can't reach.
 
-**The both-directions answer:** STAFF can schedule and cannot read clinical notes; DOCTOR can read clinical notes and cannot schedule. Neither is "above" the other — they're different cross-sections of the system's capabilities, which is why a single integer "permission level" could never express this and why real systems use roles and scoped checks. You built the small version; the shape is exactly how hospital systems, banks, and every multi-role product actually work.
+**Deterministic pseudonyms** let you keep records *linkable* — two responses that mention `Patient-A7B3` are talking about the same person, so you can still reason across notes — without ever exposing the name. It's still not anonymization: the hash is a stable one-way *tag* pointing at a real row on the server. De-identification lowers exposure; only removing the underlying linkage would make it anonymous.
 
-**One more distinction worth keeping:** `obscureName` produces a *pseudonym*, not anonymization. `Patient-A7B3` is a stable, one-way tag — useful *because* it's consistent — but it's still tied to a real record on the server. De-identification reduces exposure; it doesn't make the data anonymous.
+**Why the channel model over login+RBAC here:** for a data assistant, "which door you came through" already encodes the trust level — the MCP server is exposed to external tools, the direct app is the clinician's own surface. Modeling that as a channel removes the whole apparatus of sessions, roles, and per-request role fields (and the forgery bugs that come with them). Fewer moving parts, same boundary. Login+RBAC is the right tool when *one* endpoint must serve many distinct human roles; when the trust boundary lines up with the *entry point*, the channel is simpler and harder to get wrong.
 
 </details>
 
 ## Further reading (optional)
 
-- [OWASP: broken access control](https://owasp.org/Top10/A01_2021-Broken_Access_Control/) — the #1 web vulnerability of 2021, and precisely the class of bug today's role checks defend against
+- [OWASP: broken access control](https://owasp.org/Top10/A01_2021-Broken_Access_Control/) — the #1 web vulnerability of 2021. The channel model sidesteps a big slice of it by never trusting a client-sent access level in the first place.
+- [HHS: de-identification of PHI](https://www.hhs.gov/hipaa/for-professionals/privacy/special-topics/de-identification/index.html) — the two recognized methods (Safe Harbor's 18 identifiers, and Expert Determination). Read it against what `obscureContent` actually catches — and what it misses.
 </content>
+</invoke>
