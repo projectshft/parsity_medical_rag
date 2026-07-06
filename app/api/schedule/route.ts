@@ -6,6 +6,7 @@
 
 import { NextResponse } from 'next/server';
 import { scheduleAppointment, isCalConfigured } from '@/lib/calendar';
+import { callToConfirmAppointment, isRetellConfigured } from '@/lib/retell';
 import { traced } from '@/lib/langsmith';
 
 export async function POST(request: Request) {
@@ -48,11 +49,30 @@ export async function POST(request: Request) {
 			);
 		}
 
+		// EXTENSION: after booking, place a Retell confirmation call. Best-effort
+		// — a call failure must never undo a successful booking. Traced so it
+		// shows up alongside the booking in LangSmith. (For the demo, set
+		// DEMO_PHONE_NUMBER to ring your own phone right after booking.)
+		let confirmationCall;
+		if (isRetellConfigured()) {
+			try {
+				confirmationCall = await traced(
+					'confirm_appointment_call',
+					() => callToConfirmAppointment({ patientName, dateTime }),
+					{ runType: 'tool', inputs: { patientName, dateTime } },
+				);
+			} catch (err) {
+				console.error('Confirmation call failed (non-blocking):', err);
+				confirmationCall = { called: false, reason: 'call failed' };
+			}
+		}
+
 		return NextResponse.json({
 			success: true,
 			message: `Appointment scheduled for ${patientName}`,
 			bookingId: result.bookingId,
 			bookingUrl: result.bookingUrl,
+			confirmationCall,
 		});
 	} catch (error) {
 		console.error('Schedule error:', error);
