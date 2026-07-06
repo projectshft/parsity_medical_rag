@@ -5,7 +5,7 @@
  *
  * Setup:
  * 1. npm install @modelcontextprotocol/sdk
- * 2. Configure Claude Desktop or Cursor (see docs/WEEK5-MCP.html)
+ * 2. Configure Claude Desktop or Cursor (see the Week 3 curriculum)
  * 3. Run: npx ts-node mcp-server/index.ts
  */
 
@@ -26,12 +26,14 @@ const server = new McpServer({
 /**
  * Tool: Search for patients
  */
-server.tool(
+server.registerTool(
   'search_patients',
-  'Search for patients by name, condition, or other criteria. Use this for finding patients.',
   {
-    query: z.string().describe('Search query (e.g., "John Smith" or "patients with diabetes")'),
-    limit: z.number().optional().default(10).describe('Maximum results to return'),
+    description: 'Search for patients by name, condition, or other criteria. Use this for finding patients.',
+    inputSchema: {
+      query: z.string().describe('Search query (e.g., "John Smith" or "patients with diabetes")'),
+      limit: z.number().optional().default(10).describe('Maximum results to return'),
+    },
   },
   async ({ query, limit }) => {
     try {
@@ -53,13 +55,15 @@ server.tool(
 /**
  * Tool: Query clinical notes
  */
-server.tool(
+server.registerTool(
   'query_notes',
-  'Search clinical notes using semantic search. Use this for finding relevant medical notes, symptoms, treatments, or clinical observations.',
   {
-    query: z.string().describe('Semantic search query (e.g., "chest pain", "breathing problems", "diabetes management")'),
-    patientId: z.string().optional().describe('Optional: limit to specific patient ID'),
-    topK: z.number().optional().default(5).describe('Number of results to return'),
+    description: 'Search clinical notes using semantic search. Use this for finding relevant medical notes, symptoms, treatments, or clinical observations.',
+    inputSchema: {
+      query: z.string().describe('Semantic search query (e.g., "chest pain", "breathing problems", "diabetes management")'),
+      patientId: z.string().optional().describe('Optional: limit to specific patient ID'),
+      topK: z.number().optional().default(5).describe('Number of results to return'),
+    },
   },
   async ({ query, patientId, topK }) => {
     try {
@@ -90,11 +94,13 @@ server.tool(
 /**
  * Tool: Get patient details
  */
-server.tool(
+server.registerTool(
   'get_patient',
-  'Get detailed information about a specific patient including conditions, medications, observations, and allergies.',
   {
-    patientId: z.string().describe('The patient ID'),
+    description: 'Get detailed information about a specific patient including conditions, medications, observations, and allergies.',
+    inputSchema: {
+      patientId: z.string().describe('The patient ID'),
+    },
   },
   async ({ patientId }) => {
     try {
@@ -122,11 +128,13 @@ server.tool(
 /**
  * Tool: Find patient by name
  */
-server.tool(
+server.registerTool(
   'find_patient_by_name',
-  'Look up a patient by their name. Returns matching patients with basic info.',
   {
-    name: z.string().describe('Patient name to search for (e.g., "John Smith")'),
+    description: 'Look up a patient by their name. Returns matching patients with basic info.',
+    inputSchema: {
+      name: z.string().describe('Patient name to search for (e.g., "John Smith")'),
+    },
   },
   async ({ name }) => {
     try {
@@ -165,12 +173,14 @@ server.tool(
 /**
  * Tool: List patients by condition
  */
-server.tool(
+server.registerTool(
   'list_patients_by_condition',
-  'Find all patients with a specific medical condition (e.g., diabetes, hypertension, asthma).',
   {
-    condition: z.string().describe('Medical condition to search for'),
-    limit: z.number().optional().default(20).describe('Maximum number of patients to return'),
+    description: 'Find all patients with a specific medical condition (e.g., diabetes, hypertension, asthma).',
+    inputSchema: {
+      condition: z.string().describe('Medical condition to search for'),
+      limit: z.number().optional().default(20).describe('Maximum number of patients to return'),
+    },
   },
   async ({ condition, limit }) => {
     try {
