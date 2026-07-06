@@ -52,6 +52,12 @@ Big re-scope (Brian). **Core framing:** you're joining a company that *already h
 - **W5 privacy:** w5-01 rbac-sessions (←32) · w5-02 rbac-pii (←33) · w5-03 wrap-up (←36). HW: homework-poisoned-docs (←34). (Upload API DROPPED — company already has its data; remove route+spec+challenge doc from code too.)
 Cross-cutting reframes: SQL is a given (pre-loaded, not taught); Postgres=system of record, Pinecone=derived (vectorize builds it); no "no-embeddings-before-day-13" rule; refer to weeks not day numbers.
 
+**Two architecture changes (2026-07-06, Brian) — queued, affect code + content:**
+
+1. **Chat route → explicit multi-agent (Week 2 core).** Replace the linear `runAgent` (analyzer → execute → answer) with: **router** agent (massages the query, decides which sub-agents to run) → **parallel** sub-agents (a SQL agent + a vector agent, `Promise.all`) → **aggregator** agent (summarizes both result sets) → **stream** the answer via Vercel AI SDK `streamText` (the `ai` pkg is already a dep). Touches `lib/agent.ts` + `app/api/chat/route.ts`; recomposes existing pieces (`analyzeQuery`, `executeStructuredQuery`/`sql-queries`, `searchClinicalNotes`). Content to update after: `w2-03-orchestration.md` (routing → parallel → aggregate) and `w2-06-chat-agent.md` (the aggregator + streaming). Instructor/main = solution, student = stub.
+
+2. **MCP simplified — STAFF-only, no audit.** Drop `mcp-server/audit.ts` + all audit wiring/tests. Collapse the read/read_pii/admin scope system to a single check: **MCP is a front-office (STAFF) tool** → one valid key = access; tools return non-PII data only (consistent with STAFF sees no PII). Touches `mcp-server/index.ts`, `mcp-server/auth.ts` (+ tests), `docs/CHALLENGE-MCP-AUTH.md`. Content to update: `w3-03-securing-mcp.md` (one key, not 3 scopes) and `w3-05-new-tool-audit.md` (retitle — no audit). Note (tradeoff, not a blocker): an access audit trail is genuinely valuable for medical data; dropping it is a deliberate simplification for teaching scope.
+
 Everything below predates the restructure — treat as historical until reconciled.
 
 ## ▶ Pick up here (updated 2026-06-13 — ALL 36 DAYS DONE)
