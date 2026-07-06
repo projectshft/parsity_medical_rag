@@ -81,40 +81,51 @@ energy goes to the vector store, the agent, and shipping it safely.
 **Day Zero — Foundations (optional pre-work)**
 - [Foundations: LLMs and vector math](day-00.md) — do this *before* Week 1 if "embedding," "vector," or "cosine similarity" are new to you.
 
-**Week 1 — The vector store: why, and how**
-The database is already loaded. The question of the week: the company has all this
-data — how do we make the *notes* searchable by **meaning**, not just keywords?
-- The problem: why SQL/keyword search isn't enough — `LIKE '%shortness of breath%'` finds nothing in a note that says *"dyspnea on exertion."* Same fact, zero shared words.
-- What a vector is, and semantic similarity — the idea that fixes it
-- The **vectorize script**: read the notes from the database → embed → upsert to the vector store. *This is how you service existing data for semantic search.*
-- Implement and run **vector search** over the notes
-- Chunking, introduced: our notes are self-contained little pieces (no chunking needed) — but the **Bible** is the opposite kind of text. That contrast sets up the homework.
-- 🎥 deliverable
-- 📝 **Homework (Bible, side project — part 1):** research chunking strategies, propose one, and record a short video explaining what chunking *is*.
+**Week 1 — The vector store**
+The company has all this data — how do we make the *notes* searchable by **meaning**, not just keywords?
+1. [What RAG is — and why keyword search isn't enough](w1-01-what-rag-is.md)
+2. [Setup: connect to the pre-loaded database](w1-02-setup.md)
+3. [Meet the data](w1-03-meet-the-data.md)
+4. [Embeddings: meaning as geometry](w1-04-embeddings.md)
+5. [Similarity by hand: be the vector database](w1-05-similarity-by-hand.md)
+6. [The vectorize script: database → vector store](w1-06-vectorize.md)
+7. [Semantic search + metadata](w1-07-semantic-search.md)
+8. [Chunking, introduced (and why our notes don't need it)](w1-08-chunking-intro.md) 🎥
+- 📝 [Homework — Bible chunking (side project, part 1)](homework-bible-chunking.md)
 
 **Week 2 — Agentic / hybrid search**
-An agent that answers real questions by using **both** engines — exact SQL for facts, vector search for meaning — and picking the right one.
-- 🎥 deliverable
-- 📝 **Homework (Bible, side project — part 2):** actually chunk the text and load it, using `scripts/bible/`.
+An agent that answers by using **both** engines — exact SQL for facts, vector search for meaning.
+1. [Structured outputs: the LLM as a typed function](w2-01-structured-outputs.md)
+2. [The query analyzer: intent + entities](w2-02-query-analyzer.md)
+3. [Orchestration: routing to the right engine](w2-03-orchestration.md)
+4. [Hybrid queries: SQL filter, then vector search](w2-04-hybrid-queries.md)
+5. [When cosine lies: reranking](w2-05-reranking.md)
+6. [The chat agent + the grounding contract](w2-06-chat-agent.md)
+7. [Failure day: bait, and refusing it](w2-07-failure-day.md) 🎥
+- 📝 [Homework — Bible chunking (part 2: chunk + upload)](homework-bible-chunking.md)
 
 **Week 3 — MCP + human-in-the-loop**
-Expose the system as a tool other AI assistants can call; add human-approved actions (scheduling).
-- 🎥 deliverable
+1. [MCP: your RAG as a tool for AI assistants](w3-01-mcp-intro.md)
+2. [Wiring MCP into Claude Desktop and Cursor](w3-02-wiring-mcp.md)
+3. [Securing MCP: API keys and scopes](w3-03-securing-mcp.md)
+4. [Human-in-the-loop: propose, approve, execute](w3-04-human-in-the-loop.md)
+5. [A new tool, with an audit trail](w3-05-new-tool-audit.md) 🎥
 
 **Week 4 — Agents, evals & observability**
-Deeper agent behavior — and how you *measure* and *trace* a non-deterministic system so "it feels better" becomes a number.
-- 🎥 deliverable
+Measure and trace a non-deterministic system so "it feels better" becomes a number.
+1. [Observability: tracing with LangSmith](w4-01-observability.md)
+2. [Retrieval evals: hit@5](w4-02-retrieval-evals.md)
+3. [Analyzer evals: exact match](w4-03-analyzer-evals.md)
+4. [Evals as the spine: no metric, no decision](w4-04-evals-as-spine.md) 🎥
 
 **Week 5 — Privacy & data**
-The production gates: PII handling, role-based access, showing identifying details only to those allowed to see them.
-- 🎥 deliverable
+Show identifying details only to those allowed to see them.
+1. [RBAC I: sessions, login, and the auth guard](w5-01-rbac-sessions.md)
+2. [RBAC II: role-shaped responses and PII](w5-02-rbac-pii.md)
+3. [Wrap-up: what you built, and where to go next](w5-03-wrap-up.md) 🎥
+- 📝 [Homework — Adversarial / poisoned documents](homework-poisoned-docs.md)
 
 🎥 = weekly video deliverable · 📝 = homework (self-paced side project)
-
-> **Restructure in progress (2026-07-05, rev 2).** The five-week groupings above
-> are the new target. The `day-NN.md` files and slide decks still carry the old
-> 6-week / 36-day structure and are being reconciled to this shape. See
-> `AUTHORING.md` for the migration tracker.
 
 ## A note on AI-assisted coding
 

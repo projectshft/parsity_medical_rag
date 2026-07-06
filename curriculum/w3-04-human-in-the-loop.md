@@ -1,0 +1,95 @@
+# Human-in-the-Loop: The Scheduling Flow
+
+**Needs: the working pipeline. A free Cal.com account (`CAL_API_KEY`, `CAL_EVENT_TYPE_ID` in `.env`) only if you want a *real* booking — the propose→approve flow demos without it.**
+
+## Today you will
+
+- Give the system its first ability to *act* on the world — booking appointments
+- Build the human-in-the-loop pattern: AI proposes, human approves, code executes
+- Read the intent detection (structured outputs again), the confirmation card, and the audited action
+
+## Concept
+
+Everything so far *reads*. Today the system gets its first *write*: booking an appointment on a real calendar. And the moment an AI system can act, a design question outranks all others:
+
+**Does the AI act, or does the AI propose?**
+
+The pattern you'll build — **human-in-the-loop (HITL)** — answers: propose. The model detects that the user wants to schedule, extracts the details, and *suggests* the action; a human reviews the actual parameters and clicks confirm; only then does deterministic code call the calendar API.
+
+```mermaid
+flowchart LR
+    U["'schedule Smith for<br/>Tuesday at 2'"] --> D["detect intent + extract<br/>(LLM, structured output)"]
+    D --> C["confirmation card<br/>(human reviews & adjusts)"]
+    C -->|confirm| API["POST /api/schedule<br/>(code calls Cal.com)"]
+    C -->|cancel| X[nothing happens]
+```
+
+Why a human gate here, when no gate guards your *search* tools? Weigh any action on two axes: **reversibility** and **cost of being wrong**. A bad search result costs a shrug and a rephrase. A hallucinated appointment books a real slot, emails a real (synthetic, today) patient, and silently corrupts a clinic's day. Low-stakes-reversible → automate freely; consequential-irreversible → human gate. You already *saw* this pattern from the other side: Claude Desktop asked your approval before every MCP tool call. Today you build the gate yourself.
+
+Notice also *where the boundary sits*: the LLM's authority ends at **proposing structured parameters**. The thing that talks to Cal.com is ordinary code, triggered by a human click, with the human-approved values. The model never holds the trigger.
+
+## Implementation
+
+Three pieces, all provided on the solution branch — read them as a working example of the pattern, then probe it. The chat UI's confirmation card is already built; it appears when the agent emits a scheduling action.
+
+### 1. Intent detection — `lib/scheduling.ts`
+
+`detectSchedulingIntent(query, conversationHistory)` is the structured-outputs pattern you already know, pointed at scheduling. The zod schema:
+
+```typescript
+const SchedulingIntentSchema = z.object({
+  isSchedulingRequest: z.boolean().describe('Whether this is a request to schedule an appointment'),
+  patientName: z.string().nullable().describe('Name of the patient to schedule'),
+  suggestedDate: z.string().nullable().describe('Suggested date in YYYY-MM-DD format'),
+  suggestedTime: z.string().nullable().describe('Suggested time in HH:MM format (24h)'),
+  reason: z.string().nullable().describe('Reason for the appointment if mentioned'),
+});
+```
+
+Two things to notice. First, the nullable fields: `patientName` is `.nullable()` so the model has a way to say *"I don't know"* — **do not invent a patient.** Second, the date trap: **"next Tuesday" needs today's date**, and the model doesn't reliably know it. The system prompt injects `Today's date is ${todayStr}` and demands resolved `YYYY-MM-DD` output — the code owns the calendar math, not the model. The whole function runs inside `traced(...)`, because a write path gets recorded.
+
+### 2. The action — `lib/calendar.ts` and `app/api/schedule/route.ts`
+
+`scheduleAppointment(request)` in `lib/calendar.ts` is one Cal.com API call (`POST ${CAL_API_BASE}/bookings?apiKey=...`). `isCalConfigured()` guards it — the route returns a 503 when Cal.com isn't set up rather than crashing. The route handler receives the *confirmed* values from the UI (the card's current state, not the model's raw extraction) and books.
+
+Run the loop in the chat UI: *"schedule Abe for next Tuesday at 2pm"* → a card appears with extracted values → adjust the time → confirm.
+
+> **Known caveat — the schedule button returns 401.** On the finished system, `app/api/schedule/route.ts` sits behind an RBAC check (`requireAuth(request, ['STAFF'])`) built in the final block — scheduling is a STAFF-only action. There is **no login UI yet** and no seeded users, so a normal browser session is unauthenticated and the confirm button returns **401**. This is *expected*, not a bug. The propose → approve *flow* is fully built: the model's proposal, the confirmation card, the extraction — all work and are worth watching. It's the wall in front of the route that stops the final POST. Treat it as the seam where this block (a human gate for *actions*) meets the next (access control for *people*, not just API keys). If you want a real booking end-to-end, hit the route with a STAFF-authenticated request, or relax the role check on a throwaway branch.
+
+### Common mistakes
+
+- **Letting the model's output reach the API directly.** If the confirm button posts the *model's* extraction rather than the *card's current values*, the human gate is decoration — the user's edits vanish and the model effectively booked. The card state, not the model output, is the source of truth.
+- **Defaulting instead of asking.** No patient name extracted? The wrong move is scheduling for a guessed patient; the right move is `patientName: null` and a card that demands a human fill it. Nullable schema fields are how the model says "I don't know" — honor them end to end.
+- **Skipping the trace on the write path.** Reads get traced for debugging; *writes* get traced for accountability. "Which appointments did the system book last week, triggered by whom?" must be answerable.
+- **Date math in the model.** If `detectSchedulingIntent` shows flaky dates, resist prompt-tinkering toward calendar arithmetic. Resolve relative dates in code — deterministic work belongs in deterministic layers.
+
+## Your turn
+
+Spend **no more than 45 minutes** here.
+
+1. Trigger the flow in the chat UI and watch the card appear with extracted values. (The confirm may 401 — expected, see the caveat. The proposal step is what you're studying.) If you have Cal.com configured and a way past the RBAC wall, book one real appointment and find the trace.
+2. Probe the gate: try to schedule with no patient name; with a date in the past; while mid-conversation about a *different* patient (`detectSchedulingIntent` reads the last 4 messages — does that help or grab the wrong name from history?). Record behaviors in your failure notes — these are new bait categories for a system that can act.
+3. In your notes: list two more actions this system might someday take (refill request? referral letter?) and, for each, place it on the reversibility/cost grid — gate, or no gate?
+
+## Check yourself
+
+- State the HITL boundary in one sentence: what is the LLM allowed to produce, and what is it never allowed to touch?
+- Why should the schedule route re-validate `patientName` and `dateTime`, when the UI already required them?
+
+<details>
+<summary>Solution / discussion</summary>
+
+**The boundary:** the LLM produces a *proposal* — structured, nullable-where-unknown parameters for a human to review; it never holds the trigger that causes the external effect. (MCP taught you the same shape from the client side; the confirmation card is your version of Claude Desktop's approval prompt.)
+
+**Re-validation at the route:** the route is an HTTP endpoint, and the UI is only its *polite* caller — anything that can POST can hit it with missing or malformed fields. Validation at the boundary belongs to the boundary; trusting upstream callers is how "the UI validates it" becomes a postmortem sentence. This is also exactly why the finished route grows an auth check — the 401 you hit isn't the flow failing, it's the boundary doing its job before there's a login to satisfy it.
+
+**The history-contamination probe** (scheduling while discussing another patient) is the subtle one — extraction over conversation history can grab a *contextually present but wrong* name with full confidence. If you caught it: that's a few-shot example for the scheduling prompt *and* a permanent battery case. If you didn't catch it — it's in the battery now, which is the entire point of keeping one.
+
+**The reversibility grid** for the two futures: a refill *request* that a pharmacist reviews is a proposal already — light gate. A referral letter sent under a clinician's name is consequential and reputational — hard gate, probably sign-off stronger than one click. The grid generalizes: the question is never "can the model do it," it's "what does wrong cost, and who absorbs it."
+
+</details>
+
+## Further reading (optional)
+
+- [Cal.com API documentation](https://cal.com/docs/api-reference) — the booking endpoint behind today's one consequential function call
+</content>
