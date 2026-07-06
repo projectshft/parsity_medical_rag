@@ -44,6 +44,14 @@ Big re-scope (Brian). **Core framing:** you're joining a company that *already h
 - ⬜ **No student code to delete:** `scripts/bible/` stay (homework); poisoned-docs stays (optional homework). It's mostly re-labeling which week each stub belongs to.
 - ⬜ Re-run student suite after remap; expected red = still-unimplemented assignments. (vectorize has no test yet — run-it exercise; add a note→chunk mapping test if we want it graded.)
 
+**Day-file manifest (2026-07-06) — full renumber to 5 weeks.** New files `wN-MM-slug.md` (week-visible); old `day-NN.md` retired after. day-00 (foundations pre-work) kept.
+- **W1 vector store:** w1-01 what-rag-is (←day-01) · w1-02 setup/pre-loaded-DB (←day-02) · w1-03 meet-the-data (←day-03) · w1-04 embeddings (←day-13) · w1-05 similarity-by-hand (←day-14) · w1-06 vectorize (NEW, ←vectorize.ts + day-15) · w1-07 semantic-search + metadata (←day-15) · w1-08 chunking-intro (←day-07). HW: homework-bible-chunking (←day-08..12).
+- **W2 agentic search:** w2-01 structured-outputs (←19) · w2-02 query-analyzer (←20) · w2-03 orchestration (←21) · w2-04 hybrid-queries (←16) · w2-05 reranking (←17) · w2-06 chat-agent/grounding (←22) · w2-07 failure-day (←23).
+- **W3 MCP+HITL:** w3-01 mcp-intro (←25) · w3-02 wiring (←26) · w3-03 securing (←27) · w3-04 human-in-the-loop (←29) · w3-05 new-tool-audit (←30).
+- **W4 agents/evals/obs:** w4-01 observability (←28) · w4-02 retrieval-evals (←18) · w4-03 analyzer-evals (←24) · w4-04 evals-as-spine (←35).
+- **W5 privacy:** w5-01 rbac-sessions (←32) · w5-02 rbac-pii (←33) · w5-03 wrap-up (←36). HW: homework-poisoned-docs (←34). (Upload API DROPPED — company already has its data; remove route+spec+challenge doc from code too.)
+Cross-cutting reframes: SQL is a given (pre-loaded, not taught); Postgres=system of record, Pinecone=derived (vectorize builds it); no "no-embeddings-before-day-13" rule; refer to weeks not day numbers.
+
 Everything below predates the restructure — treat as historical until reconciled.
 
 ## ▶ Pick up here (updated 2026-06-13 — ALL 36 DAYS DONE)
