@@ -14,6 +14,10 @@ import { RunTree } from 'langsmith';
 
 export const langsmith = new Client({
   apiKey: process.env.LANGSMITH_API_KEY,
+  // Next.js API routes are short-lived: with the default batched tracing, runs
+  // are queued and the background flush often never fires before the request
+  // ends, so nothing reaches LangSmith. Send each run synchronously instead.
+  autoBatchTracing: false,
 });
 
 export const LANGSMITH_PROJECT = process.env.LANGSMITH_PROJECT || 'medical-rag';
@@ -33,6 +37,7 @@ export function createRun(name: string, runType: 'llm' | 'chain' | 'tool' | 'ret
     name,
     run_type: runType,
     project_name: LANGSMITH_PROJECT,
+    client: langsmith,
   });
 }
 
@@ -58,6 +63,7 @@ export async function traced<T>(
     project_name: LANGSMITH_PROJECT,
     inputs: options?.inputs,
     extra: options?.metadata ? { metadata: options.metadata } : undefined,
+    client: langsmith, // use the non-batching client so the run actually sends
   });
 
   try {

@@ -28,6 +28,14 @@ const DateRangeSchema = z.object({
 });
 
 /**
+ * Schema for an age filter (in years), derived from birth date
+ */
+const AgeFilterSchema = z.object({
+  operator: z.enum(['gt', 'lt', 'gte', 'lte']).describe('Comparison operator on age in years'),
+  value: z.number().describe('Age threshold in years'),
+});
+
+/**
  * Schema for extracted entities
  */
 const EntitiesSchema = z.object({
@@ -38,6 +46,9 @@ const EntitiesSchema = z.object({
   labCodes: z.array(z.string()).nullable().describe('Lab test names (e.g., "A1C", "glucose")'),
   dateRange: DateRangeSchema.nullable().describe('Time filters if mentioned'),
   numericFilters: z.array(NumericFilterSchema).nullable().describe('Numeric comparisons'),
+  ageFilter: AgeFilterSchema.nullable().describe(
+    'Patient age filter in years. "younger"->{lt,40}, "older/elderly/senior"->{gte,65}, "over 50"->{gt,50}, "under 30"->{lt,30}'
+  ),
 });
 
 /**
@@ -84,12 +95,14 @@ Intent guide:
 - structured_query: filter patients by conditions, medications, or lab values ("diabetics with A1C over 9")
 - clinical_note_search: questions answered by reading notes ("patients describing chest pain at night")
 - population_analytics: counts and aggregates ("how many patients have hypertension?")
-- hybrid_query: needs BOTH a structured filter AND note content ("what do the notes say about sleep for patients with depression?")
-- general_question: not about this data at all
+- hybrid_query: needs BOTH a structured filter AND note content ("what do the notes say about sleep for patients with depression?"), OR an open/analytical question about a group of patients defined by a condition ("what are the trends in stroke patients?", "tell me about diabetics")
+- general_question: ONLY for questions with no connection to the patient records at all (e.g., "what is a normal A1C range?", "who are you?"). If the question names or implies ANY condition, medication, lab, symptom, or patient population, it is NOT a general_question.
 
 Rules:
 - requiresSQL is true for patient_lookup, patient_summary, structured_query, population_analytics, and hybrid_query.
 - requiresVector is true for clinical_note_search and hybrid_query.
+- If the question references a medical condition — even vaguely or analytically ("trends in stroke patients", "insights on CHF cases", "tell me about asthmatics") — you MUST extract it into entities.conditions and classify as population_analytics or hybrid_query. Never route such a question to general_question with empty entities.
+- If the question references patient age or life stage ("younger", "older", "elderly", "seniors", "over 50", "under 30"), populate entities.ageFilter and classify as structured_query (or population_analytics for a count). Map: "younger"/"young" -> {operator:"lt", value:40}, "older"/"elderly"/"senior" -> {operator:"gte", value:65}, "over N" -> {operator:"gt", value:N}, "under N" -> {operator:"lt", value:N}. Do NOT put age phrases into patientName.
 - Normalize condition names to common clinical terms (e.g., "sugar disease" -> "diabetes").
 - Express comparisons like "A1C over 9" as numericFilters with field, operator, and value.
 - For vector searches, write semanticQuery as an expanded clinical phrasing of the question, including synonyms a clinician might use in a note.
@@ -110,7 +123,16 @@ Query: "What do the clinical notes say about medication side effects for patient
 { "intent": "hybrid_query", "entities": { "conditions": ["depression"] }, "semanticQuery": "medication side effects adverse reaction antidepressant tolerability", "requiresSQL": true, "requiresVector": true }
 
 Query: "Tell me about Abe Frami"
-{ "intent": "patient_summary", "entities": { "patientName": "Abe Frami" }, "requiresSQL": true, "requiresVector": false }`;
+{ "intent": "patient_summary", "entities": { "patientName": "Abe Frami" }, "requiresSQL": true, "requiresVector": false }
+
+Query: "What are the trends in stroke patients?"
+{ "intent": "hybrid_query", "entities": { "conditions": ["stroke"] }, "semanticQuery": "stroke cerebrovascular accident CVA ischemic hemorrhagic neurological deficit", "requiresSQL": true, "requiresVector": true }
+
+Query: "Any younger patients we should check up on for a routine visit?"
+{ "intent": "structured_query", "entities": { "ageFilter": { "operator": "lt", "value": 40 } }, "requiresSQL": true, "requiresVector": false }
+
+Query: "How many patients are over 65?"
+{ "intent": "population_analytics", "entities": { "ageFilter": { "operator": "gt", "value": 65 } }, "requiresSQL": true, "requiresVector": false }`;
 
 /**
  * Analyze a user query to determine intent and extract entities

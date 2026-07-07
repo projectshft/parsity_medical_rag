@@ -42,11 +42,6 @@ describe('POST /api/query', () => {
     expect(vi.mocked(executeQuery).mock.calls[0][1]).toMatchObject({ obscurePII: true });
   });
 
-  it('the X-Obscure-PII header overrides the body', async () => {
-    await POST(queryRequest({ query: 'x', obscurePII: false }, { 'x-obscure-pii': 'true' }));
-    expect(vi.mocked(executeQuery).mock.calls[0][1]).toMatchObject({ obscurePII: true });
-  });
-
   it('returns formatted text when format=formatted', async () => {
     const res = await POST(queryRequest({ query: 'x', format: 'formatted' }));
     const body = await res.json();

@@ -1,0 +1,38 @@
+# Canary: pings the LiteLLM proxy on a schedule so we KNOW it's up, not hope so.
+# A failing run emails the repo admins (GitHub's default notification).
+#
+# Requires two repo secrets (Settings -> Secrets and variables -> Actions):
+#   PROXY_URL         e.g. https://parsity-litellm.fly.dev
+#   PROXY_CANARY_KEY  a dedicated low-budget key minted via 2-new-cohort.sh
+name: proxy-canary
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # every 15 minutes
+  workflow_dispatch: {}       # allow manual runs
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health check
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$PROXY_URL/health/readiness")
+          echo "readiness -> $code"
+          test "$code" = "200"
+        env:
+          PROXY_URL: ${{ secrets.PROXY_URL }}
+
+      - name: Live model call (real end-to-end)
+        run: |
+          resp=$(curl -s -w '\n%{http_code}' "$PROXY_URL/v1/chat/completions" \
+            -H "Authorization: Bearer $PROXY_CANARY_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"ping"}],"max_tokens":1}')
+          body=$(echo "$resp" | head -n -1); code=$(echo "$resp" | tail -n1)
+          echo "completion -> $code"
+          echo "$body" | head -c 400
+          test "$code" = "200"
+        env:
+          PROXY_URL: ${{ secrets.PROXY_URL }}
+          PROXY_CANARY_KEY: ${{ secrets.PROXY_CANARY_KEY }}

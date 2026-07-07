@@ -11,13 +11,27 @@
  * 5. Get your event type ID from Cal.com dashboard
  */
 
-const CAL_API_BASE = 'https://api.cal.com/v1';
+// Cal.com API v2. v1 was decommissioned. v2 differs from v1 in three ways:
+//   - auth is an `Authorization: Bearer <key>` header (not a `?apiKey=` query param)
+//   - every request must send a dated `cal-api-version` header
+//   - responses are wrapped in `{ status, data }`
+const CAL_API_BASE = 'https://api.cal.com/v2';
+// Pin the API version per endpoint (Cal.com versions them by date).
+const CAL_API_VERSION_BOOKINGS = '2024-08-13';
+const CAL_API_VERSION_SLOTS = '2024-09-04';
 
 export interface ScheduleRequest {
   patientName: string;
   patientEmail?: string;
+  patientPhone?: string; // E.164; falls back to DEMO_PHONE_NUMBER
   dateTime: string; // ISO 8601 format
   notes?: string;
+}
+
+/** Cal.com wants E.164 (+15551234567). Add the leading + if missing. */
+function toE164(phone: string): string {
+  const trimmed = phone.trim();
+  return trimmed.startsWith('+') ? trimmed : `+${trimmed.replace(/[^\d]/g, '')}`;
 }
 
 export interface ScheduleResult {
@@ -65,23 +79,34 @@ export async function scheduleAppointment(
   try {
     const apiKey = getApiKey();
     const eventTypeId = getEventTypeId();
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    // Cal.com booking API
-    const response = await fetch(`${CAL_API_BASE}/bookings?apiKey=${apiKey}`, {
+    // v2 requires `start` in UTC (ISO 8601). Normalize whatever we were given.
+    const start = new Date(request.dateTime).toISOString();
+
+    // phoneNumber is required when the event type has SMS reminders enabled.
+    const rawPhone = request.patientPhone || process.env.DEMO_PHONE_NUMBER;
+
+    const response = await fetch(`${CAL_API_BASE}/bookings`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        'cal-api-version': CAL_API_VERSION_BOOKINGS,
       },
       body: JSON.stringify({
         eventTypeId,
-        start: request.dateTime,
-        responses: {
+        start,
+        attendee: {
           name: request.patientName,
           email: request.patientEmail || 'patient@example.com',
+          timeZone,
+          language: 'en',
+          ...(rawPhone ? { phoneNumber: toE164(rawPhone) } : {}),
+        },
+        bookingFieldsResponses: {
           notes: request.notes || `Appointment for ${request.patientName}`,
         },
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        language: 'en',
         metadata: {
           source: 'medical-rag',
           patientName: request.patientName,
@@ -90,19 +115,24 @@ export async function scheduleAppointment(
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      // v2 errors: { status: "error", error: { message } }
+      const err = await response.json().catch(() => ({}));
       return {
         success: false,
-        error: error.message || `Cal.com API error: ${response.status}`,
+        error:
+          err?.error?.message ||
+          err?.message ||
+          `Cal.com API error: ${response.status}`,
       };
     }
 
-    const booking = await response.json();
+    // v2 wraps the payload: { status: "success", data: { id, uid, ... } }
+    const { data } = await response.json();
 
     return {
       success: true,
-      bookingId: booking.id?.toString(),
-      bookingUrl: booking.bookingUrl,
+      bookingId: (data?.id ?? data?.uid)?.toString(),
+      bookingUrl: data?.uid ? `https://app.cal.com/booking/${data.uid}` : undefined,
     };
   } catch (error) {
     return {
@@ -122,17 +152,29 @@ export async function getAvailableSlots(
     const apiKey = getApiKey();
     const eventTypeId = getEventTypeId();
 
-    const response = await fetch(
-      `${CAL_API_BASE}/availability?apiKey=${apiKey}&eventTypeId=${eventTypeId}&dateFrom=${date}&dateTo=${date}`,
-      { method: 'GET' }
-    );
+    const params = new URLSearchParams({
+      eventTypeId: String(eventTypeId),
+      start: date,
+      end: date,
+    });
+    const response = await fetch(`${CAL_API_BASE}/slots?${params}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'cal-api-version': CAL_API_VERSION_SLOTS,
+      },
+    });
 
     if (!response.ok) {
       return [];
     }
 
-    const data = await response.json();
-    return data.slots || [];
+    // v2: { status, data: { "YYYY-MM-DD": [{ start: "ISO" }, ...] } }
+    const { data } = await response.json();
+    return Object.values(data ?? {})
+      .flat()
+      .map((slot: any) => slot?.start)
+      .filter(Boolean);
   } catch {
     return [];
   }

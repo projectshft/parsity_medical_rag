@@ -39,3 +39,6 @@ fhir/
 
 # Bible chunking lab corpus + generated chunks (downloaded, regenerable)
 data/bible/
+
+# LiteLLM per-cohort student keys (secret)
+infra/litellm/keys-*.csv

@@ -18,7 +18,6 @@ const QueryRequestSchema = z.object({
  *
  * POST /api/query
  * Body: { query: string, vectorTopK?: number, obscurePII?: boolean, format?: 'raw' | 'formatted' }
- * Headers: X-Obscure-PII: true (optional, overrides body.obscurePII)
  */
 export async function POST(request: Request) {
   try {
@@ -26,17 +25,12 @@ export async function POST(request: Request) {
       await request.json()
     );
 
-    // Optional PII obscuring: header takes precedence over body.
-    const headerObscure = request.headers.get("x-obscure-pii");
-    const shouldObscure =
-      headerObscure === "true" ? true : headerObscure === "false" ? false : obscurePII;
-
-    const result = await executeQuery(query, { vectorTopK, obscurePII: shouldObscure });
+    const result = await executeQuery(query, { vectorTopK, obscurePII });
 
     if (format === "formatted") {
       return NextResponse.json({
         ...result,
-        formatted: formatResultsForLLM(result, shouldObscure),
+        formatted: formatResultsForLLM(result, obscurePII),
       });
     }
 

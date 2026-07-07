@@ -283,6 +283,65 @@ export async function getPatientIdsByConditions(conditions: string[]): Promise<s
   return patients.map(p => p.id);
 }
 
+/** Expand condition terms via CONDITION_MAPPINGS (falls back to the raw term). */
+function expandConditionTerms(conditions: string[]): string[] {
+  const terms: string[] = [];
+  for (const c of conditions) {
+    const lower = c.toLowerCase();
+    terms.push(...(CONDITION_MAPPINGS[lower] || [lower]));
+  }
+  return terms;
+}
+
+/**
+ * Convert an age comparison into a birthDate filter.
+ * Someone is `age >= V` iff they were born on/before (today - V years).
+ */
+function ageToBirthDateFilter(
+  operator: 'gt' | 'lt' | 'gte' | 'lte',
+  value: number
+): { gt?: Date; lt?: Date; gte?: Date; lte?: Date } {
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - value);
+  switch (operator) {
+    case 'gt': return { lt: cutoff };   // older than V -> born before cutoff
+    case 'gte': return { lte: cutoff };
+    case 'lt': return { gt: cutoff };   // younger than V -> born after cutoff
+    case 'lte': return { gte: cutoff };
+  }
+}
+
+/** Find patients by age (optionally also filtered by condition). Youngest first. */
+export async function findPatientsByAge(
+  operator: 'gt' | 'lt' | 'gte' | 'lte',
+  value: number,
+  conditions?: string[]
+) {
+  const where: any = { birthDate: ageToBirthDateFilter(operator, value) };
+  if (conditions?.length) {
+    const terms = expandConditionTerms(conditions);
+    where.conditions = {
+      some: { OR: terms.map(term => ({ display: { contains: term, mode: 'insensitive' as const } })) },
+    };
+  }
+  return prisma.patient.findMany({
+    where,
+    include: {
+      conditions: { where: { clinicalStatus: 'active' }, orderBy: { onsetDate: 'desc' } },
+    },
+    orderBy: { birthDate: 'desc' },
+    take: 100,
+  });
+}
+
+/** Count patients matching an age filter (population analytics). */
+export async function countPatientsByAge(
+  operator: 'gt' | 'lt' | 'gte' | 'lte',
+  value: number
+) {
+  return prisma.patient.count({ where: { birthDate: ageToBirthDateFilter(operator, value) } });
+}
+
 /**
  * Execute query based on analysis
  */
@@ -317,6 +376,15 @@ export async function executeStructuredQuery(analysis: QueryAnalysis) {
       return { type: 'error', message: 'No patient identifier provided' };
 
     case 'structured_query':
+      // Age filter (optionally combined with a condition)
+      if (entities.ageFilter) {
+        const patients = await findPatientsByAge(
+          entities.ageFilter.operator,
+          entities.ageFilter.value,
+          entities.conditions ?? undefined
+        );
+        return { type: 'structured_query', patients };
+      }
       // Handle condition filters
       if (entities.conditions?.length) {
         // Check for numeric filters on labs
@@ -349,6 +417,13 @@ export async function executeStructuredQuery(analysis: QueryAnalysis) {
       return { type: 'error', message: 'No filter criteria provided' };
 
     case 'population_analytics':
+      if (entities.ageFilter) {
+        const count = await countPatientsByAge(
+          entities.ageFilter.operator,
+          entities.ageFilter.value
+        );
+        return { type: 'population_analytics', count, ageFilter: entities.ageFilter };
+      }
       if (entities.conditions?.length) {
         const condition = entities.conditions[0];
         const count = await countPatientsByCondition(condition);

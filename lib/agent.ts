@@ -1,5 +1,14 @@
 import { streamText } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
+
+// Configure the AI SDK provider to honor OPENAI_BASE_URL (the LiteLLM proxy).
+// The default `openai` export ignores OPENAI_BASE_URL and always hits
+// api.openai.com — which 401s with a proxy-issued key and streams nothing
+// (blank assistant bubble). baseURL undefined -> defaults to api.openai.com/v1.
+const openai = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: process.env.OPENAI_BASE_URL,
+});
 import { analyzeQuery } from "./query-analyzer";
 import type { QueryAnalysis } from "./query-analyzer";
 import { executeStructuredQuery, findPatientByName } from "./sql-queries";

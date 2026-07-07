@@ -2,6 +2,9 @@ import OpenAI from "openai";
 
 export const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  // Route through the LiteLLM proxy when set (dogfoods it + enforces budgets).
+  // Unset -> SDK falls back to api.openai.com.
+  baseURL: process.env.OPENAI_BASE_URL,
 });
 
 // Backwards compatibility

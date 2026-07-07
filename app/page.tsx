@@ -390,7 +390,9 @@ export default function Home() {
               </div>
             )}
 
-            {isStreaming && messages[messages.length - 1]?.content === "" && (
+            {isStreaming &&
+              (messages[messages.length - 1]?.role === "user" ||
+                messages[messages.length - 1]?.content === "") && (
               <div className="flex justify-start">
                 <div className="bg-copilot-sidebar rounded-lg px-4 py-3">
                   <div className="flex gap-1">

@@ -1,0 +1,19 @@
+# LiteLLM proxy config
+#
+# Students point the OpenAI SDK at this proxy and use ANY OpenAI model name.
+# The wildcard route passes every request through to OpenAI proper, so
+# "gpt-4o", "gpt-4o-mini", "gpt-4.1-nano", "text-embedding-3-small", the
+# o-series, etc. all just work — no per-model config needed.
+
+model_list:
+  - model_name: "*"
+    litellm_params:
+      model: openai/*
+      api_key: os.environ/OPENAI_API_KEY
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+# NOTE: Budget enforcement is per-key (set by 2-new-cohort.sh at mint time).
+# Do NOT set litellm_settings.max_budget here — that is a GLOBAL ceiling across
+# all keys, and setting it to 0 makes the proxy reject every request immediately.
