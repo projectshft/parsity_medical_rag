@@ -21,6 +21,8 @@ export interface QueryResult {
     patient?: any;
     count?: number;
     condition?: string;
+    ageFilter?: { operator: 'gt' | 'lt' | 'gte' | 'lte'; value: number };
+    ageSort?: 'youngest' | 'oldest';
     patientIds?: string[];
     aggregations?: any;
     message?: string;

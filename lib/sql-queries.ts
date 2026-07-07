@@ -18,6 +18,11 @@ const CONDITION_MAPPINGS: Record<string, string[]> = {
   depression: ['depression', 'depressive disorder', 'major depressive'],
   anxiety: ['anxiety', 'anxiety disorder', 'generalized anxiety'],
   chf: ['heart failure', 'congestive heart failure', 'cardiac failure'],
+  // Smoking is stored as the condition "Smokes tobacco daily" — the words
+  // "smoker"/"smoking" don't substring-match it, so map them explicitly.
+  smoker: ['smokes tobacco', 'tobacco'],
+  smoking: ['smokes tobacco', 'tobacco'],
+  tobacco: ['smokes tobacco', 'tobacco'],
 };
 
 // Lab code mappings (LOINC codes and display names)
@@ -334,12 +339,40 @@ export async function findPatientsByAge(
   });
 }
 
-/** Count patients matching an age filter (population analytics). */
+/** Count patients matching an age filter (optionally also a condition). */
 export async function countPatientsByAge(
   operator: 'gt' | 'lt' | 'gte' | 'lte',
-  value: number
+  value: number,
+  conditions?: string[]
 ) {
-  return prisma.patient.count({ where: { birthDate: ageToBirthDateFilter(operator, value) } });
+  const where: any = { birthDate: ageToBirthDateFilter(operator, value) };
+  if (conditions?.length) {
+    const terms = expandConditionTerms(conditions);
+    where.conditions = {
+      some: { OR: terms.map(term => ({ display: { contains: term, mode: 'insensitive' as const } })) },
+    };
+  }
+  return prisma.patient.count({ where });
+}
+
+/** Patients sorted by age for a superlative ("youngest"/"oldest"), optionally within a condition. */
+export async function findPatientsSortedByAge(
+  direction: 'youngest' | 'oldest',
+  conditions?: string[]
+) {
+  const where: any = { birthDate: { not: null } };
+  if (conditions?.length) {
+    const terms = expandConditionTerms(conditions);
+    where.conditions = {
+      some: { OR: terms.map(term => ({ display: { contains: term, mode: 'insensitive' as const } })) },
+    };
+  }
+  return prisma.patient.findMany({
+    where,
+    include: { conditions: { where: { clinicalStatus: 'active' }, orderBy: { onsetDate: 'desc' } } },
+    orderBy: { birthDate: direction === 'youngest' ? 'desc' : 'asc' }, // youngest = most recent birth
+    take: 25,
+  });
 }
 
 /**
@@ -376,6 +409,14 @@ export async function executeStructuredQuery(analysis: QueryAnalysis) {
       return { type: 'error', message: 'No patient identifier provided' };
 
     case 'structured_query':
+      // Age superlative ("who is the youngest/oldest", optionally within a condition)
+      if (entities.ageSort) {
+        const patients = await findPatientsSortedByAge(
+          entities.ageSort,
+          entities.conditions ?? undefined
+        );
+        return { type: 'structured_query', patients, ageSort: entities.ageSort };
+      }
       // Age filter (optionally combined with a condition)
       if (entities.ageFilter) {
         const patients = await findPatientsByAge(
@@ -416,26 +457,40 @@ export async function executeStructuredQuery(analysis: QueryAnalysis) {
       }
       return { type: 'error', message: 'No filter criteria provided' };
 
-    case 'population_analytics':
-      if (entities.ageFilter) {
-        const count = await countPatientsByAge(
-          entities.ageFilter.operator,
-          entities.ageFilter.value
-        );
-        return { type: 'population_analytics', count, ageFilter: entities.ageFilter };
-      }
-      if (entities.conditions?.length) {
-        const condition = entities.conditions[0];
-        const count = await countPatientsByCondition(condition);
+    case 'population_analytics': {
+      // Return the exact count AND a sample of the matching patients (youngest
+      // first, with birthDate) so follow-ups like "who is the youngest?" or
+      // "name a few" have real rows to reason over — not just a number.
+      const conditionList = entities.conditions ?? [];
+      const ageFilter = entities.ageFilter;
+
+      if (ageFilter) {
+        // Age filter, optionally combined with a condition ("smokers under 50").
+        const conds = conditionList.length ? conditionList : undefined;
+        const [count, patients] = await Promise.all([
+          countPatientsByAge(ageFilter.operator, ageFilter.value, conds),
+          findPatientsByAge(ageFilter.operator, ageFilter.value, conds),
+        ]);
         return {
           type: 'population_analytics',
           count,
-          condition,
+          ageFilter,
+          condition: conditionList[0],
+          patients,
         };
+      }
+      if (conditionList.length) {
+        const condition = conditionList[0];
+        const [count, patients] = await Promise.all([
+          countPatientsByCondition(condition),
+          findPatientsByConditions([condition]),
+        ]);
+        return { type: 'population_analytics', count, condition, patients };
       }
       // Total patient count
       const totalCount = await prisma.patient.count();
       return { type: 'population_analytics', count: totalCount };
+    }
 
     case 'hybrid_query':
       // For hybrid queries, return patient IDs to filter Pinecone results
