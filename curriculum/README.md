@@ -91,7 +91,7 @@ The company has all this data — how do we make the *notes* searchable by **mea
 6. [The vectorize script: database → vector store](w1-06-vectorize.md)
 7. [Semantic search + metadata](w1-07-semantic-search.md)
 8. [Chunking, introduced (and why our notes don't need it)](w1-08-chunking-intro.md) 🎥
-- 📝 [Homework — Bible chunking (side project, part 1)](homework-bible-chunking.md)
+- 📝 [Optional side project — Bible chunking (part 1)](homework-bible-chunking.md)
 
 **Week 2 — Agentic / hybrid search**
 An agent that answers by using **both** engines — exact SQL for facts, vector search for meaning.
@@ -102,7 +102,7 @@ An agent that answers by using **both** engines — exact SQL for facts, vector 
 5. [When cosine lies: reranking](w2-05-reranking.md)
 6. [The chat agent + the grounding contract](w2-06-chat-agent.md)
 7. [Failure day: bait, and refusing it](w2-07-failure-day.md) 🎥
-- 📝 [Homework — Bible chunking (part 2: chunk + upload)](homework-bible-chunking.md)
+- 📝 [Optional side project — Bible chunking (part 2: chunk + upload)](homework-bible-chunking.md)
 
 **Week 3 — MCP + human-in-the-loop**
 1. [MCP: your RAG as a tool for AI assistants](w3-01-mcp-intro.md)
@@ -122,9 +122,9 @@ Measure and trace a non-deterministic system so "it feels better" becomes a numb
 Show identifying details only where they belong — no login, just the channel. The front-office (MCP) door always obscures PII; the clinician (direct app) door sees full data.
 1. [PII de-identification and the channel access model](w5-02-rbac-pii.md)
 2. [Wrap-up: what you built, and where to go next](w5-03-wrap-up.md) 🎥
-- 📝 [Homework — Adversarial / poisoned documents](homework-poisoned-docs.md)
+- 📝 [**Required** — The poisoned document (indirect prompt injection)](homework-poisoned-docs.md) — self-paced: required; live cohort: done in the Week 5 session
 
-🎥 = weekly video deliverable · 📝 = homework (self-paced side project)
+🎥 = weekly video deliverable · 📝 = self-paced project (required or optional as noted per item)
 
 ## A note on AI-assisted coding
 
