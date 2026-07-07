@@ -106,7 +106,8 @@ Rules:
 - Normalize condition names to common clinical terms (e.g., "sugar disease" -> "diabetes").
 - Express comparisons like "A1C over 9" as numericFilters with field, operator, and value.
 - For vector searches, write semanticQuery as an expanded clinical phrasing of the question, including synonyms a clinician might use in a note.
-- Extract only what is actually in the query. Do not invent entities.`;
+- Extract only what is actually in the query. Do not invent entities.
+- Conversation history may precede the latest message. Use it ONLY to resolve references in a follow-up (e.g., "what about their medications?", "and the younger ones?", "just the diabetics") — carry forward the relevant entities/conditions from earlier turns. Always classify the LATEST user message.`;
 
 const FEW_SHOT_EXAMPLES = `Examples:
 
@@ -134,16 +135,31 @@ Query: "Any younger patients we should check up on for a routine visit?"
 Query: "How many patients are over 65?"
 { "intent": "population_analytics", "entities": { "ageFilter": { "operator": "gt", "value": 65 } }, "requiresSQL": true, "requiresVector": false }`;
 
+/** Minimal chat message shape (kept local to avoid a cycle with lib/agent). */
+export type ConversationMessage = { role: 'user' | 'assistant'; content: string };
+
 /**
- * Analyze a user query to determine intent and extract entities
+ * Analyze a user query to determine intent and extract entities.
+ *
+ * `history` (recent prior turns) lets the router resolve references in
+ * follow-ups ("what about their meds?") and build a better semanticQuery.
+ * Only the last few turns are used.
  */
-export async function analyzeQuery(userQuery: string): Promise<QueryAnalysis> {
+export async function analyzeQuery(
+  userQuery: string,
+  history: ConversationMessage[] = []
+): Promise<QueryAnalysis> {
   const client = getOpenAIClient();
+
+  const recent = history
+    .slice(-5)
+    .map((m) => ({ role: m.role, content: m.content }));
 
   const response = await client.responses.parse({
     model: 'gpt-4o-mini',
     input: [
       { role: 'system', content: `${SYSTEM_PROMPT}\n\n${FEW_SHOT_EXAMPLES}` },
+      ...recent,
       { role: 'user', content: userQuery },
     ],
     temperature: 0,

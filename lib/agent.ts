@@ -67,8 +67,11 @@ export interface AgentResponse {
 // --- The agents -----------------------------------------------------------
 
 /** ROUTER: massage the question into a plan — which agents to run, with what. */
-async function routeQuery(query: string): Promise<QueryAnalysis> {
-  return traced("router", () => analyzeQuery(query), {
+async function routeQuery(
+  query: string,
+  history: Message[]
+): Promise<QueryAnalysis> {
+  return traced("router", () => analyzeQuery(query, history), {
     runType: "chain",
     inputs: { query },
   });
@@ -107,8 +110,9 @@ export async function runAgent(
   }
   const willSchedule = schedulingIntent.isSchedulingRequest && matchedPatient !== null;
 
-  // 1. ROUTER — decide which specialist agents to run.
-  const analysis = await routeQuery(query);
+  // 1. ROUTER — decide which specialist agents to run (history lets it
+  //    resolve follow-up references like "their meds" / "the younger ones").
+  const analysis = await routeQuery(query, conversationHistory);
   const useSql = analysis.requiresSQL;
   // Fall back to a note search when the router is unsure (neither flag set).
   const useVector = analysis.requiresVector || (!analysis.requiresSQL && !analysis.requiresVector);
