@@ -67,32 +67,31 @@ Traditional search fails because:
 
 ## Quick Start
 
-### Prerequisites
-
-- Node.js 18+
-- Your own free accounts: [Pinecone](https://pinecone.io) and [OpenAI](https://platform.openai.com) — you build the vector store, so these are yours.
-- The **provided, read-only Postgres** connection string (Neon). The company's data is already loaded; you do **not** create or seed a database. Drop it into `DATABASE_URL`.
-
-### Setup
+You need **Node 18+** and your own free [OpenAI](https://platform.openai.com) and [Pinecone](https://pinecone.io) keys. The database is **provided, read-only** — already loaded, you just connect to it.
 
 ```bash
-# Install dependencies
+git clone <repo-url> && cd medical-rag
+git checkout student
 npm install
-
-# Copy environment template
 cp .env.example .env
-
-# Add your API keys + the provided DATABASE_URL to .env, then generate
-# the Prisma client (local codegen — this does NOT touch the database):
-npm run db:generate
-
-# Start the app
-npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open `.env` and paste in these three values:
 
-> No `db:push` / no ingest: the Postgres data is pre-loaded and read-only. You point at it and build the vector store on top (`npm run vectorize`). Peek at the data anytime with `npm run db:studio`.
+```
+DATABASE_URL="postgresql://student_ro:ro1cb37cd086ff963b4f70@ep-dark-voice-apy5nrfq-pooler.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require"
+OPENAI_API_KEY=sk-...      # your own
+PINECONE_API_KEY=...       # your own
+```
+
+Then:
+
+```bash
+npm run db:generate   # builds the DB client (local codegen — does NOT touch the database)
+npm run dev           # open http://localhost:3000
+```
+
+That's it. The database is read-only, so **don't** run `db:push` or `ingest` (they'll fail — the data's already there). Browse the tables anytime with `npm run db:studio`.
 
 ---
 
