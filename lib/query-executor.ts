@@ -115,7 +115,10 @@ export function formatResultsForLLM(result: QueryResult, obscurePII?: boolean): 
 
       case 'structured_query':
         if (result.sqlResults.patients?.length) {
-          parts.push(`## Matching Patients (${result.sqlResults.patients.length})\n`);
+          const sortNote = result.sqlResults.ageSort
+            ? ` — sorted ${result.sqlResults.ageSort} first; the FIRST listed is the ${result.sqlResults.ageSort}`
+            : '';
+          parts.push(`## Matching Patients (${result.sqlResults.patients.length}${sortNote})\n`);
           for (const patient of result.sqlResults.patients.slice(0, 10)) {
             // Handle both direct patients and {patient, observations} objects
             const p = patient.patient || patient;
@@ -134,17 +137,40 @@ export function formatResultsForLLM(result: QueryResult, obscurePII?: boolean): 
             }
           }
           parts.push('');
+        } else {
+          // Be explicit so the assistant says "there are none" rather than
+          // "I don't have that information" on a genuinely empty result set.
+          parts.push('## Matching Patients (0)\n');
+          parts.push('No patients in the records match this filter.\n');
         }
         break;
 
-      case 'population_analytics':
+      case 'population_analytics': {
         parts.push(`## Population Statistics\n`);
-        if (result.sqlResults.condition) {
-          parts.push(`- Patients with ${result.sqlResults.condition}: **${result.sqlResults.count}**\n`);
-        } else {
-          parts.push(`- Total patients: **${result.sqlResults.count}**\n`);
+        const label = [result.sqlResults.condition, result.sqlResults.ageFilter
+          ? `${result.sqlResults.ageFilter.operator === 'lt' || result.sqlResults.ageFilter.operator === 'lte' ? 'under' : 'over'} ${result.sqlResults.ageFilter.value}`
+          : null].filter(Boolean).join(', ');
+        parts.push(`- Patients${label ? ` (${label})` : ''}: **${result.sqlResults.count}**\n`);
+        // Surface a sample of the actual patients (youngest first, with age) so
+        // follow-ups like "who is the youngest?" or "name a few" can be answered.
+        if (result.sqlResults.patients?.length) {
+          const sample = result.sqlResults.patients.slice(0, 25);
+          parts.push(`Sample of matching patients (youngest first, ${sample.length} of ${result.sqlResults.count}):`);
+          for (const p of sample) {
+            const rawName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Unknown';
+            const name = obscure ? obscureName(rawName) : rawName;
+            const dob = obscure
+              ? obscureDate(p.birthDate)
+              : (p.birthDate?.toISOString().split('T')[0] || 'unknown');
+            const age = p.birthDate
+              ? Math.floor((Date.now() - p.birthDate.getTime()) / (365.25 * 24 * 3600 * 1000))
+              : null;
+            parts.push(`- **${name}** (${p.gender}, born ${dob}${age !== null ? `, age ~${age}` : ''})`);
+          }
+          parts.push('');
         }
         break;
+      }
     }
   }
 
