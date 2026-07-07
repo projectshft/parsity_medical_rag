@@ -61,6 +61,20 @@ Rules:
 - Dedupe patients with DISTINCT or GROUP BY p.id.
 - Return useful columns for a human answer (names, the matched display, dates) — not just ids.`;
 
+// TODO (semantic grounding — the hard part of text-to-SQL): map the user's
+// everyday words to the actual clinical values stored in the columns. The
+// schema tells the model a `display` column EXISTS, but not WHAT'S IN IT — so
+// lay terms silently match nothing and the answer is a confident, wrong "none":
+//   - "heart attack"        → the column says "Myocardial Infarction"
+//                             (ILIKE '%heart attack%' matches 0 rows)
+//   - "high blood pressure" → the column says "Hypertension"
+//   - "smoker"              → the condition is "Smokes tobacco daily"
+// The distinct-value dump below is a first pass, but it's long and unranked, so
+// the model can miss it. Better: give it an explicit synonym map (lay term →
+// real display / SNOMED code), or resolve the user's terms against the
+// vocabulary BEFORE it writes SQL. This mapping is the real work — text-to-SQL
+// moves the effort here, it doesn't remove it.
+
 // Grounding: real distinct display values so the model uses the right terms
 // (e.g. "Smokes tobacco daily", not "smoker"). Fetched once, cached.
 let vocabCache: string | null = null;
