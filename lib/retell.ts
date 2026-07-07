@@ -61,6 +61,12 @@ export async function callToConfirmAppointment(opts: {
   const call = await client.call.createPhoneCall({
     from_number: process.env.RETELL_FROM_NUMBER!,
     to_number: to,
+    // Target the appointment-reminder agent directly (deploy it with
+    // scripts/retell/deploy-agent.ts). With this set, the from_number does
+    // not need an outbound agent bound in the dashboard.
+    ...(process.env.RETELL_AGENT_ID
+      ? { override_agent_id: process.env.RETELL_AGENT_ID }
+      : {}),
     // Injected into the agent's prompt as {{patient_name}} / {{appointment_time}}
     retell_llm_dynamic_variables: {
       patient_name: opts.patientName,
