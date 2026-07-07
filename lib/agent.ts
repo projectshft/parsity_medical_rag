@@ -11,7 +11,9 @@ const openai = createOpenAI({
 });
 import { analyzeQuery } from "./query-analyzer";
 import type { QueryAnalysis } from "./query-analyzer";
-import { executeStructuredQuery, findPatientByName } from "./sql-queries";
+import { findPatientByName } from "./sql-queries";
+import { textToSqlQuery } from "./text-to-sql";
+import type { TextToSqlResult } from "./text-to-sql";
 import { searchClinicalNotes } from "./vector-search";
 import { formatResultsForLLM } from "./query-executor";
 import type { QueryResult } from "./types";
@@ -77,12 +79,28 @@ async function routeQuery(
   });
 }
 
-/** SQL AGENT: exact structured facts from Postgres. */
-async function runSqlAgent(analysis: QueryAnalysis) {
-  return traced("sql_agent", () => executeStructuredQuery(analysis), {
+/** SQL AGENT: the LLM writes one read-only SELECT against the schema (text-to-SQL). */
+async function runSqlAgent(query: string, history: Message[]) {
+  return traced("sql_agent", () => textToSqlQuery(query, history), {
     runType: "chain",
-    inputs: { intent: analysis.intent },
+    inputs: { query },
   });
+}
+
+/** Render the text-to-SQL result as context for the aggregator. */
+function formatSqlResult(r: TextToSqlResult): string {
+  const parts = [`## Structured data (SQL)`, `_${r.explanation}_`];
+  if (r.error) {
+    parts.push(`The query failed: ${r.error}. Tell the user you couldn't retrieve that.`);
+  } else if (r.rows.length === 0) {
+    parts.push(`0 rows — nothing in the records matches. Say there are none.`);
+  } else {
+    parts.push(`${r.rows.length} row(s):`);
+    for (const row of r.rows.slice(0, 25)) {
+      parts.push("- " + Object.entries(row).map(([k, v]) => `${k}: ${v}`).join(", "));
+    }
+  }
+  return parts.join("\n");
 }
 
 /** VECTOR AGENT: meaning-based search over the clinical notes. */
@@ -118,16 +136,19 @@ export async function runAgent(
   const useVector = analysis.requiresVector || (!analysis.requiresSQL && !analysis.requiresVector);
 
   // 2. SPECIALIST AGENTS — run in parallel; each returns only its slice.
+  //    SQL side is now text-to-SQL: the LLM writes the query from the schema.
   const [sqlResults, vectorResults] = await Promise.all([
-    useSql ? runSqlAgent(analysis) : Promise.resolve(undefined),
+    useSql ? runSqlAgent(query, conversationHistory) : Promise.resolve(undefined),
     useVector ? runVectorAgent(analysis, query) : Promise.resolve(undefined),
   ]);
 
   // 3. AGGREGATOR — hand both slices to the LLM to synthesize and stream.
-  const result: QueryResult = { analysis };
-  if (sqlResults) result.sqlResults = sqlResults;
-  if (vectorResults) result.vectorResults = vectorResults;
-  const context = formatResultsForLLM(result);
+  //    Vector formatting is unchanged; the SQL block comes from text-to-SQL.
+  const vectorContext = vectorResults
+    ? formatResultsForLLM({ analysis, vectorResults })
+    : "";
+  const sqlContext = sqlResults ? formatSqlResult(sqlResults) : "";
+  const context = [sqlContext, vectorContext].filter(Boolean).join("\n\n");
 
   const analysisInfo = `Routing plan:
 - Intent: ${analysis.intent}
