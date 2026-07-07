@@ -14,41 +14,62 @@ import { zodTextFormat } from 'openai/helpers/zod';
  * Schema for numeric filters (e.g., "A1C > 9")
  */
 const NumericFilterSchema = z.object({
-  field: z.string().describe('The field to filter on (e.g., "A1C", "glucose", "BMI")'),
-  operator: z.enum(['gt', 'lt', 'eq', 'gte', 'lte']).describe('Comparison operator'),
-  value: z.number().describe('The numeric value to compare against'),
+	field: z
+		.string()
+		.describe('The field to filter on (e.g., "A1C", "glucose", "BMI")'),
+	operator: z
+		.enum(['gt', 'lt', 'eq', 'gte', 'lte'])
+		.describe('Comparison operator'),
+	value: z.number().describe('The numeric value to compare against'),
 });
 
 /**
  * Schema for date ranges
  */
 const DateRangeSchema = z.object({
-  from: z.string().nullable().describe('Start date in ISO format'),
-  to: z.string().nullable().describe('End date in ISO format'),
+	from: z.string().nullable().describe('Start date in ISO format'),
+	to: z.string().nullable().describe('End date in ISO format'),
 });
 
 /**
  * Schema for an age filter (in years), derived from birth date
  */
 const AgeFilterSchema = z.object({
-  operator: z.enum(['gt', 'lt', 'gte', 'lte']).describe('Comparison operator on age in years'),
-  value: z.number().describe('Age threshold in years'),
+	operator: z
+		.enum(['gt', 'lt', 'gte', 'lte'])
+		.describe('Comparison operator on age in years'),
+	value: z.number().describe('Age threshold in years'),
 });
 
 /**
  * Schema for extracted entities
  */
 const EntitiesSchema = z.object({
-  patientName: z.string().nullable().describe('Patient name if searching for specific patient'),
-  patientId: z.string().nullable().describe('Patient ID if provided'),
-  conditions: z.array(z.string()).nullable().describe('Medical conditions mentioned'),
-  medications: z.array(z.string()).nullable().describe('Medications mentioned'),
-  labCodes: z.array(z.string()).nullable().describe('Lab test names (e.g., "A1C", "glucose")'),
-  dateRange: DateRangeSchema.nullable().describe('Time filters if mentioned'),
-  numericFilters: z.array(NumericFilterSchema).nullable().describe('Numeric comparisons'),
-  ageFilter: AgeFilterSchema.nullable().describe(
-    'Patient age filter in years. "younger"->{lt,40}, "older/elderly/senior"->{gte,65}, "over 50"->{gt,50}, "under 30"->{lt,30}'
-  ),
+	patientName: z
+		.string()
+		.nullable()
+		.describe('Patient name if searching for specific patient'),
+	patientId: z.string().nullable().describe('Patient ID if provided'),
+	conditions: z
+		.array(z.string())
+		.nullable()
+		.describe('Medical conditions mentioned'),
+	medications: z
+		.array(z.string())
+		.nullable()
+		.describe('Medications mentioned'),
+	labCodes: z
+		.array(z.string())
+		.nullable()
+		.describe('Lab test names (e.g., "A1C", "glucose")'),
+	dateRange: DateRangeSchema.nullable().describe('Time filters if mentioned'),
+	numericFilters: z
+		.array(NumericFilterSchema)
+		.nullable()
+		.describe('Numeric comparisons'),
+	ageFilter: AgeFilterSchema.nullable().describe(
+		'Patient age filter in years. "younger"->{lt,40}, "older/elderly/senior"->{gte,65}, "over 50"->{gt,50}, "under 30"->{lt,30}',
+	),
 });
 
 /**
@@ -57,24 +78,33 @@ const EntitiesSchema = z.object({
  * This defines what the LLM should output for each query.
  */
 const QueryAnalysisSchema = z.object({
-  intent: z.enum([
-    'patient_lookup',      // Find specific patient by name
-    'patient_summary',     // Summarize a patient's health
-    'structured_query',    // Filter by conditions, meds, labs
-    'clinical_note_search', // Semantic search over notes
-    'population_analytics', // Aggregate statistics
-    'hybrid_query',        // Both structured + semantic
-    'general_question',    // Open-ended question
-  ]).describe('The type of query'),
+	intent: z
+		.enum([
+			'patient_lookup', // Find specific patient by name
+			'patient_summary', // Summarize a patient's health
+			'structured_query', // Filter by conditions, meds, labs
+			'clinical_note_search', // Semantic search over notes
+			'population_analytics', // Aggregate statistics
+			'hybrid_query', // Both structured + semantic
+			'general_question', // Open-ended question
+		])
+		.describe('The type of query'),
 
-  entities: EntitiesSchema.describe('Extracted entities from the query'),
+	entities: EntitiesSchema.describe('Extracted entities from the query'),
 
-  semanticQuery: z.string().nullable().describe(
-    'Optimized search query for vector search - expand with related terms'
-  ),
+	semanticQuery: z
+		.string()
+		.nullable()
+		.describe(
+			'Optimized search query for vector search - expand with related terms',
+		),
 
-  requiresSQL: z.boolean().describe('Whether structured database query is needed'),
-  requiresVector: z.boolean().describe('Whether vector search over clinical notes is needed'),
+	requiresSQL: z
+		.boolean()
+		.describe('Whether structured database query is needed'),
+	requiresVector: z
+		.boolean()
+		.describe('Whether vector search over clinical notes is needed'),
 });
 
 // Export types
@@ -136,7 +166,10 @@ Query: "How many patients are over 65?"
 { "intent": "population_analytics", "entities": { "ageFilter": { "operator": "gt", "value": 65 } }, "requiresSQL": true, "requiresVector": false }`;
 
 /** Minimal chat message shape (kept local to avoid a cycle with lib/agent). */
-export type ConversationMessage = { role: 'user' | 'assistant'; content: string };
+export type ConversationMessage = {
+	role: 'user' | 'assistant';
+	content: string;
+};
 
 /**
  * Analyze a user query to determine intent and extract entities.
@@ -146,27 +179,30 @@ export type ConversationMessage = { role: 'user' | 'assistant'; content: string 
  * Only the last few turns are used.
  */
 export async function analyzeQuery(
-  userQuery: string,
-  history: ConversationMessage[] = []
+	userQuery: string,
+	history: ConversationMessage[] = [],
 ): Promise<QueryAnalysis> {
-  const client = getOpenAIClient();
+	const client = getOpenAIClient();
 
-  const recent = history
-    .slice(-5)
-    .map((m) => ({ role: m.role, content: m.content }));
+	const recent = history
+		.slice(-5)
+		.map((m) => ({ role: m.role, content: m.content }));
 
-  const response = await client.responses.parse({
-    model: 'gpt-4o-mini',
-    input: [
-      { role: 'system', content: `${SYSTEM_PROMPT}\n\n${FEW_SHOT_EXAMPLES}` },
-      ...recent,
-      { role: 'user', content: userQuery },
-    ],
-    temperature: 0,
-    text: {
-      format: zodTextFormat(QueryAnalysisSchema, 'queryAnalysis'),
-    },
-  });
+	const response = await client.responses.parse({
+		model: 'gpt-4o-mini',
+		input: [
+			{
+				role: 'system',
+				content: `${SYSTEM_PROMPT}\n\n${FEW_SHOT_EXAMPLES}`,
+			},
+			...recent,
+			{ role: 'user', content: userQuery },
+		],
+		temperature: 0,
+		text: {
+			format: zodTextFormat(QueryAnalysisSchema, 'queryAnalysis'),
+		},
+	});
 
-  return QueryAnalysisSchema.parse(response.output_parsed);
+	return QueryAnalysisSchema.parse(response.output_parsed);
 }

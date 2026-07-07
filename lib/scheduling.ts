@@ -10,45 +10,60 @@ import { openai } from './openai';
 import { traced } from './langsmith';
 
 const SchedulingIntentSchema = z.object({
-  isSchedulingRequest: z.boolean().describe('Whether this is a request to schedule an appointment'),
-  patientName: z.string().nullable().describe('Name of the patient to schedule'),
-  suggestedDate: z.string().nullable().describe('Suggested date in YYYY-MM-DD format'),
-  suggestedTime: z.string().nullable().describe('Suggested time in HH:MM format (24h)'),
-  reason: z.string().nullable().describe('Reason for the appointment if mentioned'),
+	isSchedulingRequest: z
+		.boolean()
+		.describe('Whether this is a request to schedule an appointment'),
+	patientName: z
+		.string()
+		.nullable()
+		.describe('Name of the patient to schedule'),
+	suggestedDate: z
+		.string()
+		.nullable()
+		.describe('Suggested date in YYYY-MM-DD format'),
+	suggestedTime: z
+		.string()
+		.nullable()
+		.describe('Suggested time in HH:MM format (24h)'),
+	reason: z
+		.string()
+		.nullable()
+		.describe('Reason for the appointment if mentioned'),
 });
 
 export type SchedulingIntent = z.infer<typeof SchedulingIntentSchema>;
 
 export interface ConversationMessage {
-  role: 'user' | 'assistant';
-  content: string;
+	role: 'user' | 'assistant';
+	content: string;
 }
 
 /**
  * Analyze a query for scheduling intent, using conversation history for context
  */
 export async function detectSchedulingIntent(
-  query: string,
-  conversationHistory: ConversationMessage[] = []
+	query: string,
+	conversationHistory: ConversationMessage[] = [],
 ): Promise<SchedulingIntent> {
-  return traced(
-    'detect_scheduling_intent',
-    async () => {
-      const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
+	return traced(
+		'detect_scheduling_intent',
+		async () => {
+			const today = new Date();
+			const todayStr = today.toISOString().split('T')[0];
 
-      // Build context from recent conversation (last 4 messages)
-      const recentHistory = conversationHistory.slice(-4);
-      const historyContext = recentHistory.length > 0
-        ? `\n\nRecent conversation:\n${recentHistory.map(m => `${m.role}: ${m.content}`).join('\n')}`
-        : '';
+			// Build context from recent conversation (last 4 messages)
+			const recentHistory = conversationHistory.slice(-4);
+			const historyContext =
+				recentHistory.length > 0
+					? `\n\nRecent conversation:\n${recentHistory.map((m) => `${m.role}: ${m.content}`).join('\n')}`
+					: '';
 
-      const response = await openai.responses.parse({
-        model: 'gpt-4o-mini',
-        input: [
-          {
-            role: 'system',
-            content: `You analyze user queries to detect appointment scheduling requests.
+			const response = await openai.responses.parse({
+				model: 'gpt-4o-mini',
+				input: [
+					{
+						role: 'system',
+						content: `You analyze user queries to detect appointment scheduling requests.
 Today's date is ${todayStr}.
 
 If the user wants to schedule/book an appointment:
@@ -61,57 +76,43 @@ If the user wants to schedule/book an appointment:
 IMPORTANT: If the user confirms a scheduling request (e.g., "yes", "yeah", "do it", "schedule him"), look at the conversation history to find the patient name being discussed.
 
 If not a scheduling request, set isSchedulingRequest to false and all other fields to null.`,
-          },
-          {
-            role: 'user',
-            content: `${historyContext}\n\nCurrent message: ${query}`,
-          },
-        ],
-        temperature: 0,
-        text: {
-          format: zodTextFormat(SchedulingIntentSchema, 'scheduling_intent'),
-        },
-      });
+					},
+					{
+						role: 'user',
+						content: `${historyContext}\n\nCurrent message: ${query}`,
+					},
+				],
+				temperature: 0,
+				text: {
+					format: zodTextFormat(
+						SchedulingIntentSchema,
+						'scheduling_intent',
+					),
+				},
+			});
 
-      const result = SchedulingIntentSchema.parse(response.output_parsed);
-      console.log('Scheduling intent detected:', result);
-      return result;
-    },
-    { runType: 'chain', inputs: { query, historyLength: conversationHistory.length } }
-  );
-}
-
-/**
- * Format a scheduling action for the UI
- * Returns a special JSON block that the frontend can parse
- */
-export function formatSchedulingAction(intent: SchedulingIntent): string {
-  if (!intent.isSchedulingRequest || !intent.patientName) {
-    return '';
-  }
-
-  const action = {
-    type: 'scheduling_action',
-    patientName: intent.patientName,
-    suggestedDate: intent.suggestedDate || getDefaultDate(),
-    suggestedTime: intent.suggestedTime || '09:00',
-    reason: intent.reason,
-  };
-
-  return `\n\n<!-- SCHEDULING_ACTION ${JSON.stringify(action)} -->`;
+			const result = SchedulingIntentSchema.parse(response.output_parsed);
+			console.log('Scheduling intent detected:', result);
+			return result;
+		},
+		{
+			runType: 'chain',
+			inputs: { query, historyLength: conversationHistory.length },
+		},
+	);
 }
 
 /**
  * Get default date (next business day)
  */
 function getDefaultDate(): string {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
+	const date = new Date();
+	date.setDate(date.getDate() + 1);
 
-  // Skip weekends
-  while (date.getDay() === 0 || date.getDay() === 6) {
-    date.setDate(date.getDate() + 1);
-  }
+	// Skip weekends
+	while (date.getDay() === 0 || date.getDay() === 6) {
+		date.setDate(date.getDate() + 1);
+	}
 
-  return date.toISOString().split('T')[0];
+	return date.toISOString().split('T')[0];
 }
