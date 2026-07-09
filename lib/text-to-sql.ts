@@ -59,7 +59,10 @@ Rules:
   WHERE EXISTS (SELECT 1 FROM conditions c1 WHERE c1."patientId"=p.id AND c1.display ILIKE '%A%')
     AND EXISTS (SELECT 1 FROM conditions c2 WHERE c2."patientId"=p.id AND c2.display ILIKE '%B%')
 - Dedupe patients with DISTINCT or GROUP BY p.id.
-- Return useful columns for a human answer (names, the matched display, dates) — not just ids.`;
+- When returning a patient's NAME, return it as ONE column aliased "name":
+  (p."firstName" || ' ' || p."lastName") AS name — never separate firstName/
+  lastName columns (downstream PII scrubbing matches a full "First Last").
+- Return useful columns for a human answer (name, the matched display, dates) — not just ids.`;
 
 // TODO (semantic grounding — the hard part of text-to-SQL): map the user's
 // everyday words to the actual clinical values stored in the columns. The

@@ -11,7 +11,7 @@ const openai = createOpenAI({
 });
 import { analyzeQuery } from "./query-analyzer";
 import type { QueryAnalysis } from "./query-analyzer";
-import { findPatientByName } from "./sql-queries";
+import { findPatientByName } from "./patients";
 import { textToSqlQuery } from "./text-to-sql";
 import type { TextToSqlResult } from "./text-to-sql";
 import { searchClinicalNotes } from "./vector-search";

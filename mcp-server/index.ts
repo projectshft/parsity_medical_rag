@@ -19,7 +19,6 @@ import { z } from 'zod';
 
 import { executeQuery, formatResultsForLLM } from '../lib/query-executor';
 import { searchClinicalNotes } from '../lib/vector-search';
-import { findPatientsByConditions } from '../lib/sql-queries';
 import { obscureName } from '../lib/pii';
 
 const server = new McpServer({
@@ -36,12 +35,11 @@ server.registerTool(
     description: 'Search for patients by name, condition, or other criteria. Use this for finding patients.',
     inputSchema: {
       query: z.string().describe('Search query (e.g., "John Smith" or "patients with diabetes")'),
-      limit: z.number().optional().default(10).describe('Maximum results to return'),
     },
   },
-  async ({ query, limit }) => {
+  async ({ query }) => {
     try {
-      const result = await executeQuery(query, { sqlLimit: limit });
+      const result = await executeQuery(query);
       // Front-office channel — always obscure PII in the rendered results.
       const formatted = formatResultsForLLM(result, true);
 
@@ -94,56 +92,6 @@ server.registerTool(
     }
   }
 );
-
-/**
- * Tool: List patients by condition (PII-obscured)
- */
-server.registerTool(
-  'list_patients_by_condition',
-  {
-    description: 'Find all patients with a specific medical condition (e.g., diabetes, hypertension, asthma).',
-    inputSchema: {
-      condition: z.string().describe('Medical condition to search for'),
-      limit: z.number().optional().default(20).describe('Maximum number of patients to return'),
-    },
-  },
-  async ({ condition, limit }) => {
-    try {
-      const patients = await findPatientsByConditions([condition]);
-      const limited = patients.slice(0, limit);
-
-      if (!limited.length) {
-        return {
-          content: [{ type: 'text', text: `No patients found with condition: ${condition}` }],
-        };
-      }
-
-      const lines = [`## Patients with ${condition} (${patients.length} total, showing ${limited.length})\n`];
-      for (const patient of limited) {
-        // Obscure the name — front-office staff get a pseudonym, not the real name.
-        const name = obscureName(fullName(patient));
-        const matchingConditions = patient.conditions?.map(c => c.display).join(', ') || condition;
-        lines.push(`- **${name}** (ID: ${patient.id}) - ${matchingConditions}`);
-      }
-
-      return {
-        content: [{ type: 'text', text: lines.join('\n') }],
-      };
-    } catch (error) {
-      return {
-        content: [{ type: 'text', text: `Error listing patients: ${error}` }],
-        isError: true,
-      };
-    }
-  }
-);
-
-/**
- * Helper: Full name from the patient row (schema stores first/last separately)
- */
-function fullName(patient: { firstName?: string | null; lastName?: string | null }): string {
-  return [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Unknown';
-}
 
 /**
  * Helper: Format vector search results (always PII-obscured for MCP)
