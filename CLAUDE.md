@@ -92,20 +92,31 @@ interface Patient { id: string; firstName: string | null }
 
 ## Project Architecture
 
-- **Neon PostgreSQL**: Structured medical data (patients, conditions, observations, medications)
-- **Pinecone**: Vector search for clinical notes only
-- **Prisma ORM**: Type-safe database access
-- **Hybrid RAG**: SQL filters → Vector search for combined queries
+- **Neon PostgreSQL**: structured medical data (patients, conditions, observations, medications, notes, encounters) — the system of record.
+- **Pinecone**: vector search over the clinical notes — a *derived* index, rebuildable from Postgres via `npm run vectorize`.
+- **Prisma ORM**: type-safe database access.
+- **The chat agent** (`lib/agent.ts` → `runAgent`): **router** (`analyzeQuery` — which engines does this question need?) → **SQL agent ‖ vector agent** run in parallel → **aggregator** LLM synthesizes both and streams the answer.
+
+### The SQL side is text-to-SQL — do NOT hand-code query builders
+
+The LLM writes the SQL. `lib/text-to-sql.ts` (`textToSqlQuery`) feeds the schema + real distinct-value grounding to the model, gets back `{ sql, explanation }`, validates it, and runs it read-only. **There is no `sql-queries.ts` / query-builder / `CONDITION_MAPPINGS` layer anymore — it was deleted. Do not recreate it.** When a query returns wrong/empty results, fix the schema prompt or the grounding in `lib/text-to-sql.ts` — never add a per-question function.
+
+Two guardrails are the point:
+- **Safety** — an LLM writing SQL is an injection surface. `assertReadOnly` accepts only a single `SELECT` (no DML/DDL/`;`). In production also point `DATABASE_URL` at a read-only role (`student_ro`).
+- **Semantic grounding** — the schema tells the model a column *exists*, not what's *in* it ("smoker" ≠ the stored `"Smokes tobacco daily"`; "heart attack" ≠ `"Myocardial Infarction"`). Ground the prompt with real distinct values.
+
+`findPatientByName` (scheduling's one exact lookup) lives in `lib/patients.ts`, not a query-builder module.
 
 ## Data Source
 
-Synthea Coherent Dataset (~1,278 patients with SOAP-style clinical notes)
-- Location: `data/coherent/fhir/`
-- See `docs/DATA_STRUCTURE.md` for FHIR resource details
+Synthea Coherent Dataset — statistically realistic, **fully synthetic (zero PHI)**. The deployed/shared database is a **~200-patient subset** (fits the Neon free tier), ~21k SOAP-style clinical notes. Students connect **read-only**; nobody creates or seeds it.
+- See `docs/DATA_STRUCTURE.md` for FHIR resource details.
 
 ## PII Obscuring
 
-The system supports query-time PII obscuring for privacy-sensitive contexts.
+PII obscuring is **channel-based** (no login/roles): the **MCP server** (front-office channel) always obscures; the **`/api/query`** clinician channel returns full data by default and lets the caller opt in.
+
+**The obscuring is shape-agnostic.** Because the SQL agent (text-to-SQL) returns whatever columns the LLM chose, there's no fixed "name field" to pseudonymize — so `formatResultsForLLM(result, true)` runs the regex de-identifier (`obscureContent`) over the **entire rendered output** (names, SSNs, phones, dates, addresses). It's imperfect by design (regex misses novel formats) — that's the Week 5 lesson. (`obscurePatient` still exists as a field-by-field helper but the query path no longer uses it.)
 
 ### Enable Globally
 ```bash
@@ -115,12 +126,8 @@ OBSCURE_PII=true
 
 ### Enable Per-Request
 ```typescript
-// Pass obscurePII option to query functions
-const results = await executeQuery(userQuery, { obscurePII: true });
-const formatted = formatResultsForLLM(results, true);
-
-// Or in vector search
-const notes = await searchClinicalNotes(query, { obscurePII: true });
+const result = await executeQuery(userQuery, { obscurePII: true });
+const formatted = formatResultsForLLM(result, /* obscure */ true); // scrubs the output text
 ```
 
 ### What Gets Obscured
