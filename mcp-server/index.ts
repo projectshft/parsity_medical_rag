@@ -1,11 +1,20 @@
 /**
- * MCP Server for Medical RAG
+ * MCP Server for Medical RAG — YOUR TASK
  *
- * Exposes the RAG system as tools for Claude Desktop, Cursor, and other MCP clients.
+ * Expose your RAG system as tools that Claude Desktop / Cursor can call.
+ *
+ * SCOPE: this is a FRONT-OFFICE (STAFF) tool. Front-office staff never see PII,
+ * so every response MUST be PII-obscured, and you only expose non-identifying
+ * tools (search / notes / condition lists) — no raw patient-detail lookups.
+ *
+ * One tool — `query_notes` — is implemented below as a WORKING EXAMPLE of the
+ * pattern: define the tool with registerTool, call a RAG function, obscure PII,
+ * return text content. 👉 YOUR JOB: add more tools following that shape (see the
+ * TODO near the bottom).
  *
  * Setup:
- * 1. npm install @modelcontextprotocol/sdk
- * 2. Configure Claude Desktop or Cursor (see docs/WEEK5-MCP.html)
+ * 1. npm install (@modelcontextprotocol/sdk is already a dependency)
+ * 2. Configure Claude Desktop or Cursor (see the Week 3 curriculum)
  * 3. Run: npx ts-node mcp-server/index.ts
  */
 
@@ -13,134 +22,76 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
-// Import your RAG functions
-// TODO: Uncomment these once implemented
-// import { executeQuery, formatResultsForLLM } from '../lib/query-executor';
-// import { searchClinicalNotes } from '../lib/vector-search';
-// import { prisma } from '../lib/prisma';
+import { searchClinicalNotes } from '../lib/vector-search';
+import { obscureName } from '../lib/pii';
 
-// Create the MCP server
 const server = new McpServer({
   name: 'medical-rag',
   version: '1.0.0',
 });
 
 /**
- * Tool: Search for patients
+ * WORKING EXAMPLE — Tool: Query clinical notes (semantic search, PII-obscured).
+ *
+ * This is the whole pattern: a tool is a name + description + input schema +
+ * a handler that returns { content: [{ type: 'text', text }] }. Here the handler
+ * runs semantic search and obscures names before returning them.
  */
-server.tool(
-  'search_patients',
-  'Search for patients by name, condition, or other criteria',
-  {
-    query: z.string().describe('Search query (e.g., "John Smith" or "diabetes")'),
-    limit: z.number().optional().default(10).describe('Maximum results to return'),
-  },
-  async ({ query, limit }) => {
-    // TODO: Implement patient search
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `TODO: Implement search for "${query}" with limit ${limit}`,
-        },
-      ],
-    };
-  }
-);
-
-/**
- * Tool: Query clinical notes
- */
-server.tool(
+server.registerTool(
   'query_notes',
-  'Search clinical notes using semantic search',
   {
-    query: z.string().describe('Semantic search query (e.g., "chest pain", "breathing problems")'),
-    patientId: z.string().optional().describe('Optional: limit to specific patient'),
-    topK: z.number().optional().default(5).describe('Number of results to return'),
+    description:
+      'Search clinical notes using semantic search. Use this for finding relevant medical notes, symptoms, treatments, or clinical observations.',
+    inputSchema: {
+      query: z
+        .string()
+        .describe('Semantic search query (e.g., "chest pain", "breathing problems")'),
+      patientId: z.string().optional().describe('Optional: limit to a specific patient ID'),
+      topK: z.number().optional().default(5).describe('Number of results to return'),
+    },
   },
   async ({ query, patientId, topK }) => {
-    // TODO: Implement clinical notes search
+    try {
+      const results = await searchClinicalNotes(query, {
+        topK,
+        patientIds: patientId ? [patientId] : undefined,
+      });
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `TODO: Search notes for "${query}"${patientId ? ` (patient: ${patientId})` : ''}`,
-        },
-      ],
-    };
+      if (!results.length) {
+        return { content: [{ type: 'text', text: 'No matching clinical notes found.' }] };
+      }
+
+      return { content: [{ type: 'text', text: formatVectorResults(results) }] };
+    } catch (error) {
+      return {
+        content: [{ type: 'text', text: `Error searching notes: ${error}` }],
+        isError: true,
+      };
+    }
   }
 );
 
-/**
- * Tool: Get patient details
- */
-server.tool(
-  'get_patient',
-  'Get detailed information about a specific patient',
-  {
-    patientId: z.string().describe('The patient ID'),
-  },
-  async ({ patientId }) => {
-    // TODO: Implement patient lookup
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `TODO: Get details for patient ${patientId}`,
-        },
-      ],
-    };
-  }
-);
+// TODO — add at least one more tool, following the query_notes example above.
+// Ideas (front-office appropriate, since every response must be PII-obscured):
+//   - search_patients          -> run executeQuery(...) + formatResultsForLLM(result, true)
+//   - list_patients_by_condition -> findPatientsByConditions([condition]), obscure each name
+// For each: server.registerTool(name, { description, inputSchema: { ...zod } }, handler).
+// The handler returns { content: [{ type: 'text', text }] }. NEVER return a real
+// patient name — pass it through obscureName() first (this is the front-office door).
 
 /**
- * Helper: Format vector search results
+ * Helper: Format vector search results — always PII-obscured for MCP.
  */
 function formatVectorResults(results: any[]): string {
-  if (!results.length) {
-    return 'No matching clinical notes found.';
-  }
-
   const parts = ['## Clinical Notes\n'];
+
   for (const result of results) {
-    parts.push(`### ${result.patientName || 'Unknown'} - ${result.date || 'undated'}`);
+    const patientName = obscureName(result.patientName || 'Unknown');
+    parts.push(`### ${patientName} - ${result.documentType || 'Clinical Note'} (${result.date || 'undated'})`);
     parts.push(`Relevance: ${(result.score * 100).toFixed(1)}%`);
     parts.push('```');
     parts.push(result.contentPreview || result.content);
     parts.push('```\n');
-  }
-  return parts.join('\n');
-}
-
-/**
- * Helper: Format patient details
- */
-function formatPatientDetails(patient: any): string {
-  if (!patient) {
-    return 'Patient not found.';
-  }
-
-  const parts = [`# ${patient.name}\n`];
-  parts.push(`- **ID**: ${patient.id}`);
-  parts.push(`- **Gender**: ${patient.gender}`);
-  parts.push(`- **Birth Date**: ${patient.birthDate}`);
-
-  if (patient.conditions?.length) {
-    parts.push('\n## Active Conditions');
-    for (const c of patient.conditions) {
-      parts.push(`- ${c.display}`);
-    }
-  }
-
-  if (patient.medications?.length) {
-    parts.push('\n## Current Medications');
-    for (const m of patient.medications) {
-      parts.push(`- ${m.display}`);
-    }
   }
 
   return parts.join('\n');

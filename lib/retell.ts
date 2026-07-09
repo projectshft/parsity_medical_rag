@@ -50,24 +50,17 @@ export async function callToConfirmAppointment(opts: {
     return { called: false, reason: 'no destination phone (set DEMO_PHONE_NUMBER or pass a patient phone)' };
   }
 
-  // TODO: Format opts.dateTime into a friendly string for {{appointment_time}}:
-  //   new Date(opts.dateTime).toLocaleString('en-US',
-  //     { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-  //
-  // TODO: Create a Retell client and place the call:
-  //   const client = new Retell({ apiKey: process.env.RETELL_API_KEY! });
-  //   const call = await client.call.createPhoneCall({
-  //     from_number: process.env.RETELL_FROM_NUMBER!,
-  //     to_number: to,
-  //     override_agent_id: process.env.RETELL_AGENT_ID, // targets your deployed agent
-  //     retell_llm_dynamic_variables: {
-  //       patient_name: opts.patientName,
-  //       appointment_time: /* your formatted string */,
-  //     },
-  //     metadata: { purpose: 'appointment_confirmation', patientName: opts.patientName },
-  //   });
-  //   return { called: true, callId: call.call_id, to };
+  // TODO — build the message and place the call, then return the result:
+  //   1. Turn opts.dateTime (ISO) into a human-friendly string for the agent's
+  //      {{appointment_time}} variable.
+  //   2. Create a Retell client (RETELL_API_KEY) and place an outbound phone
+  //      call: from your Retell number, to `to`, running your deployed agent
+  //      (RETELL_AGENT_ID), passing the dynamic variables its prompt expects
+  //      (the patient name + the appointment time).
+  //   3. Return { called: true, callId, to } on success.
+  //   Look up the call method + parameters in the Retell SDK docs, and see
+  //   ../voice_ai/agents for the shape.
 
-  // Remove this once implemented:
+  // Replace this once implemented:
   return { called: false, reason: 'TODO: implement callToConfirmAppointment in lib/retell.ts' };
 }
