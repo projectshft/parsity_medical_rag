@@ -1,6 +1,6 @@
 # Orchestration: Router, Parallel Agents, Aggregator
 
-**Needs: a working `analyzeQuery`; both engines available (Postgres + the note index)**
+**Needs: the SQL agent from w2-02; both engines available (Postgres + the note index)**
 
 ## Today you will
 
@@ -10,13 +10,13 @@
 
 ## Concept
 
-Last lesson you built the router (`analyzeQuery`) — the thing that reads a question and decides what to do. Now you wire it into the shape the chat actually uses. Instead of one function that does everything in a line, the agent is four small pieces with clear seams:
+Last lesson you built the SQL agent — the thing that writes and runs the query. It's one of two specialists. Now you add the **router** that decides *which* specialists a question needs, and wire the whole thing together. Instead of one function that does everything in a line, the agent is four small pieces with clear seams:
 
 ```mermaid
 flowchart TD
     Q[user query] --> R["ROUTER<br/>analyzeQuery"]
     R --> D{which specialists?}
-    D -->|requiresSQL| S["SQL AGENT<br/>executeStructuredQuery"]
+    D -->|requiresSQL| S["SQL AGENT<br/>textToSqlQuery"]
     D -->|requiresVector| V["VECTOR AGENT<br/>searchClinicalNotes"]
     S --> A["AGGREGATOR<br/>LLM synthesizes both"]
     V --> A
@@ -33,7 +33,7 @@ This is `lib/agent.ts`'s `runAgent`. Open it and read top to bottom: a `routeQue
 
 ### The debugging loop
 
-Routing via LLM moves your bugs. A wrong answer is now usually *upstream of all your deterministic code* — the router misclassified, mis-extracted an entity, or wrote a weak `semanticQuery`. The loop:
+Routing via LLM moves your bugs. A wrong answer is now usually *upstream of all your deterministic code* — the router misclassified (skipped an engine it needed), wrote a weak `semanticQuery`, or the SQL agent wrote a query over the wrong vocabulary. The loop:
 
 ```
 symptom (wrong results) → inspect the ROUTER's analysis (intent? entities? booleans?)
@@ -51,7 +51,7 @@ Trace the pipeline with real queries — watch the router choose, both agents ru
 ```typescript
 import 'dotenv/config';
 import { analyzeQuery } from './lib/query-analyzer';
-import { executeStructuredQuery } from './lib/sql-queries';
+import { textToSqlQuery } from './lib/text-to-sql';
 import { searchClinicalNotes } from './lib/vector-search';
 import { formatResultsForLLM } from './lib/query-executor';
 
@@ -60,15 +60,16 @@ async function trace(q: string) {
   const useSql = analysis.requiresSQL;
   const useVector = analysis.requiresVector || (!analysis.requiresSQL && !analysis.requiresVector);
 
-  const [sqlResults, vectorResults] = await Promise.all([ // SPECIALISTS, in parallel
-    useSql ? executeStructuredQuery(analysis) : undefined,
+  const [sql, vectorResults] = await Promise.all([        // SPECIALISTS, in parallel
+    useSql ? textToSqlQuery(q) : undefined,               // SQL agent writes the query
     useVector ? searchClinicalNotes(analysis.semanticQuery || q, { topK: 10 }) : undefined,
   ]);
 
   console.log(`\n=== ${q}`);
   console.log('router:', analysis.intent, `SQL:${useSql} Vector:${useVector}`);
+  if (sql) console.log('SQL written:', sql.sql);
   console.log('--- aggregator context (first 400 chars) ---');
-  console.log(formatResultsForLLM({ analysis, sqlResults, vectorResults }).slice(0, 400));
+  console.log(formatResultsForLLM({ analysis, sql, vectorResults }).slice(0, 400));
 }
 
 async function main() {
@@ -104,7 +105,7 @@ Spend **no more than 45 minutes** here.
 <details>
 <summary>Solution / discussion</summary>
 
-**The four stages:** ROUTER (`analyzeQuery` — decides which agents run), SQL AGENT (`executeStructuredQuery` — exact facts), VECTOR AGENT (`searchClinicalNotes` — meaning-matched notes), AGGREGATOR (an LLM that synthesizes both and streams the answer). Judgment lives in the router's prompt; dispatch and synthesis are trivial-by-inspection glue.
+**The four stages:** ROUTER (`analyzeQuery` — decides which agents run), SQL AGENT (`textToSqlQuery` — writes and runs the SQL), VECTOR AGENT (`searchClinicalNotes` — meaning-matched notes), AGGREGATOR (an LLM that synthesizes both and streams the answer). Judgment lives in the router's prompt and the SQL agent's schema/grounding; dispatch and synthesis are trivial-by-inspection glue.
 
 **Why parallel:** the two agents have no data dependency — the SQL agent doesn't need the vector agent's output or vice versa — so running them together halves the wait. (A *different* pattern, hybrid retrieval, deliberately makes vector search depend on a SQL filter; that's the next lesson, and it's a retrieval technique you reach for per-query, not the chat's default orchestration.)
 

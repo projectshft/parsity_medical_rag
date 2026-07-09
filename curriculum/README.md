@@ -96,9 +96,9 @@ The company has all this data — how do we make the *notes* searchable by **mea
 **Week 2 — Agentic / hybrid search**
 An agent that answers by using **both** engines — exact SQL for facts, vector search for meaning.
 1. [Structured outputs: the LLM as a typed function](w2-01-structured-outputs.md)
-2. [The query analyzer: intent + entities](w2-02-query-analyzer.md)
-3. [Orchestration: routing to the right engine](w2-03-orchestration.md)
-4. [Hybrid queries: SQL filter, then vector search](w2-04-hybrid-queries.md)
+2. [The SQL agent: text-to-SQL](w2-02-query-analyzer.md)
+3. [Orchestration: router + parallel agents + aggregator](w2-03-orchestration.md)
+4. [Hybrid queries: facts narrow, meaning ranks](w2-04-hybrid-queries.md)
 5. [When cosine lies: reranking](w2-05-reranking.md)
 6. [The chat agent + the grounding contract](w2-06-chat-agent.md)
 7. [Failure day: bait, and refusing it](w2-07-failure-day.md) 🎥
