@@ -24,14 +24,6 @@ const NumericFilterSchema = z.object({
 });
 
 /**
- * Schema for date ranges
- */
-const DateRangeSchema = z.object({
-	from: z.string().nullable().describe('Start date in ISO format'),
-	to: z.string().nullable().describe('End date in ISO format'),
-});
-
-/**
  * Schema for an age filter (in years), derived from birth date
  */
 const AgeFilterSchema = z.object({
@@ -54,15 +46,6 @@ const EntitiesSchema = z.object({
 		.array(z.string())
 		.nullable()
 		.describe('Medical conditions mentioned'),
-	medications: z
-		.array(z.string())
-		.nullable()
-		.describe('Medications mentioned'),
-	labCodes: z
-		.array(z.string())
-		.nullable()
-		.describe('Lab test names (e.g., "A1C", "glucose")'),
-	dateRange: DateRangeSchema.nullable().describe('Time filters if mentioned'),
 	numericFilters: z
 		.array(NumericFilterSchema)
 		.nullable()
@@ -152,7 +135,7 @@ Query: "How many patients have type 2 diabetes?"
 { "intent": "population_analytics", "entities": { "conditions": ["diabetes"] }, "requiresSQL": true, "requiresVector": false }
 
 Query: "Find patients with A1C above 9"
-{ "intent": "structured_query", "entities": { "labCodes": ["A1C"], "numericFilters": [{ "field": "a1c", "operator": "gt", "value": 9 }] }, "requiresSQL": true, "requiresVector": false }
+{ "intent": "structured_query", "entities": { "numericFilters": [{ "field": "a1c", "operator": "gt", "value": 9 }] }, "requiresSQL": true, "requiresVector": false }
 
 Query: "Which patients mention trouble sleeping in their notes?"
 { "intent": "clinical_note_search", "entities": {}, "semanticQuery": "trouble sleeping insomnia difficulty falling asleep poor sleep quality", "requiresSQL": false, "requiresVector": true }
