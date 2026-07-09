@@ -12,16 +12,18 @@
  *                  streamed back to the client (Vercel AI SDK `streamText`).
  * (Later: detect a scheduling intent and return a schedulingAction for the UI.)
  *
- * Reuse what exists: `analyzeQuery` (the router), `executeStructuredQuery` +
- * `searchClinicalNotes` (the two specialists), `formatResultsForLLM` (turns
- * both result sets into context), `detectSchedulingIntent`, `traced`.
+ * Reuse what exists: `analyzeQuery` (the router), `textToSqlQuery` (the SQL
+ * agent — it writes the query) + `searchClinicalNotes` (the two specialists),
+ * `formatResultsForLLM` (turns results into context), `detectSchedulingIntent`,
+ * `traced`.
  */
 
 import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { analyzeQuery } from "./query-analyzer";
 import type { QueryAnalysis } from "./query-analyzer";
-import { executeStructuredQuery, findPatientByName } from "./sql-queries";
+import { textToSqlQuery } from "./text-to-sql";
+import { findPatientByName } from "./patients";
 import { searchClinicalNotes } from "./vector-search";
 import { formatResultsForLLM } from "./query-executor";
 import type { QueryResult } from "./types";
@@ -52,7 +54,7 @@ export interface AgentResponse {
 // TODO: ROUTER — return the analysis that decides which agents run.
 // async function routeQuery(query: string): Promise<QueryAnalysis> { ... analyzeQuery ... }
 
-// TODO: SQL AGENT — return executeStructuredQuery(analysis).
+// TODO: SQL AGENT — return textToSqlQuery(query, conversationHistory).
 // TODO: VECTOR AGENT — return searchClinicalNotes(analysis.semanticQuery || query, { topK: 10 }).
 
 export async function runAgent(
@@ -64,13 +66,13 @@ export async function runAgent(
   //          (fall back to a vector search when the router sets neither).
 
   // TODO 2 — SPECIALISTS IN PARALLEL:
-  //   const [sqlResults, vectorResults] = await Promise.all([
-  //     useSql ? executeStructuredQuery(analysis) : Promise.resolve(undefined),
+  //   const [sql, vectorResults] = await Promise.all([
+  //     useSql ? textToSqlQuery(query, conversationHistory) : Promise.resolve(undefined),
   //     useVector ? searchClinicalNotes(analysis.semanticQuery || query, { topK: 10 }) : Promise.resolve(undefined),
   //   ]);
   //   (Wrap each in `traced("sql_agent" | "vector_agent", ...)` so you can see them.)
 
-  // TODO 3 — AGGREGATOR: build a QueryResult { analysis, sqlResults?, vectorResults? },
+  // TODO 3 — AGGREGATOR: build a QueryResult { analysis, sql?, vectorResults? },
   //          const context = formatResultsForLLM(result), then stream the answer.
 
   // TODO (later) — scheduling: detectSchedulingIntent + findPatientByName; only

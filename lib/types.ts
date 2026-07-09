@@ -12,24 +12,17 @@ export interface VectorSearchResult {
   contentPreview: string;
 }
 
-// Combined query result
+// Combined query result. The SQL side is now text-to-SQL: the LLM writes one
+// read-only SELECT and we return its rows (no hand-coded structured shapes).
 export interface QueryResult {
   analysis: import('./query-analyzer').QueryAnalysis;
-  sqlResults?: {
-    type: string;
-    patients?: any[];
-    patient?: any;
-    count?: number;
-    condition?: string;
-    patientIds?: string[];
-    aggregations?: any;
-    message?: string;
+  sql?: {
+    sql: string;
+    explanation: string;
+    rows: Record<string, unknown>[];
+    error?: string;
   };
   vectorResults?: VectorSearchResult[];
-  mergedResults?: {
-    structuredData: any;
-    clinicalNotes: VectorSearchResult[];
-  };
 }
 
 // FHIR types

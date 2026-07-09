@@ -72,12 +72,13 @@ server.registerTool(
 );
 
 // TODO — add at least one more tool, following the query_notes example above.
-// Ideas (front-office appropriate, since every response must be PII-obscured):
-//   - search_patients          -> run executeQuery(...) + formatResultsForLLM(result, true)
-//   - list_patients_by_condition -> findPatientsByConditions([condition]), obscure each name
+// Idea (front-office appropriate, since every response must be PII-obscured):
+//   - search_patients -> run executeQuery(query) from '../lib/query-executor',
+//     then formatResultsForLLM(result, true) — the `true` obscures PII for the
+//     front-office channel. (executeQuery uses the text-to-SQL agent under the hood.)
 // For each: server.registerTool(name, { description, inputSchema: { ...zod } }, handler).
-// The handler returns { content: [{ type: 'text', text }] }. NEVER return a real
-// patient name — pass it through obscureName() first (this is the front-office door).
+// The handler returns { content: [{ type: 'text', text }] }. NEVER leak a real
+// patient name on this channel — the obscured formatter / obscureName() is the door.
 
 /**
  * Helper: Format vector search results — always PII-obscured for MCP.
