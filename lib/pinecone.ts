@@ -1,5 +1,5 @@
 import { Pinecone } from "@pinecone-database/pinecone";
-import { createEmbedding, createEmbeddings } from "./openai";
+import { createEmbeddings } from "./openai";
 
 export const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY!,
@@ -102,27 +102,6 @@ export async function upsertChunks(chunks: MedicalChunk[]): Promise<number> {
   }
 
   return totalUpserted;
-}
-
-export async function searchChunks(
-  query: string,
-  topK: number = 10
-): Promise<SearchResult[]> {
-  const index = pinecone.Index(INDEX_NAME);
-  const queryEmbedding = await createEmbedding(query);
-
-  const results = await index.query({
-    vector: queryEmbedding,
-    topK,
-    includeMetadata: true,
-  });
-
-  return results.matches?.map((match) => ({
-    id: match.id,
-    score: match.score || 0,
-    content: (match.metadata?.content as string) || "",
-    metadata: match.metadata as MedicalChunk["metadata"],
-  })) || [];
 }
 
 export async function deleteAllChunks(): Promise<void> {
