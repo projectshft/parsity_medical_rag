@@ -93,9 +93,9 @@
     <h2>This week</h2>
     <ul>
       <li>Recap: you have two engines — the database (exact facts) and the vector store (meaning)</li>
-      <li>Structured outputs: turn the model into a <em>typed function</em> you can trust to route</li>
-      <li>The query analyzer: read a question → intent + what it's about → pick an engine</li>
-      <li>Three paths: exact lookup, meaning search, and <em>hybrid</em> — facts narrow, meaning ranks</li>
+      <li>Structured outputs: turn the model into a <em>typed function</em> — this week it writes the query itself</li>
+      <li>The SQL agent: hand the model the schema, run the read-only <code>SELECT</code> it writes</li>
+      <li>Router → two agents in parallel → aggregator; and <em>hybrid</em> — facts narrow, meaning ranks</li>
       <li>The grounding contract: answer only from the records — and refuse what isn't there</li>
     </ul>
     <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video — show your agent answer one real question per path, and show it <em>refuse</em> a question the data can't answer.</p>
@@ -111,84 +111,73 @@
 
   <!-- 4 — How it's solved -->
   <section class="slide">
-    <h2>The move: let the model classify, then route in code</h2>
-    <p>We don't ask the model to answer the medical question. We ask it one narrow thing first: <strong>what kind of question is this, and what is it about?</strong> Then plain code routes to the right engine and hands the model only the records that came back.</p>
+    <h2>The move: hand the model the schema, run what it writes</h2>
+    <p>The naive way is to hand-code a query builder for every shape of question — one for counts, one for filters, one for "the youngest." You write those forever. Instead, we describe the database <strong>schema</strong> to the model and let it write <strong>one read-only <code>SELECT</code></strong>. Plain code runs it and answers only from the rows.</p>
     <div class="two">
       <div class="card">
         <h3>The model's job</h3>
-        <p>Read the question → return a small, typed label: the intent, the conditions/names mentioned, which engines are needed.</p>
+        <p>Read the question + the schema → write one <code>SELECT</code>. Superlatives, combined filters, "average age" — it writes the <code>WHERE</code>/<code>ORDER BY</code> itself.</p>
       </div>
       <div class="card">
         <h3>Your code's job</h3>
-        <p>Trust that label to run the database, the vector search, or both — then answer <em>only</em> from what came back.</p>
+        <p>Check it's a read-only <code>SELECT</code>, run it, answer <em>only</em> from the rows — never the model's own memory.</p>
       </div>
     </div>
-    <div class="cue"><b>Design point to land:</b> the LLM is a router and a writer, never the source of facts. Splitting "decide" from "answer" is what makes this debuggable.</div>
+    <div class="cue"><b>Design point to land:</b> this is "text-to-SQL." It kills the query-builder treadmill — but it moves the hard part to two places: keeping it safe, and grounding it in the real vocabulary. Those are the next two slides.</div>
   </section>
 
   <!-- 5 — Concept: structured outputs -->
   <section class="slide">
-    <h2>Turning the model into a typed function</h2>
-    <p>Routing only works if the model's answer has a <strong>fixed shape</strong> you can branch on — not a paragraph you have to parse. So we hand it a schema and make it fill in the blanks:</p>
-    <pre><code>const QueryAnalysis = z.object({
-  intent: z.enum(['population_analytics', 'clinical_note_search',
-                  'hybrid_query', 'patient_summary', /* … */]),
-  requiresSQL:    z.boolean(),
-  requiresVector: z.boolean(),
-  semanticQuery:  z.string().nullable(),  // expanded terms for meaning search
+    <h2>Guardrail #1 — a typed function, and only a <code>SELECT</code></h2>
+    <p>Same structured-output trick as yesterday — but now the payload is the query itself. We hand the model a schema and it fills in the blanks:</p>
+    <pre><code>const SqlQuery = z.object({
+  sql:         z.string(),   // one read-only SELECT — no INSERT/UPDATE/DELETE
+  explanation: z.string(),   // one line: what this returns
 });</code></pre>
-    <p class="sub">The schema <em>is</em> the contract. The model can only answer inside these fields — so your <code>if (requiresSQL)</code> is always safe to write.</p>
+    <p>An LLM writing SQL is an <strong>injection surface</strong>. Two layers stop it: a validator that accepts <em>only</em> a single <code>SELECT</code> (<code>assertReadOnly</code>), and — in production — a database role that is physically read-only, so a bad query can't write even if the validator is fooled.</p>
+    <p class="sub">Belt and suspenders: the validator makes the common case cheap; the read-only role makes the worst case impossible.</p>
   </section>
 
   <!-- 6 — Code walkthrough: the analyzer -->
   <section class="slide">
     <span class="mode code">💻 Code walkthrough</span>
-    <h2>The analyzer: <code>analyzeQuery()</code></h2>
-    <p>One call. A system prompt describing the two stores, the schema as the output format, and <code>temperature: 0</code> so the same question routes the same way every time.</p>
-    <pre><code>const response = await client.responses.parse({
-  model: 'gpt-4o-mini',
-  input: [
-    { role: 'system', content: SYSTEM_PROMPT },   // "you route medical queries…"
-    { role: 'user',   content: userQuery },
-  ],
-  temperature: 0,
-  text: { format: zodTextFormat(QueryAnalysis, 'queryAnalysis') },
-});
-
-return QueryAnalysis.parse(response.output_parsed);  // typed + validated</code></pre>
-    <p class="sub"><code>lib/query-analyzer.ts</code>. Note the pattern: <code>responses.parse()</code> + <code>zodTextFormat</code> + <code>output_parsed</code> — then <code>.parse()</code> again to be sure.</p>
-    <div class="cue"><b>Facilitate:</b> run it live on three questions (next section) and read the JSON aloud. The intent flip between them is the whole idea made visible.</div>
+    <h2>The SQL agent: <code>textToSqlQuery()</code> — and guardrail #2</h2>
+    <p>The system prompt is the <strong>schema</strong> (tables + columns) plus a sample of real values. The model returns <code>{ sql }</code>; we validate it, then run it read-only.</p>
+    <pre><code>const { sql } = await client.responses.parse({ /* SqlQuery, temp 0 */ });
+assertReadOnly(sql);                       // SELECT-only, no ';'
+const rows = await prisma.$queryRawUnsafe(sql);   // read-only role</code></pre>
+    <p><strong>Guardrail #2 — grounding.</strong> The schema tells the model a <code>display</code> column <em>exists</em>, not what's <em>in</em> it. Ask for "smokers" and it writes <code>ILIKE '%smoker%'</code> → <strong>zero rows</strong>, because the value is literally <code>"Smokes tobacco daily"</code>. You fix it by feeding the model the real vocabulary.</p>
+    <p class="sub"><code>lib/text-to-sql.ts</code>. The schema is <em>structure</em>; grounding is <em>meaning</em> — text-to-SQL needs both.</p>
+    <div class="cue"><b>Facilitate:</b> run it live (next section). Read the SQL it wrote aloud — that's the agent thinking on paper. Then run the "heart attack" question and watch it return 0 rows for the wrong reason.</div>
   </section>
 
   <!-- 7 — Concept: three paths -->
   <section class="slide">
-    <h2>Three paths out of the analyzer</h2>
-    <pre><code>                    analyzeQuery(question)
-                            │
-         ┌──────────────────┼──────────────────┐
-         ▼                  ▼                  ▼
-   requiresSQL only   requiresVector only   both
-   ───────────────    ─────────────────    ────────────
-   "how many have     "notes describing    "notes about sleep
-    diabetes?"         shortness of breath"  for diabetics"
-         │                  │                  │
-     database            vector store       SQL then vector
-     COUNT / filter      meaning search     (hybrid)</code></pre>
-    <p class="sub">The flags <code>requiresSQL</code> and <code>requiresVector</code> pick the branch. Two booleans decide the entire route.</p>
+    <h2>The router + two agents + an aggregator</h2>
+    <p>The SQL agent is one of two specialists. A tiny <strong>router</strong> (<code>analyzeQuery</code>) reads the question and sets two booleans — which agents to run — and they run <em>in parallel</em>:</p>
+    <pre><code>              analyzeQuery(question)   ← the router
+                        │
+        ┌───────────────┴───────────────┐
+        ▼ requiresSQL          requiresVector ▼
+   SQL AGENT (text-to-SQL)      VECTOR AGENT (searchClinicalNotes)
+        └───────────────┬───────────────┘
+                        ▼
+                 AGGREGATOR (an LLM merges both, streams the answer)</code></pre>
+    <p class="sub">The router is dumb on purpose — two booleans, no query-building. All the judgment lives in the SQL agent's schema + the aggregator's grounding rule.</p>
   </section>
 
   <!-- 8 — Discussion -->
   <section class="slide">
     <span class="mode discuss">💬 Discussion</span>
-    <h2>Which path — and what could route it wrong?</h2>
+    <h2>Which engine — and what could the SQL agent get wrong?</h2>
     <ul>
       <li>"How many patients have high blood pressure?"</li>
       <li>"Which notes mention trouble sleeping?"</li>
       <li>"What do the notes say about coping for patients with depression?"</li>
-      <li>"Give me a summary of Abe Frami"</li>
-      <li>"Which patients are on insulin?"</li>
+      <li>"Who is the youngest patient with diabetes?"</li>
+      <li>"Any patients who had a heart attack?"</li>
     </ul>
-    <div class="cue"><b>Facilitate:</b> the last one is a trap — sounds like a clean count, but medication filtering isn't wired to the database yet, so the honest answer is "the router wants SQL, but there's no med filter behind it." Great lead-in to Week 4's analyzer evals. Don't sell it as a working demo.</div>
+    <div class="cue"><b>Facilitate:</b> the last one is the trap — the SQL agent writes a clean <code>ILIKE '%heart attack%'</code> and returns <em>0 rows</em>, but the records DO have them, stored as "Myocardial Infarction." A confident, wrong "none." That's the semantic-grounding gap — name it, don't fix it live; it's the lead-in to Week 4's evals. ("Youngest with diabetes" works — a superlative the old query builders never gave for free.)</div>
   </section>
 
   <!-- 9 — Concept: hybrid -->
@@ -206,19 +195,17 @@ return QueryAnalysis.parse(response.output_parsed);  // typed + validated</code>
   <!-- 10 — Code walkthrough: orchestration -->
   <section class="slide">
     <span class="mode code">💻 Code walkthrough</span>
-    <h2>The orchestrator: <code>executeQuery()</code></h2>
-    <p>The analysis flags pick the branch. Here's the hybrid path — the interesting one:</p>
-    <pre><code>if (analysis.requiresSQL &amp;&amp; analysis.requiresVector) {
-  let patientIds;
-  if (analysis.entities.conditions?.length) {
-    patientIds = await getPatientIdsByConditions(analysis.entities.conditions);
-  }
-  const notes = await searchClinicalNotes(analysis.semanticQuery, {
-    topK: 10,
-    patientIds: patientIds?.length ? patientIds : undefined,  // ← watch this
-  });
-}</code></pre>
-    <p class="sub"><code>lib/query-executor.ts</code>. That <code>patientIds?.length ? … : undefined</code> is doing something sneaky — we'll break it on purpose later.</p>
+    <h2>Hybrid, built by hand</h2>
+    <p>Narrow first, then rank. The SQL agent returns the matching patients' ids; the vector search runs <em>inside</em> that set:</p>
+    <pre><code>// 1. exact — ask the SQL agent for the ids
+const { rows } = await textToSqlQuery(`the patient ids of ${condition}`);
+const patientIds = rows.map(r =&gt; String(r.id));
+
+if (patientIds.length === 0) return [];   // ← watch this guard
+
+// 2. fuzzy — rank their notes, filtered to those ids
+const notes = await searchClinicalNotes(semanticQuery, { topK: 10, patientIds });</code></pre>
+    <p class="sub">The <code>patientIds</code> filter is a real feature of <code>searchClinicalNotes</code>. That empty-list guard is doing something load-bearing — we'll break it on purpose later.</p>
   </section>
 
   <!-- 11 — Concept: the grounding contract -->
@@ -266,13 +253,14 @@ return QueryAnalysis.parse(response.output_parsed);  // typed + validated</code>
   <!-- 14 — Concept: the empty-filter bug -->
   <section class="slide">
     <h2>When the filter narrows to nobody</h2>
-    <p>Back to that hybrid line. If the condition matches <strong>zero</strong> patients, <code>patientIds</code> is an empty list — and <code>patientIds?.length ? … : undefined</code> quietly passes <code>undefined</code>, which means <em>no filter</em>:</p>
-    <pre><code>patientIds = []            // nobody matched the condition
-patientIds?.length         // 0 → falsy
-  ? patientIds
-  : undefined              // → search ALL 144k notes, every patient</code></pre>
-    <p class="lead">"Zero patients" should mean <strong>zero notes</strong>. Instead it means <em>everyone's</em> notes. The empty filter doesn't fail loudly — it silently widens to the whole corpus. That's a privacy leak, not a ranking bug.</p>
-    <div class="cue"><b>Say it plainly:</b> an empty filter that means "match everything" is one of the most common real RAG security bugs. The fix is to treat empty-narrowing as return-nothing, not fall-through. We fix it live in the break-it bank.</div>
+    <p>Back to that guard. If the condition matches <strong>zero</strong> patients, <code>patientIds</code> is an empty list — and <code>searchClinicalNotes</code> treats "empty" as "no filter given":</p>
+    <pre><code>const patientIds = [];     // nobody matched the condition
+
+// inside searchClinicalNotes:
+if (patientIds &amp;&amp; patientIds.length &gt; 0) { /* filter to them */ }
+// else → NO filter → search every patient's notes</code></pre>
+    <p class="lead">"Zero patients" should mean <strong>zero notes</strong>. Instead it means <em>everyone's</em> notes. Drop the empty-list guard and the search silently widens to the whole corpus — a privacy leak, not a ranking bug.</p>
+    <div class="cue"><b>Say it plainly:</b> an empty filter that means "match everything" is one of the most common real RAG security bugs. The fix is the guard on the last slide: empty-narrowing returns nothing, never falls through. We break it and fix it live in the break-it bank.</div>
   </section>
 
   <!-- 15 — Research / homework -->
@@ -291,9 +279,9 @@ patientIds?.length         // 0 → falsy
   <section class="slide">
     <h2>Where you are</h2>
     <ul>
-      <li>You can turn a model into a <strong>typed router</strong> with structured outputs — and explain why that makes routing trustworthy</li>
-      <li>You built the <strong>agent</strong>: analyze → route to SQL, vector, or hybrid → answer from the records</li>
-      <li>You know the <strong>grounding contract</strong> and can prove it by baiting the agent into refusing — and you've seen the empty-filter leak</li>
+      <li>You built the <strong>SQL agent</strong>: hand the model the schema, it writes the read-only <code>SELECT</code> — with both guardrails (safety, grounding)</li>
+      <li>You wired the <strong>pipeline</strong>: router → SQL + vector agents in parallel → aggregator, answering only from the records</li>
+      <li>You know the <strong>grounding contract</strong> and proved it by baiting a refusal — and you've seen the empty-filter leak</li>
     </ul>
     <p class="lead">This week's video: one question per path, plus a clean refusal. Next week: how do we stop trusting "looks right" — and start <em>measuring</em> whether retrieval is any good?</p>
   </section>
