@@ -26,7 +26,7 @@ You do **not** need every API key on Day 1. Each day lists what it needs.
 
 ## What you're building, and why
 
-**The problem.** A clinic's data lives in two incompatible shapes. *Structured* facts — diagnoses, medications, lab values, demographics — sit in database rows. *Unstructured* detail — the story of each visit — lives in free-text clinical notes. Neither half answers questions well alone:
+**The problem.** A clinic's data lives in two incompatible shapes. *Structured* facts — diagnoses, medications, lab values, demographics — sit in database rows. *Unstructured* detail — the story of each visit: the symptoms in the patient's words, why they came in, what the clinician observed — lives in free-text clinical notes, and was never turned into columns you can query. The database is a given; making that second half reachable is what you're here to build. Neither half answers questions well alone:
 
 - SQL can count diabetics, but can't find a note that says "short of breath climbing stairs" when the user asks about *dyspnea* — same meaning, zero shared words.
 - Keyword search over notes finds "dyspnea," but can't count, filter by lab value, or join across patients.
