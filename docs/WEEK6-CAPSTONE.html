@@ -123,7 +123,31 @@
   </div>
 
   <div class="card">
-    <h4>Option 5: Your Idea</h4>
+    <h4>Option 5: App Layer Build</h4>
+    <p><strong>File:</strong> <code>docs/CHALLENGE-APP-BUILD.md</code></p>
+    <p>Build (not just use) the application layer that fronts the RAG pipeline.</p>
+    <ul>
+      <li>Implement a chat route (<code>app/api/chat</code>) that orchestrates analyze → retrieve → generate</li>
+      <li>Render results in the UI with source attribution</li>
+      <li>Handle empty/ambiguous queries and loading/error states</li>
+    </ul>
+    <p><strong>Skills:</strong> Next.js routes, app integration, UX for RAG</p>
+  </div>
+
+  <div class="card">
+    <h4>Option 6: Deployment &amp; Hosted Inference</h4>
+    <p><strong>File:</strong> <code>docs/CHALLENGE-DEPLOY.md</code></p>
+    <p>Ship the app to a runnable hosted environment with managed configuration.</p>
+    <ul>
+      <li>Configure hosted model inference access (hosted API or AWS Bedrock)</li>
+      <li>Manage environment config/secrets across environments (no secrets in code)</li>
+      <li>Deploy and verify with a health/smoke check</li>
+    </ul>
+    <p><strong>Skills:</strong> Deployment, secrets management, hosted inference</p>
+  </div>
+
+  <div class="card">
+    <h4>Option 7: Your Idea</h4>
     <p>Have a different idea? Pitch it! Possibilities:</p>
     <ul>
       <li>Multi-modal (images, PDFs)</li>
