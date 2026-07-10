@@ -169,6 +169,32 @@ Run at least entries 1 and 2 live (they're the headline — a flattened ranking 
 
 ---
 
+## Team decision — what to vectorize, and what metadata to attach (~10 min, optional)
+
+Run this after the vectorize code-together (slide 11) if the room has energy, or hold it for a follow-up session. It's a **design discussion, not a lab** — the point is that corpus selection and metadata design *are* the engineering, and both have defensible answers. Make it a real team decision; you're deciding together what a future re-vectorize would do (the actual re-run stays a with-the-class event — never a solo reset).
+
+**Ground them in what's true today** (from `scripts/vectorize.ts` + `lib/vector-search.ts`):
+- Only `note.content` is embedded — one vector per note.
+- Metadata attached: `patientId`, `patientName`, `type`, `date`, `source`, `chunkIndex`.
+- Of those, **only `patientId` is actually used to filter.** `date` is stored but *dead* — `searchClinicalNotes` accepts `dateFrom`/`dateTo` and then ignores them (there's an "if supported" comment where the filter should go). `patientName` is carried only for display.
+
+### Decision 1 — "should we vectorize more than the notes?"
+Let them argue it, then land the answer: **usually no — and knowing why is the lesson.** The other tables (`conditions`, `medications`, `observations`) are already exact, structured data. The SQL agent is now **text-to-SQL** — the LLM writes a raw `SELECT` straight against those tables (`lib/text-to-sql.ts`), so "how many diabetics," "A1c over 9," "meds for patient X" are already answered precisely. Embedding a `Hypertension` row adds *zero* semantic value and just pollutes the index. **Embedding everything is the classic beginner mistake.** You vectorize the notes because that's where *meaning* lives and keyword/SQL fails — nowhere else.
+- **The one candidate worth debating:** a synthesized per-patient *summary* doc (roll up conditions + meds + recent notes into one blurb) for "tell me about patient X." Real, but derived and goes stale, and text-to-SQL + a note search mostly cover it. Good argument; most rooms land on "notes only."
+
+### Decision 2 — "what metadata should ride on each vector?"
+Metadata is only worth attaching if you'll **filter or display** on it. Three live options, in rising order of interest:
+- **Wire the dead `date` filter.** It's half-built — dates are already stored as `YYYY-MM-DD` strings; you just have to actually add them to the Pinecone `filter`. Payoff: "notes from the last year" becomes real. Cleanest hands-on win if they want to *build* something.
+- **Denormalize condition tags onto each note vector** (e.g. `conditions: ["Diabetes", "Hypertension"]`). Then "notes about sleep for *diabetic* patients" is a pure Pinecone metadata filter. This makes the **filter-here-vs-there** tradeoff concrete: today the hybrid path filters in **Postgres** (text-to-SQL returns the matching `patientId`s) and passes them to `searchClinicalNotes` as `patientIds`; tagging would move that filter *into* the vector store. Neither is free — Postgres-side stays fresh but needs two round-trips; tag-side is one query but goes stale when a diagnosis changes. Great thing to make them defend.
+- **The PII one — the sharpest teaching moment.** We store `patientName` **in Pinecone**, a third-party derived index. Should identifying data live in the vector store at all, or store only `patientId` and re-join to Postgres for the name at display time? That's a **Week 5 privacy decision hiding in a Week 1 script.** Surface it now; it pays off in the final week's de-identification work.
+
+### The fact that makes this cheap to try
+Trying a metadata idea does **not** require re-embedding 21k notes. **Pinecone can patch metadata in place** (`index.update` by vector id) without touching the embedding — so "add condition tags" or "drop `patientName`" is a metadata-only pass, not a paid re-embed. (`upsertChunks` re-embeds; a metadata-only update would be its own small helper.) Say this out loud so nobody assumes every tweak costs an embedding run.
+
+**What to listen for:** the reflex to "embed more to be safe." Push back — the vector store earns its keep on *meaning*; structured facts belong in Postgres where text-to-SQL already reaches them exactly. A bigger index isn't a better one.
+
+---
+
 ## Misconceptions to preempt
 
 - **"We're replacing the database with a vector database."** No — Postgres stays the system of record and holds *everything*; the vector store is a *derived* copy of just the notes, built for one job (semantic search). If they disagree, Postgres wins and you rebuild the index. Students who miss this think the vector store is the truth; it never is.
@@ -194,7 +220,7 @@ A **2–3 min video** (phone is fine): explain, in your own words, **why keyword
 - Deck: `curriculum/slides/week-1.html` (16 slides)
 - Real code the demos are grounded in (read live if asked):
   - `scripts/vectorize.ts` — Postgres notes → Pinecone (`npm run vectorize -- --limit 200`)
-  - `lib/pinecone.ts` — `upsertChunks` (batches of 100), `searchChunks`, `ensureIndexExists`, `deleteAllChunks`
+  - `lib/pinecone.ts` — `upsertChunks` (batches of 100), `ensureIndexExists`, `deleteAllChunks`
   - `lib/vector-search.ts` — `searchClinicalNotes` (the `patientId` metadata filter lives here)
   - `lib/openai.ts` — `createEmbedding` / `createEmbeddings` (`text-embedding-3-small`, 1536 dims)
   - `prisma/schema.prisma` — the `Note` model (`id` doubles as the Pinecone vector id)
