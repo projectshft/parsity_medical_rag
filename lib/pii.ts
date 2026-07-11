@@ -5,7 +5,7 @@
  * WHEN to obscure (the MCP front-office server always does; /api/query opts in) —
  * your job is the HOW. Implement the functions below so `lib/pii.test.ts` goes
  * green, then wrap the response text in `obscureContent` where data leaves the
- * system (see lib/query-executor.ts / lib/vector-search.ts).
+ * system (see app/api/query/route.ts and the MCP server).
  *
  * `shouldObscurePII` is provided — it just reads the flag. Everything else is
  * yours. The JSDoc + the test are the contract; make the test pass.

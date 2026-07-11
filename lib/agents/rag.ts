@@ -5,12 +5,7 @@
  * for the aggregator.
  */
 
-import type { QueryAnalysis } from '../query-analyzer';
-
-export async function runRag(
-  semanticQuery: string,
-  analysis: QueryAnalysis,
-): Promise<string> {
+export async function runRag(semanticQuery: string): Promise<string> {
   // TODO:
   // 1. Call searchClinicalNotes(semanticQuery, { topK: 10 }) (lib/vector-search.ts).
   // 2. Render the returned notes into a readable text block for the aggregator

@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { select } from "@/lib/agents/selector";
-import { runSql } from "@/lib/agents/sql";
-import { runRag } from "@/lib/agents/rag";
+import { runSpecialists } from "@/lib/agents/orchestrate";
 import { aggregate, SCHEDULING_SYSTEM_PROMPT } from "@/lib/agents/aggregator";
 import { detectSchedulingIntent, getDefaultDate } from "@/lib/scheduling";
 import { findPatientByName } from "@/lib/patients";
@@ -44,18 +42,8 @@ export async function POST(request: Request) {
     }
     const willSchedule = schedulingIntent.isSchedulingRequest && matchedPatient !== null;
 
-    // --- SELECTOR: which specialists to run, or short-circuit to a direct answer.
-    const selection = await select(query, messages);
-
-    // --- SPECIALISTS (parallel) — each returns text; skipped on short-circuit.
-    const [sqlText, ragText] = selection.needsSearch
-      ? await Promise.all([
-          selection.useSql ? runSql(query, messages) : Promise.resolve(undefined),
-          selection.useRag
-            ? runRag(selection.semanticQuery, selection.analysis)
-            : Promise.resolve(undefined),
-        ])
-      : [undefined, undefined];
+    // --- SELECTOR → [ SQL ‖ RAG ]: the plan + retrieved text (short-circuit-aware).
+    const { sqlText, ragText } = await runSpecialists(query, messages);
 
     // If a name was given but no patient matched, tell the model to say so.
     const schedulingNote =

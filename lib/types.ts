@@ -1,5 +1,5 @@
-// Re-export query analysis types from the Zod-validated module
-export type { QueryAnalysis, QueryIntent } from './query-analyzer';
+// Query analysis types now live with the selector agent.
+export type { QueryAnalysis, QueryIntent } from './agents/selector';
 
 // Vector search result
 export interface VectorSearchResult {
@@ -10,19 +10,6 @@ export interface VectorSearchResult {
   documentType: string;
   date?: string;
   contentPreview: string;
-}
-
-// Combined query result. The SQL side is now text-to-SQL: the LLM writes one
-// read-only SELECT and we return its rows (no hand-coded structured shapes).
-export interface QueryResult {
-  analysis: import('./query-analyzer').QueryAnalysis;
-  sql?: {
-    sql: string;
-    explanation: string;
-    rows: Record<string, unknown>[];
-    error?: string;
-  };
-  vectorResults?: VectorSearchResult[];
 }
 
 // FHIR types

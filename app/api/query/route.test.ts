@@ -5,19 +5,19 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('@/lib/query-executor', () => ({
-  executeQuery: vi.fn(async () => ({
-    analysis: { intent: 'patient_lookup', requiresSQL: true, requiresVector: false },
-    sqlResults: { type: 'patients', patients: [] },
+vi.mock('@/lib/agents/orchestrate', () => ({
+  runSpecialists: vi.fn(async () => ({
+    selection: { analysis: { intent: 'population_analytics' } },
+    sqlText: 'Dr. Jane Roe has diabetes',
+    ragText: undefined,
   })),
-  formatResultsForLLM: vi.fn(() => 'formatted'),
 }));
 
-import { executeQuery } from '@/lib/query-executor';
+import { runSpecialists } from '@/lib/agents/orchestrate';
 import { POST } from './route';
 
 beforeEach(() => {
-  vi.mocked(executeQuery).mockClear();
+  vi.mocked(runSpecialists).mockClear();
 });
 
 function queryRequest(body: object, headers: Record<string, string> = {}): Request {
@@ -29,33 +29,33 @@ function queryRequest(body: object, headers: Record<string, string> = {}): Reque
 }
 
 describe('POST /api/query', () => {
-  it('runs a query and returns the result (no auth required)', async () => {
+  it('runs the agents and returns the combined text (no auth required)', async () => {
     const res = await POST(queryRequest({ query: 'diabetics' }));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.analysis.intent).toBe('patient_lookup');
-    expect(executeQuery).toHaveBeenCalledOnce();
+    expect(body.analysis.intent).toBe('population_analytics');
+    expect(body.text).toContain('diabetes');
+    expect(runSpecialists).toHaveBeenCalledOnce();
   });
 
-  it('passes obscurePII from the body through to executeQuery', async () => {
-    await POST(queryRequest({ query: 'x', obscurePII: true }));
-    expect(vi.mocked(executeQuery).mock.calls[0][1]).toMatchObject({ obscurePII: true });
-  });
-
-  it('the X-Obscure-PII header overrides the body', async () => {
-    await POST(queryRequest({ query: 'x', obscurePII: false }, { 'x-obscure-pii': 'true' }));
-    expect(vi.mocked(executeQuery).mock.calls[0][1]).toMatchObject({ obscurePII: true });
-  });
-
-  it('returns formatted text when format=formatted', async () => {
-    const res = await POST(queryRequest({ query: 'x', format: 'formatted' }));
+  it('returns full data by default (clinician channel)', async () => {
+    const res = await POST(queryRequest({ query: 'x' }));
     const body = await res.json();
-    expect(body.formatted).toBe('formatted');
+    // No obscuring requested → the name comes through untouched.
+    expect(body.text).toContain('Jane Roe');
+  });
+
+  it('scrubs PII when obscurePII is set', async () => {
+    const res = await POST(queryRequest({ query: 'x', obscurePII: true }));
+    const body = await res.json();
+    // The regex de-identifier redacts the "First Last" name.
+    expect(body.text).not.toContain('Jane Roe');
+    expect(body.text).toContain('[NAME]');
   });
 
   it('rejects an empty query with 400', async () => {
     const res = await POST(queryRequest({ query: '' }));
     expect(res.status).toBe(400);
-    expect(executeQuery).not.toHaveBeenCalled();
+    expect(runSpecialists).not.toHaveBeenCalled();
   });
 });
