@@ -17,7 +17,6 @@ import type { TextToSqlResult } from "./text-to-sql";
 import { searchClinicalNotes } from "./vector-search";
 import { formatResultsForLLM } from "./query-executor";
 import type { QueryResult } from "./types";
-import { traced } from "./langsmith";
 import { detectSchedulingIntent } from "./scheduling";
 
 /**
@@ -73,18 +72,12 @@ async function routeQuery(
   query: string,
   history: Message[]
 ): Promise<QueryAnalysis> {
-  return traced("router", () => analyzeQuery(query, history), {
-    runType: "chain",
-    inputs: { query },
-  });
+  return analyzeQuery(query, history);
 }
 
 /** SQL AGENT: the LLM writes one read-only SELECT against the schema (text-to-SQL). */
 async function runSqlAgent(query: string, history: Message[]) {
-  return traced("sql_agent", () => textToSqlQuery(query, history), {
-    runType: "chain",
-    inputs: { query },
-  });
+  return textToSqlQuery(query, history);
 }
 
 /** Render the text-to-SQL result as context for the aggregator. */
@@ -106,10 +99,7 @@ function formatSqlResult(r: TextToSqlResult): string {
 /** VECTOR AGENT: meaning-based search over the clinical notes. */
 async function runVectorAgent(analysis: QueryAnalysis, query: string) {
   const semanticQuery = analysis.semanticQuery || query;
-  return traced("vector_agent", () => searchClinicalNotes(semanticQuery, { topK: 10 }), {
-    runType: "retriever",
-    inputs: { query: semanticQuery },
-  });
+  return searchClinicalNotes(semanticQuery, { topK: 10 });
 }
 
 // --- Orchestration --------------------------------------------------------
