@@ -1,20 +1,15 @@
 /**
  * Structure-aware chunking — YOUR TASK (Bible chunking homework)
  *
- * The naive chunker (`npm run bible:fixed`) slices blindly by character count
- * and shreds verses mid-sentence. Your job: chunk the SAME text *intelligently* —
- * pack whole verses into chunks up to a size budget, NEVER split a verse, NEVER
- * cross a book boundary, carry metadata (book, chapter, verse range) on every
- * chunk, and add optional verse overlap so content sitting on a boundary is
- * findable from either side. Then run `bible:audit` on both outputs and compare —
- * that contrast is the whole lesson.
- *
- * Usage (once you implement it):
- *   npm run bible:smart                        # target 500 chars, 1-verse overlap
- *   npm run bible:smart -- --target 800 --overlap-verses 2
+ * Read docs/CHALLENGE-CHUNKING.md FIRST — the strategy is yours to choose
+ * (by verse? chapter? packed passages? with overlap?) and defending that choice
+ * is the assignment. The naive chunker (`npm run bible:fixed`) slices blindly by
+ * character count and shreds verses mid-sentence; whatever you design should
+ * beat it, and `npm run bible:audit` will measure both.
  *
  * You have: `loadVerses()` from ./parse returns [{ book, chapter, verse, text }].
- * You write: data/bible/chunks-smart.jsonl (one JSON chunk per line).
+ * You write: data/bible/chunks-smart.jsonl (one JSON chunk per line), each chunk
+ * carrying metadata (at minimum a human-readable reference like "Genesis 1:1-5").
  */
 
 import { loadVerses, Verse } from './parse';
