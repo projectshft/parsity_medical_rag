@@ -114,9 +114,9 @@ Synthea Coherent Dataset — statistically realistic, **fully synthetic (zero PH
 
 ## PII Obscuring
 
-PII obscuring is **channel-based** (no login/roles): the **MCP server** (front-office channel) always obscures; the **`/api/query`** clinician channel returns full data by default and lets the caller opt in.
+PII obscuring is **channel-based** (no login/roles): the **MCP server** (front-office channel) always obscures; the chat channel (clinician-facing) returns full data.
 
-**The obscuring is shape-agnostic.** Because the SQL agent (text-to-SQL) returns whatever columns the LLM chose, there's no fixed "name field" to pseudonymize — so `formatResultsForLLM(result, true)` runs the regex de-identifier (`obscureContent`) over the **entire rendered output** (names, SSNs, phones, dates, addresses). It's imperfect by design (regex misses novel formats) — that's the Week 5 lesson. (`obscurePatient` still exists as a field-by-field helper but the query path no longer uses it.)
+**The obscuring is shape-agnostic.** Because the SQL agent returns whatever columns the LLM chose, there's no fixed "name field" to pseudonymize — so the obscured channel runs the regex de-identifier (`obscureContent`) over the **entire rendered output** (names, SSNs, phones, dates, addresses). It's imperfect by design (regex misses novel formats) — that's the Week 5 lesson. (`obscurePatient` still exists as a field-by-field helper but the main path doesn't use it.)
 
 ### Enable Globally
 ```bash
@@ -124,10 +124,10 @@ PII obscuring is **channel-based** (no login/roles): the **MCP server** (front-o
 OBSCURE_PII=true
 ```
 
-### Enable Per-Request
+### Applying it
 ```typescript
-const result = await executeQuery(userQuery, { obscurePII: true });
-const formatted = formatResultsForLLM(result, /* obscure */ true); // scrubs the output text
+const combined = [sqlText, ragText].filter(Boolean).join('\n\n');
+const safe = obscureContent(combined); // scrub the whole rendered output
 ```
 
 ### What Gets Obscured

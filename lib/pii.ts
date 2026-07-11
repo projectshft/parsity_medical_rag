@@ -1,11 +1,11 @@
 /**
  * PII (Personally Identifiable Information) obscuring utilities — YOUR TASK
  *
- * Query-time de-identification for the medical RAG system. The *channels* decide
- * WHEN to obscure (the MCP front-office server always does; /api/query opts in) —
- * your job is the HOW. Implement the functions below so `lib/pii.test.ts` goes
- * green, then wrap the response text in `obscureContent` where data leaves the
- * system (see app/api/query/route.ts and the MCP server).
+ * Query-time de-identification for the medical RAG system. The *channel* decides
+ * WHEN to obscure (the MCP front-office server always does) — your job is the
+ * HOW. Implement the functions below so `lib/pii.test.ts` goes green, then wrap
+ * the response text in `obscureContent` where data leaves the system (the MCP
+ * server is the obscured channel).
  *
  * `shouldObscurePII` is provided — it just reads the flag. Everything else is
  * yours. The JSDoc + the test are the contract; make the test pass.
