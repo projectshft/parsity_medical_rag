@@ -13,13 +13,14 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "ingest": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/ingest-coherent.ts",
     "vectorize": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/vectorize.ts",
     "similarity": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/similarity.ts",
     "retell:deploy": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/retell/deploy-agent.ts",
+    "bible:fetch": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/fetch.ts",
     "bible:fixed": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/chunk-fixed.ts",
     "bible:smart": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/chunk-smart.ts",
-    "bible:audit": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/audit.ts"
+    "bible:audit": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/audit.ts",
+    "security:poisoned": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/security/demo-poisoned-docs.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.2.0",

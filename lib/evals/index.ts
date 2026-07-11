@@ -1,5 +1,7 @@
 /**
  * RAG Evaluation Module
+ *
+ * Exports evaluators for measuring RAG system quality.
  */
 
 export {

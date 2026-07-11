@@ -35,3 +35,9 @@ next-env.d.ts
 
 # FHIR data (can be regenerated)
 fhir/
+
+# Bible chunking lab corpus + generated chunks (downloaded, regenerable)
+data/bible/
+
+# gstack browser session artifacts
+.gstack/

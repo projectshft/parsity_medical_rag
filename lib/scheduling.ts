@@ -2,76 +2,58 @@
  * Scheduling Intent Detection
  *
  * Detects when a user wants to schedule an appointment and extracts relevant info.
+ * This is the LLM component of the human-in-the-loop pattern.
  */
 
 import { z } from 'zod';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { openai } from './openai';
+import { traced } from './langsmith';
 
+/**
+ * Schema for scheduling intent detection
+ *
+ * TODO: Define the Zod schema for scheduling intent
+ * Fields needed:
+ * - isSchedulingRequest: boolean - Whether this is a scheduling request
+ * - patientName: string | null - Name of the patient to schedule
+ * - suggestedDate: string | null - Date in YYYY-MM-DD format
+ * - suggestedTime: string | null - Time in HH:MM 24h format
+ * - reason: string | null - Appointment reason if mentioned
+ */
 const SchedulingIntentSchema = z.object({
-  isSchedulingRequest: z.boolean().describe('Whether this is a request to schedule an appointment'),
-  patientName: z.string().nullable().describe('Name of the patient to schedule'),
-  suggestedDate: z.string().nullable().describe('Suggested date in YYYY-MM-DD format'),
-  suggestedTime: z.string().nullable().describe('Suggested time in HH:MM format (24h)'),
-  reason: z.string().nullable().describe('Reason for the appointment if mentioned'),
+  // TODO: Define schema fields with descriptions
+  isSchedulingRequest: z.boolean(),
+  patientName: z.string().nullable(),
+  suggestedDate: z.string().nullable(),
+  suggestedTime: z.string().nullable(),
+  reason: z.string().nullable(),
 });
 
 export type SchedulingIntent = z.infer<typeof SchedulingIntentSchema>;
 
-export interface ConversationMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
 /**
- * Analyze a query for scheduling intent, using conversation history for context
+ * Analyze a query for scheduling intent
+ *
+ * TODO: Implement this function
+ * 1. Use openai.responses.parse() with zodTextFormat
+ * 2. System prompt should:
+ *    - Explain the task (detect appointment scheduling requests)
+ *    - Include today's date for relative date parsing
+ *    - Explain how to parse "next Tuesday", "tomorrow", etc.
+ *    - Default to 09:00 if no time specified
+ * 3. Return parsed scheduling intent
  */
-export async function detectSchedulingIntent(
-  query: string,
-  conversationHistory: ConversationMessage[] = []
-): Promise<SchedulingIntent> {
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-
-  // Build context from recent conversation (last 4 messages)
-  const recentHistory = conversationHistory.slice(-4);
-  const historyContext = recentHistory.length > 0
-    ? `\n\nRecent conversation:\n${recentHistory.map(m => `${m.role}: ${m.content}`).join('\n')}`
-    : '';
-
-  const response = await openai.responses.parse({
-    model: 'gpt-4o-mini',
-    input: [
-      {
-        role: 'system',
-        content: `You analyze user queries to detect appointment scheduling requests.
-Today's date is ${todayStr}.
-
-If the user wants to schedule/book an appointment:
-- Set isSchedulingRequest to true
-- Extract the patient name (look in conversation history if user says "him", "her", "them", "this patient", etc.)
-- Parse relative dates (e.g., "next Monday", "tomorrow", "in 2 days") to YYYY-MM-DD
-- Parse times to HH:MM 24-hour format (default to 09:00 if not specified)
-- Extract appointment reason if mentioned
-
-IMPORTANT: If the user confirms a scheduling request (e.g., "yes", "yeah", "do it", "schedule him"), look at the conversation history to find the patient name being discussed.
-
-If not a scheduling request, set isSchedulingRequest to false and all other fields to null.`,
-      },
-      {
-        role: 'user',
-        content: `${historyContext}\n\nCurrent message: ${query}`,
-      },
-    ],
-    temperature: 0,
-    text: {
-      format: zodTextFormat(SchedulingIntentSchema, 'scheduling_intent'),
-    },
-  });
-
-  const result = SchedulingIntentSchema.parse(response.output_parsed);
-  console.log('Scheduling intent detected:', result);
-  return result;
+export async function detectSchedulingIntent(query: string): Promise<SchedulingIntent> {
+  // TODO: Implement intent detection with structured outputs
+  // For now, return a non-scheduling response
+  return {
+    isSchedulingRequest: false,
+    patientName: null,
+    suggestedDate: null,
+    suggestedTime: null,
+    reason: null,
+  };
 }
 
 /**
@@ -97,7 +79,7 @@ export function formatSchedulingAction(intent: SchedulingIntent): string {
 /**
  * Get default date (next business day)
  */
-function getDefaultDate(): string {
+export function getDefaultDate(): string {
   const date = new Date();
   date.setDate(date.getDate() + 1);
 

@@ -2,12 +2,19 @@
  * LLM-as-Judge Evaluator
  *
  * Uses an LLM to evaluate RAG system outputs against quality criteria.
+ *
+ * Week 6: Implement these evaluators to measure your RAG system quality
  */
 
 import { z } from 'zod';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { openai } from '../openai';
 
+/**
+ * Schema for evaluation results
+ *
+ * TODO: Understand this schema - it's the same for all evaluators
+ */
 const EvalResultSchema = z.object({
   score: z.number().min(0).max(10).describe('Score from 0-10'),
   reasoning: z.string().describe('Brief explanation for the score'),
@@ -18,130 +25,78 @@ export type EvalResult = z.infer<typeof EvalResultSchema>;
 
 /**
  * Evaluate retrieval relevance
+ *
+ * TODO: Implement this evaluator
+ * 1. Create a system prompt that explains the scoring criteria (0-10)
+ * 2. Use openai.responses.parse() with zodTextFormat
+ * 3. Pass the query and retrieved documents to evaluate
+ * 4. Return the parsed EvalResult
+ *
+ * Scoring guide:
+ * - 9-10: All documents highly relevant
+ * - 7-8: Most documents relevant
+ * - 5-6: Mixed relevance
+ * - 3-4: Mostly irrelevant
+ * - 0-2: Doesn't address the query
  */
 export async function evaluateRetrievalRelevance(
   query: string,
   retrievedContent: string[]
 ): Promise<EvalResult> {
-  const response = await openai.responses.parse({
-    model: 'gpt-4o-mini',
-    input: [
-      {
-        role: 'system',
-        content: `You are an expert evaluator for retrieval systems.
-Given a user query and retrieved documents, rate the relevance.
-
-Scoring:
-- 9-10: All documents highly relevant
-- 7-8: Most documents relevant
-- 5-6: Mixed relevance
-- 3-4: Mostly irrelevant
-- 0-2: Doesn't address the query
-
-Score 7+ is passing.`,
-      },
-      {
-        role: 'user',
-        content: `Query: ${query}
-
-Retrieved Content:
-${retrievedContent.map((c, i) => `[${i + 1}] ${c}`).join('\n\n')}
-
-Evaluate relevance.`,
-      },
-    ],
-    temperature: 0,
-    text: {
-      format: zodTextFormat(EvalResultSchema, 'retrieval_relevance'),
-    },
-  });
-
-  return EvalResultSchema.parse(response.output_parsed);
+  // TODO: Implement with structured outputs
+  return {
+    score: 0,
+    reasoning: 'Not implemented',
+    pass: false,
+  };
 }
 
 /**
  * Evaluate answer faithfulness (grounded in context)
+ *
+ * TODO: Implement this evaluator
+ * Checks if the answer is grounded in the provided context (no hallucination)
+ *
+ * Scoring guide:
+ * - 9-10: Fully grounded, no hallucination
+ * - 7-8: Mostly grounded, minor extrapolations
+ * - 5-6: Some unsupported claims
+ * - 3-4: Significant hallucinations
+ * - 0-2: Contradicts context or entirely hallucinated
  */
 export async function evaluateAnswerFaithfulness(
   context: string,
   answer: string
 ): Promise<EvalResult> {
-  const response = await openai.responses.parse({
-    model: 'gpt-4o-mini',
-    input: [
-      {
-        role: 'system',
-        content: `You are an expert evaluator for RAG systems.
-Evaluate whether the answer is faithful to the context (no hallucination).
-
-Scoring:
-- 9-10: Fully grounded, no hallucination
-- 7-8: Mostly grounded, minor extrapolations
-- 5-6: Some unsupported claims
-- 3-4: Significant hallucinations
-- 0-2: Contradicts context or entirely hallucinated
-
-Score 7+ is passing.`,
-      },
-      {
-        role: 'user',
-        content: `Context:
-${context}
-
-Answer:
-${answer}
-
-Evaluate faithfulness.`,
-      },
-    ],
-    temperature: 0,
-    text: {
-      format: zodTextFormat(EvalResultSchema, 'answer_faithfulness'),
-    },
-  });
-
-  return EvalResultSchema.parse(response.output_parsed);
+  // TODO: Implement with structured outputs
+  return {
+    score: 0,
+    reasoning: 'Not implemented',
+    pass: false,
+  };
 }
 
 /**
  * Evaluate answer completeness
+ *
+ * TODO: Implement this evaluator
+ * Checks if the answer fully addresses all aspects of the query
+ *
+ * Scoring guide:
+ * - 9-10: Fully addresses all aspects
+ * - 7-8: Addresses main points, minor gaps
+ * - 5-6: Partially addresses query
+ * - 3-4: Only addresses small part
+ * - 0-2: Doesn't address query
  */
 export async function evaluateAnswerCompleteness(
   query: string,
   answer: string
 ): Promise<EvalResult> {
-  const response = await openai.responses.parse({
-    model: 'gpt-4o-mini',
-    input: [
-      {
-        role: 'system',
-        content: `You are an expert evaluator for question-answering systems.
-Evaluate whether the answer fully addresses the query.
-
-Scoring:
-- 9-10: Fully addresses all aspects
-- 7-8: Addresses main points, minor gaps
-- 5-6: Partially addresses query
-- 3-4: Only addresses small part
-- 0-2: Doesn't address query
-
-Score 7+ is passing.`,
-      },
-      {
-        role: 'user',
-        content: `Query: ${query}
-
-Answer:
-${answer}
-
-Evaluate completeness.`,
-      },
-    ],
-    temperature: 0,
-    text: {
-      format: zodTextFormat(EvalResultSchema, 'answer_completeness'),
-    },
-  });
-
-  return EvalResultSchema.parse(response.output_parsed);
+  // TODO: Implement with structured outputs
+  return {
+    score: 0,
+    reasoning: 'Not implemented',
+    pass: false,
+  };
 }

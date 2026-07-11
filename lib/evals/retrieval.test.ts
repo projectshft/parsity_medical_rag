@@ -3,10 +3,12 @@
  *
  * Uses LLM-as-judge pattern to evaluate retrieval and generation quality.
  * Run with: npm test lib/evals/retrieval.test.ts
+ *
+ * Week 6: Implement the evaluators in llm-judge.ts, then these tests will pass
  */
 
 import { describe, it, expect } from 'vitest';
-import { evaluateRetrievalRelevance } from './llm-judge';
+import { evaluateRetrievalRelevance, evaluateAnswerFaithfulness, evaluateAnswerCompleteness } from './llm-judge';
 
 describe('retrieval relevance evaluation', () => {
   it(
@@ -48,14 +50,18 @@ describe('retrieval relevance evaluation', () => {
 });
 
 // TODO: Add test for evaluateAnswerFaithfulness
-// - Test case: answer grounded in context (should pass)
-// - Test case: answer with hallucinated claims (should fail)
+describe('answer faithfulness evaluation', () => {
+  it.todo('scores grounded answers above threshold');
+  it.todo('scores hallucinated answers below threshold');
+});
 
 // TODO: Add test for evaluateAnswerCompleteness
-// - Test case: answer fully addresses query (should pass)
-// - Test case: partial answer (should fail)
+describe('answer completeness evaluation', () => {
+  it.todo('scores complete answers above threshold');
+  it.todo('scores partial answers below threshold');
+});
 
 // TODO: Add end-to-end RAG evaluation
-// - Query the full pipeline
-// - Evaluate retrieval, faithfulness, completeness
-// - Aggregate scores
+describe('end-to-end RAG evaluation', () => {
+  it.todo('evaluates full pipeline with all metrics');
+});
