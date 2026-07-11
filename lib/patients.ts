@@ -5,7 +5,7 @@ import { prisma } from './prisma';
  *
  * Used by the scheduling flow to confirm a named patient actually exists before
  * offering an appointment. (The old hand-coded query builders are gone — the
- * chat SQL agent now writes its own SQL via lib/text-to-sql.ts; this one small
+ * chat SQL agent now writes its own SQL in lib/agents/sql.ts; this one small
  * lookup stays because scheduling needs an exact patient object, not free text.)
  */
 export async function findPatientByName(name: string) {

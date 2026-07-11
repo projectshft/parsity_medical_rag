@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     // runs over the whole rendered output (Week 5 lesson — imperfect by design).
     const text = obscure ? obscureContent(combined) : combined;
 
-    return NextResponse.json({ analysis: plan.analysis, text });
+    return NextResponse.json({ text });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.message }, { status: 400 });

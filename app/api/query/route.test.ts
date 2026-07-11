@@ -7,7 +7,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/lib/agents/selector', () => ({
   select: vi.fn(async () => ({
-    analysis: { intent: 'population_analytics' },
     needsSearch: true,
     useSql: true,
     useRag: false,
@@ -41,7 +40,6 @@ describe('POST /api/query', () => {
     const res = await POST(queryRequest({ query: 'diabetics' }));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.analysis.intent).toBe('population_analytics');
     expect(body.text).toContain('diabetes');
     expect(select).toHaveBeenCalledOnce();
   });
