@@ -95,7 +95,7 @@ If not a scheduling request, set isSchedulingRequest to false and all other fiel
 /**
  * Get default date (next business day)
  */
-function getDefaultDate(): string {
+export function getDefaultDate(): string {
 	const date = new Date();
 	date.setDate(date.getDate() + 1);
 
