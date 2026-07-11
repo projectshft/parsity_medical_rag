@@ -29,7 +29,6 @@
     "@prisma/client": "^6.0.0",
     "ai": "^4.1.0",
     "axios": "^1.7.9",
-    "cohere-ai": "^7.17.0",
     "langsmith": "^0.7.5",
     "next": "15.1.6",
     "openai": "^4.77.3",
