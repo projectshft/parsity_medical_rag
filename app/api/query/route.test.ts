@@ -42,15 +42,9 @@ describe('POST /api/query', () => {
     const res = await POST(queryRequest({ query: 'x' }));
     const body = await res.json();
     // No obscuring requested → the name comes through untouched.
+    // (The obscured path relies on obscureContent — your PII lab; its own spec
+    // is lib/pii.test.ts.)
     expect(body.text).toContain('Jane Roe');
-  });
-
-  it('scrubs PII when obscurePII is set', async () => {
-    const res = await POST(queryRequest({ query: 'x', obscurePII: true }));
-    const body = await res.json();
-    // The regex de-identifier redacts the "First Last" name.
-    expect(body.text).not.toContain('Jane Roe');
-    expect(body.text).toContain('[NAME]');
   });
 
   it('rejects an empty query with 400', async () => {
