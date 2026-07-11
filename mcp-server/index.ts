@@ -17,7 +17,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
-import { runSpecialists } from '../lib/agents/orchestrate';
+import { select } from '../lib/agents/selector';
+import { runSql } from '../lib/agents/sql';
+import { runRag } from '../lib/agents/rag';
 import { searchClinicalNotes } from '../lib/vector-search';
 import { obscureName, obscureContent } from '../lib/pii';
 
@@ -39,7 +41,14 @@ server.registerTool(
   },
   async ({ query }) => {
     try {
-      const { sqlText, ragText } = await runSpecialists(query);
+      // Inline the selector -> [ sql | rag ] fan-out (no shared orchestrator).
+      const plan = await select(query);
+      const [sqlText, ragText] = plan.needsSearch
+        ? await Promise.all([
+            plan.useSql ? runSql(query) : undefined,
+            plan.useRag ? runRag(plan.semanticQuery) : undefined,
+          ])
+        : [undefined, undefined];
       const combined = [sqlText, ragText].filter(Boolean).join('\n\n');
       // Front-office channel — always obscure PII in the rendered results.
       const formatted = obscureContent(combined);

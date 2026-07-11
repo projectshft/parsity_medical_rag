@@ -8,15 +8,8 @@
  */
 
 import { streamText } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
+import { openaiProvider } from '../openai';
 import type { Message } from '../agent';
-
-// Honor OPENAI_BASE_URL (the LiteLLM proxy). The default `openai` export ignores
-// it and always hits api.openai.com — which 401s with a proxy-issued key.
-const openai = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL,
-});
 
 export const AGGREGATOR_PROMPT = `You are a medical records assistant. Two specialist agents have already retrieved data for you: a SQL agent (exact facts — patients, conditions, medications, labs, counts) and a vector-search agent (relevant clinical notes, matched by meaning). Your job is to synthesize their results into one clear answer.
 
@@ -63,7 +56,7 @@ export function aggregate(input: AggregateInput): ReturnType<typeof streamText> 
   ];
 
   return streamText({
-    model: openai('gpt-4o-mini'),
+    model: openaiProvider('gpt-4o-mini'),
     system,
     messages,
   });
