@@ -18,39 +18,121 @@
 
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-import { upsertChunks, MedicalChunk } from '../lib/pinecone';
+import { ensureIndexExists, upsertChunks, MedicalChunk } from '../lib/pinecone';
 
 const directUrl =
-  process.env.DIRECT_URL ?? process.env.DATABASE_URL?.replace('-pooler.', '.');
+	process.env.DIRECT_URL ??
+	process.env.DATABASE_URL?.replace('-pooler.', '.');
 const prisma = new PrismaClient(
-  directUrl ? { datasources: { db: { url: directUrl } } } : undefined
+	directUrl ? { datasources: { db: { url: directUrl } } } : undefined,
 );
 
 async function main() {
-  const args = process.argv.slice(2);
-  const limitIdx = args.indexOf('--limit');
-  const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : undefined;
+	const args = process.argv.slice(2);
+	const limitIdx = args.indexOf('--limit');
+	const limit =
+		limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : undefined;
 
-  // TODO: 1. Read the notes from Postgres (prisma.note.findMany).
-  //          Include the patient's name (include: { patient: {...} }) so you can
-  //          put it in the metadata. Respect `limit` (take: limit).
+	// Create the index on first run (no-op if it already exists).
+	await ensureIndexExists();
 
-  // TODO: 2. Shape each note into a MedicalChunk:
-  //          { id: note.id,               // reuse the note id -> idempotent re-runs
-  //            content: note.content,
-  //            metadata: { patientId, patientName, type, date, source, chunkIndex } }
-  //          Metadata is what you'll filter searches on later — choose well.
-  const chunks: MedicalChunk[] = [];
+	// Read a page of 100, embed + upsert it, then read the next page (cursor
+	// pagination) — we never hold more than 100 notes in memory, and progress
+	// ships as we go instead of all at the end.
+	const PAGE_SIZE = 100;
+	let cursor: string | undefined;
+	let total = 0;
 
-  // TODO: 3. Embed + upsert them: `const n = await upsertChunks(chunks)`.
+	// Say what we're about to do BEFORE the first slow page.
+	const noteCount = await prisma.note.count();
+	const target = limit ? Math.min(limit, noteCount) : noteCount;
+	const pages = Math.ceil(target / PAGE_SIZE);
+	console.log(
+		`Vectorizing ${target} of ${noteCount} notes into Pinecone index ` +
+			`"${process.env.PINECONE_INDEX || 'medical-notes'}" — ` +
+			`${pages} page(s) of ${PAGE_SIZE} (embed + upsert per page)…`,
+	);
+	const startedAt = Date.now();
 
-  console.log(`(stub) would vectorize ${chunks.length} notes (limit=${limit ?? 'all'})`);
-  throw new Error('Not implemented — build the vectorize pipeline (see TODOs).');
+	while (true) {
+		// Respect --limit: shrink the final page so we stop exactly at the cap.
+		const take = limit ? Math.min(PAGE_SIZE, limit - total) : PAGE_SIZE;
+		if (take <= 0) break;
+
+		const notes = await prisma.note.findMany({
+			take,
+			// The cursor points at the LAST row of the previous page; skip: 1
+			// starts this page just after it.
+			...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+			orderBy: { id: 'asc' }, // a cursor only works over a stable order
+			include: {
+				patient: {
+					select: {
+						firstName: true,
+						lastName: true,
+						birthDate: true,
+						gender: true,
+						race: true,
+						state: true,
+						city: true,
+						// "current" meds = status 'active' (everything else is 'stopped')
+						medications: {
+							where: { status: 'active' },
+							select: { display: true },
+						},
+					},
+				},
+			},
+		});
+		if (notes.length === 0) break;
+
+		const chunks: MedicalChunk[] = notes.map((note) => {
+			const age = note.patient.birthDate
+				? Math.floor(
+						(Date.now() - note.patient.birthDate.getTime()) /
+							31557600000,
+					)
+				: undefined;
+
+			return {
+				id: note.id, // reuse the note id -> re-runs overwrite, never duplicate
+				content: note.content, // what gets vectorized
+				metadata: {
+					patientId: note.patientId,
+					firstName: note.patient.firstName ?? undefined,
+					lastName: note.patient.lastName ?? undefined,
+					age,
+					gender: note.patient.gender ?? undefined,
+					race: note.patient.race ?? undefined,
+					city: note.patient.city ?? undefined,
+					state: note.patient.state ?? undefined,
+					source: 'postgres',
+					currentMedications: note.patient.medications.map(
+						(m) => m.display,
+					),
+				},
+			};
+		});
+
+		total += await upsertChunks(chunks);
+		cursor = notes[notes.length - 1].id;
+
+		const page = Math.ceil(total / PAGE_SIZE);
+		const elapsed = (Date.now() - startedAt) / 1000;
+		const etaMin = ((elapsed / total) * (target - total)) / 60;
+		console.log(
+			`  page ${page}/${pages} — ${total}/${target} notes ` +
+				`(${Math.round(elapsed)}s elapsed, ~${etaMin.toFixed(1)} min left)`,
+		);
+	}
+
+	const mins = ((Date.now() - startedAt) / 60000).toFixed(1);
+	console.log(`Done. Upserted ${total} note vectors in ${mins} min.`);
 }
 
 main()
-  .catch((err) => {
-    console.error(err);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+	.catch((err) => {
+		console.error(err);
+		process.exit(1);
+	})
+	.finally(() => prisma.$disconnect());
