@@ -1,16 +1,12 @@
-/**
- * Chat API Route
- *
- * Handles chat requests with the medical RAG agent.
- *
- * TODO: Add scheduling action handling for human-in-the-loop pattern
- * When runAgent returns a schedulingAction, append it to the stream
- * as a marker the frontend can parse: <!-- SCHEDULING_ACTION {...} -->
- */
-
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { runAgent, Message } from "@/lib/agent";
+
+import { select } from "@/lib/agents/selector";
+import { runSql } from "@/lib/agents/sql";
+import { runRag } from "@/lib/agents/rag";
+import { aggregate, SCHEDULING_SYSTEM_PROMPT } from "@/lib/agents/aggregator";
+import { detectSchedulingIntent, getDefaultDate } from "@/lib/scheduling";
+import { findPatientByName } from "@/lib/patients";
 
 const ChatRequestSchema = z.object({
   query: z.string().min(1),
@@ -24,37 +20,92 @@ const ChatRequestSchema = z.object({
     .default([]),
 });
 
+/**
+ * The chat pipeline lives here — this route orchestrates the agents:
+ *
+ *   selector → [ sql ‖ rag ] → aggregator (streams)
+ *
+ * The agents live in lib/agents/. selector, sql, and rag are YOURS to
+ * implement; the aggregator and this wiring are provided so you can see how the
+ * four compose. The selector returns a structured plan (and may short-circuit
+ * when no retrieval is needed); sql and rag each return text; the aggregator is
+ * the only one that streams.
+ */
 export async function POST(request: Request) {
   try {
     const { query, messages } = ChatRequestSchema.parse(await request.json());
 
-    const conversationHistory: Message[] = messages;
+    // --- Scheduling intent (separate). Only offer a card if the patient exists.
+    const schedulingIntent = await detectSchedulingIntent(query);
+    let matchedPatient: { firstName: string | null; lastName: string | null } | null = null;
+    if (schedulingIntent.isSchedulingRequest && schedulingIntent.patientName) {
+      const matches = await findPatientByName(schedulingIntent.patientName);
+      matchedPatient = matches[0] ?? null;
+    }
+    const willSchedule = schedulingIntent.isSchedulingRequest && matchedPatient !== null;
 
-    const { stream, schedulingAction } = await runAgent(query, conversationHistory);
+    // --- SELECTOR: which specialists to run, or short-circuit to a direct answer.
+    const selection = await select(query, messages);
 
-    // TODO: If there's a scheduling action, append it to the stream
-    // The frontend parses: <!-- SCHEDULING_ACTION {"patientName":...} -->
-    // Use a TransformStream to append the marker after the LLM response completes
-    //
-    // if (schedulingAction) {
-    //   const textStream = stream.textStream;
-    //   const encoder = new TextEncoder();
-    //   const actionMarker = `\n\n<!-- SCHEDULING_ACTION ${JSON.stringify(schedulingAction)} -->`;
-    //
-    //   const transformedStream = new ReadableStream({
-    //     async start(controller) {
-    //       for await (const chunk of textStream) {
-    //         controller.enqueue(encoder.encode(chunk));
-    //       }
-    //       controller.enqueue(encoder.encode(actionMarker));
-    //       controller.close();
-    //     },
-    //   });
-    //
-    //   return new Response(transformedStream, {
-    //     headers: { "Content-Type": "text/plain; charset=utf-8" },
-    //   });
-    // }
+    // --- SPECIALISTS (parallel) — each returns text; skipped on short-circuit.
+    const [sqlText, ragText] = selection.needsSearch
+      ? await Promise.all([
+          selection.useSql ? runSql(query, messages) : Promise.resolve(undefined),
+          selection.useRag
+            ? runRag(selection.semanticQuery, selection.analysis)
+            : Promise.resolve(undefined),
+        ])
+      : [undefined, undefined];
+
+    // If a name was given but no patient matched, tell the model to say so.
+    const schedulingNote =
+      schedulingIntent.isSchedulingRequest && !matchedPatient
+        ? `\n\n(Note: the user asked to schedule an appointment${
+            schedulingIntent.patientName ? ` for "${schedulingIntent.patientName}"` : ""
+          }, but no matching patient exists in the records. Tell them you couldn't find that patient and ask them to verify the name. Do NOT confirm or suggest an appointment.)`
+        : "";
+
+    // --- AGGREGATOR: the only streamer.
+    const stream = aggregate({
+      query: query + schedulingNote,
+      history: messages,
+      sqlText,
+      ragText,
+      system: willSchedule ? SCHEDULING_SYSTEM_PROMPT : undefined,
+    });
+
+    const schedulingAction =
+      willSchedule && matchedPatient
+        ? {
+            patientName: [matchedPatient.firstName, matchedPatient.lastName]
+              .filter(Boolean)
+              .join(" "),
+            suggestedDate: schedulingIntent.suggestedDate || getDefaultDate(),
+            suggestedTime: schedulingIntent.suggestedTime || "09:00",
+            reason: schedulingIntent.reason,
+          }
+        : undefined;
+
+    // A scheduling card is delivered as a trailing marker on the text stream.
+    if (schedulingAction) {
+      const textStream = stream.textStream;
+      const encoder = new TextEncoder();
+      const marker = `\n\n<!-- SCHEDULING_ACTION ${JSON.stringify(schedulingAction)} -->`;
+
+      const transformed = new ReadableStream({
+        async start(controller) {
+          for await (const chunk of textStream) {
+            controller.enqueue(encoder.encode(chunk));
+          }
+          controller.enqueue(encoder.encode(marker));
+          controller.close();
+        },
+      });
+
+      return new Response(transformed, {
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
 
     return stream.toTextStreamResponse();
   } catch (error) {
