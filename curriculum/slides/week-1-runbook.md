@@ -22,16 +22,16 @@ The big shift from the old Foundations week: **there is no live SQL ingest.** Th
       npx ts-node --compiler-options '{"module":"CommonJS"}' \
         -e "require('dotenv/config'); require('./lib/pinecone').ensureIndexExists().then(()=>process.exit(0))"
       ```
-- [ ] **Warm the demo before class.** Run the cheap slice once so the index has vectors and you've seen the numbers:
+- [ ] **Warm the demo before class.** Run the full vectorize once so the index has vectors and you've seen the numbers:
       ```bash
-      npm run vectorize -- --limit 200
+      npm run vectorize
       ```
-      Expected tail: `Vectorizing 200 notes from Postgres...` then `Done. Upserted 200 note vectors into Pinecone.` Embedding all ~143,946 notes costs real money and ~an hour — **never do the full run live.** Keep the live slice at 200.
+      Expected tail: `Vectorizing 21090 notes from Postgres...` then `Done. Upserted 21090 note vectors into Pinecone.` The full run is **~10–15 min and ~$0.10** (21,090 notes ≈ 5M embedding tokens, 211 batches of 100) — cheap enough that everyone runs it live, and it fits Pinecone's free tier with ~8× headroom (~155 MB vs 2 GB). (`-- --limit 200` still exists if you just want a quick smoke test.)
 - [ ] Confirm `npm run similarity` works, and `curl localhost:3000/api/search -d '{"query":"x"}'` works. So you are not typing cold.
 - [ ] A terminal open in the repo; `scripts/vectorize.ts` open in an editor to scroll to live.
 - [ ] `week-1.html` open full-screen. Arrow keys / click to navigate, `N` toggles presenter notes.
 
-**Network reality:** Pinecone bulk writes can be flaky on conference/hotel Wi-Fi. The 200-slice is one batch of 100 + one of 100 (`batchSize = 100` in `lib/pinecone.ts`), so a hiccup costs seconds, not the session. If a live upsert stalls, Ctrl-C and re-run — it's idempotent by note id (break-it entry 3), so you never double-write.
+**Network reality:** Pinecone bulk writes can be flaky on conference/hotel Wi-Fi. The full run is 211 batches of 100 (`batchSize = 100` in `lib/pinecone.ts`), so a hiccup costs one batch, not the session. If a live upsert stalls, Ctrl-C and re-run — it's idempotent by note id (break-it entry 3), so you never double-write. **Session beat:** kick off the full run, then run the metadata team-decision discussion while it chews — both finish together.
 
 ---
 
@@ -44,9 +44,9 @@ The big shift from the old Foundations week: **there is no live SQL ingest.** Th
 | 0:22 | **Code together I — be the vector DB by hand** | 7 | Run `npm run similarity`. "dyspnea on exertion" ranks #1 for *"short of breath"* with **zero shared words.** The loop *is* a vector database. (Full script + narration below.) |
 | 0:35 | **Discussion / breakout** | 8 | "Which needs meaning — and which is just a lookup?" Breakout if >8 people, else full room. Drive to the split: counts/filters vs "sounds like / describes / mentions." Answer key below. That split *is* next week's routing agent. |
 | 0:46 | **Concept — two stores, one source of truth** | 9 | The architecture beat. Postgres = system of record (everything); vector store = derived index (just notes + metadata, embedded). If they disagree, Postgres wins; you rebuild the index. This mental model survives the whole course. |
-| 0:52 | **Code together II — the vectorize script** | 10–11 | Walk `scripts/vectorize.ts` (read from Postgres → shape with metadata → `upsertChunks`). Run `npm run vectorize -- --limit 200` live. Then the metadata slide: `patientId`/`type`/`date` are what make the index *useful* — one patient averages ~113 notes (up to 2,162), so without `patientId` you can't summarize *this* patient. |
+| 0:52 | **Code together II — the vectorize script** | 10–11 | Walk `scripts/vectorize.ts` (read from Postgres → shape with metadata → `upsertChunks`). Kick off the FULL `npm run vectorize` live (~10–15 min; run the metadata discussion while it chews). Then the metadata slide: `patientId`/`type`/`date` are what make the index *useful* — one patient averages ~105 notes (up to 1,632), so without `patientId` you can't summarize *this* patient. |
 | 1:06 | **Mini-challenge + break it** | 12 | Hit `POST /api/search`: *"patient struggling to breathe"* → did it find the dyspnea notes? Then break it live — the too-vague query (entry 1), then the missing-`patientId`-filter leak (entry 2). Turn them loose on the bank. |
-| 1:25 | **Concept — chunking intro + the Bible contrast** | 13–14 | Why our notes need no chunking: one note = one encounter = one piece (~450 chars, self-contained). Then the opposite: one 4M-char book embedded whole "means everything, matches nothing" → you must split it, but *where?* That decision is chunking. |
+| 1:25 | **Concept — chunking intro + the Bible contrast** | 13–14 | Why our notes need no chunking: one note = one encounter = one piece (~940 chars, self-contained). Then the opposite: one 4M-char book embedded whole "means everything, matches nothing" → you must split it, but *where?* That decision is chunking. |
 | 1:33 | **Homework + recap + send-off** | 15–16 | Homework part 1: propose a chunking strategy for the Bible + record the 2–3 min "what is chunking" clip. Recap where they are. This week's deliverable video: keyword vs meaning, their own words. Tease Week 2: you'll *run* your chunking strategy and measure it. |
 
 Runs long? Compress the architecture slide (0:46) and the chunking contrast (1:25) — **never** cut the two code-togethers or the break-it. The by-hand demo (slide 7) is the "understand it, don't black-box it" beat; protect it.
@@ -99,7 +99,7 @@ The full script (open it on screen — it's ~40 lines): a hand-written `cosine(a
 **Vectorize** — read `scripts/vectorize.ts` on screen (the three numbered steps), then run the slice:
 
 ```bash
-npm run vectorize -- --limit 200
+npm run vectorize
 ```
 
 - **Narrate the three steps:** (1) `prisma.note.findMany({ take: limit })` reads notes from Postgres — the source of truth; (2) `.map()` shapes each note into `{ id, content, metadata }`, reusing `note.id` as the vector id (**this is what makes re-runs idempotent** — entry 3); (3) `upsertChunks` embeds + upserts in batches of 100.
@@ -135,7 +135,7 @@ curl -s localhost:3000/api/search -H 'content-type: application/json' \
 **Most likely live failures (+ recovery):**
 - **Upsert throws `index not found` / 404** → the `medical-notes` index doesn't exist. Run the `ensureIndexExists` one-liner from Pre-flight, then re-run vectorize.
 - **Search returns nothing / weak junk** → you searched before vectorizing, or against a fresh/empty index. Confirm the 200-slice upsert finished first.
-- **Pinecone write stalls on the room's Wi-Fi** → Ctrl-C, re-run `npm run vectorize -- --limit 200`. Idempotent by id, so no harm.
+- **Pinecone write stalls on the room's Wi-Fi** → Ctrl-C, re-run `npm run vectorize`. Idempotent by id, so no harm.
 - **`Environment variable not found: DATABASE_URL`** (or OpenAI/Pinecone key) → the `.env` isn't loaded or a key is missing. All three keys are required for this path; check `.env`.
 
 ---
@@ -157,15 +157,41 @@ Run at least entries 1 and 2 live (they're the headline — a flattened ranking 
 - **Extend:** this is exactly why `patientId` had to be on the vector at *vectorize* time (slide 11) — metadata isn't decoration, it's the filter that enforces the boundary. Foreshadow: the same filter, forgotten, is a planted bug in a later week's hybrid path.
 
 **3. Re-running vectorize is idempotent (prove it).**
-- **Sabotage:** run `npm run vectorize -- --limit 200` a second time and worry aloud about duplicates.
+- **Sabotage:** run `npm run vectorize` a second time and worry aloud about duplicates.
 - **Expected failure:** *there is none* — that's the lesson. Pinecone upserts key on vector **id**, and the script reuses `note.id` as the id (`scripts/vectorize.ts` ~line 43). Re-running overwrites the same 200 vectors in place; the index doesn't grow.
 - **Fix / point:** nothing to fix — this is *by design*. Idempotency is why "rebuild the index" (slide 9) is safe: Postgres is the source of truth, and you can re-derive the vector store any time without fear of doubling it.
-- **Extend:** change the slice — `--limit 50` then `--limit 200` — and note the same ids get re-written, new ids added. Then reason about the opposite hazard: if you *deleted* a note in Postgres, the stale vector would linger in Pinecone until a full rebuild or explicit delete (`deleteAllChunks`). Derived indexes drift; you reconcile them.
+- **Extend:** re-run with `--limit 50` after a full run and note the same 50 ids just get re-written in place. Then reason about the opposite hazard: if you *deleted* a note in Postgres, the stale vector would linger in Pinecone until a full rebuild or explicit delete (`deleteAllChunks`). Derived indexes drift; you reconcile them.
 
 **4. (extend only) One giant vector vs many small ones — the chunking foreshadow.**
-- **Sabotage (thought experiment):** imagine concatenating one patient's ~113 notes into a single 50,000-char string and embedding *that* as one vector.
+- **Sabotage (thought experiment):** imagine concatenating one patient's ~105 notes into a single 50,000-char string and embedding *that* as one vector.
 - **Expected failure:** the vector "means" the average of everything the patient ever presented with — it matches *many* queries weakly and *no* specific one strongly. Same failure as embedding the whole Bible at once (slide 14).
 - **Point:** our per-note vectors dodge this only because a note is already the right-sized piece. When the piece is too big, you must split — and *where* you split is the craft. That's the homework and next week.
+
+---
+
+## Team decision — what to vectorize, and what metadata to attach (~10 min, optional)
+
+Run this after the vectorize code-together (slide 11) if the room has energy, or hold it for a follow-up session. It's a **design discussion, not a lab** — the point is that corpus selection and metadata design *are* the engineering, and both have defensible answers. Make it a real team decision; you're deciding together what a future re-vectorize would do (the actual re-run stays a with-the-class event — never a solo reset).
+
+**Ground them in what's true today** (from `scripts/vectorize.ts` + `lib/vector-search.ts`):
+- Only `note.content` is embedded — one vector per note.
+- Metadata attached: `patientId`, `patientName`, `type`, `date`, `source`, `chunkIndex`.
+- Of those, **only `patientId` is actually used to filter.** `date` is stored but *dead* — `searchClinicalNotes` accepts `dateFrom`/`dateTo` and then ignores them (there's an "if supported" comment where the filter should go). `patientName` is carried only for display.
+
+### Decision 1 — "should we vectorize more than the notes?"
+Let them argue it, then land the answer: **usually no — and knowing why is the lesson.** The other tables (`conditions`, `medications`, `observations`) are already exact, structured data. The SQL agent is now **text-to-SQL** — the LLM writes a raw `SELECT` straight against those tables (`lib/text-to-sql.ts`), so "how many diabetics," "A1c over 9," "meds for patient X" are already answered precisely. Embedding a `Hypertension` row adds *zero* semantic value and just pollutes the index. **Embedding everything is the classic beginner mistake.** You vectorize the notes because that's where *meaning* lives and keyword/SQL fails — nowhere else.
+- **The one candidate worth debating:** a synthesized per-patient *summary* doc (roll up conditions + meds + recent notes into one blurb) for "tell me about patient X." Real, but derived and goes stale, and text-to-SQL + a note search mostly cover it. Good argument; most rooms land on "notes only."
+
+### Decision 2 — "what metadata should ride on each vector?"
+Metadata is only worth attaching if you'll **filter or display** on it. Three live options, in rising order of interest:
+- **Wire the dead `date` filter.** It's half-built — dates are already stored as `YYYY-MM-DD` strings; you just have to actually add them to the Pinecone `filter`. Payoff: "notes from the last year" becomes real. Cleanest hands-on win if they want to *build* something.
+- **Denormalize condition tags onto each note vector** (e.g. `conditions: ["Diabetes", "Hypertension"]`). Then "notes about sleep for *diabetic* patients" is a pure Pinecone metadata filter. This makes the **filter-here-vs-there** tradeoff concrete: today the hybrid path filters in **Postgres** (text-to-SQL returns the matching `patientId`s) and passes them to `searchClinicalNotes` as `patientIds`; tagging would move that filter *into* the vector store. Neither is free — Postgres-side stays fresh but needs two round-trips; tag-side is one query but goes stale when a diagnosis changes. Great thing to make them defend.
+- **The PII one — the sharpest teaching moment.** We store `patientName` **in Pinecone**, a third-party derived index. Should identifying data live in the vector store at all, or store only `patientId` and re-join to Postgres for the name at display time? That's a **Week 5 privacy decision hiding in a Week 1 script.** Surface it now; it pays off in the final week's de-identification work.
+
+### The fact that makes this cheap to try
+Trying a metadata idea does **not** require re-embedding 21k notes. **Pinecone can patch metadata in place** (`index.update` by vector id) without touching the embedding — so "add condition tags" or "drop `patientName`" is a metadata-only pass, not a paid re-embed. (`upsertChunks` re-embeds; a metadata-only update would be its own small helper.) Say this out loud so nobody assumes every tweak costs an embedding run.
+
+**What to listen for:** the reflex to "embed more to be safe." Push back — the vector store earns its keep on *meaning*; structured facts belong in Postgres where text-to-SQL already reaches them exactly. A bigger index isn't a better one.
 
 ---
 
@@ -193,12 +219,12 @@ A **2–3 min video** (phone is fine): explain, in your own words, **why keyword
 
 - Deck: `curriculum/slides/week-1.html` (16 slides)
 - Real code the demos are grounded in (read live if asked):
-  - `scripts/vectorize.ts` — Postgres notes → Pinecone (`npm run vectorize -- --limit 200`)
-  - `lib/pinecone.ts` — `upsertChunks` (batches of 100), `searchChunks`, `ensureIndexExists`, `deleteAllChunks`
+  - `scripts/vectorize.ts` — Postgres notes → Pinecone (`npm run vectorize`)
+  - `lib/pinecone.ts` — `upsertChunks` (batches of 100), `ensureIndexExists`, `deleteAllChunks`
   - `lib/vector-search.ts` — `searchClinicalNotes` (the `patientId` metadata filter lives here)
   - `lib/openai.ts` — `createEmbedding` / `createEmbeddings` (`text-embedding-3-small`, 1536 dims)
   - `prisma/schema.prisma` — the `Note` model (`id` doubles as the Pinecone vector id)
 - Shipped exercise: `npm run similarity` (`scripts/similarity.ts`). Live build: the `app/api/search/route.ts` endpoint (printed above)
 - Homework corpus (Week 2): `scripts/bible/` tools — KJV Bible
-- Data facts to have on hand: **1,278 patients**, **143,946 notes** total, **~113 notes per patient on average** (up to **2,162**); notes ~450 chars, self-contained.
+- Data facts to have on hand: **200 patients**, **21,090 notes** total, **~105 notes per patient on average** (up to **1,632**); notes ~938 chars, self-contained. Full vectorize ≈ 10–15 min, ~$0.10, well inside Pinecone free tier.
 - Env the vectorize path needs: `DATABASE_URL` (provided/read-only), `OPENAI_API_KEY`, `PINECONE_API_KEY` (+ optional `PINECONE_INDEX`, `DIRECT_URL`).

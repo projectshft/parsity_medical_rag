@@ -34,7 +34,7 @@ flowchart TD
 | `Encounter` | visits — date, type, status | structured filters |
 | `Note` | the free-text clinical narrative, one per encounter | **meaning-based search — this week's subject** |
 
-The first five are **structured rows**: exact values the database queries exactly. That half is a given — the company built it, you connect to it. The sixth, `Note`, is the free text. Its full content is right there in Postgres too (`note.content`) — but Postgres can only match it by *letters*. Turning it into something searchable by *meaning* is the week's work.
+The first five are **structured rows**: exact values the database queries exactly. That half is a given — the company built it, you connect to it. The sixth, `Note`, is where the rest of the story lives. Everything the structured tables *didn't* capture — the symptoms in the patient's own words, why they came in, what the clinician observed — was written into these notes and never turned into a column. Its full content is right there in Postgres too (`note.content`) — but Postgres can only match it by *letters*. Turning it into something searchable by *meaning*, so that half of the record finally answers questions, is the week's work.
 
 ### One patient, many notes
 

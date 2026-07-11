@@ -17,12 +17,14 @@
     "lms:generate": "prisma generate --schema prisma/lms/schema.prisma",
     "lms:push": "prisma db push --schema prisma/lms/schema.prisma",
     "lms:studio": "prisma studio --schema prisma/lms/schema.prisma",
-    "ingest": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/ingest-coherent.ts",
     "vectorize": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/vectorize.ts",
     "similarity": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/similarity.ts",
+    "retell:deploy": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/retell/deploy-agent.ts",
+    "bible:fetch": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/fetch.ts",
     "bible:fixed": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/chunk-fixed.ts",
     "bible:smart": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/chunk-smart.ts",
-    "bible:audit": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/audit.ts"
+    "bible:audit": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bible/audit.ts",
+    "security:poisoned": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/security/demo-poisoned-docs.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.2.0",
@@ -33,7 +35,6 @@
     "@prisma/client": "^6.0.0",
     "ai": "^4.1.0",
     "axios": "^1.7.9",
-    "cohere-ai": "^7.17.0",
     "langsmith": "^0.7.5",
     "mermaid": "^11.15.0",
     "next": "^15.5.19",

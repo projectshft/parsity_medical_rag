@@ -106,7 +106,7 @@
     <h2>The setup: the data is already here</h2>
     <p>You join a clinic's engineering team. Years of records are already in <strong>Postgres</strong> — patients, diagnoses, medications, labs, and ~144,000 free-text clinical <strong>notes</strong>. Nobody needs you to build the database. It exists.</p>
     <p class="lead">What they want: let a doctor ask <em>"which patients are short of breath?"</em> and actually find them — including the note that says <em>"dyspnea on exertion."</em></p>
-    <div class="cue"><b>Say it plainly:</b> we're not teaching them to store data — they have that. We're teaching the thing on top: search by meaning. That reframing is the whole course.</div>
+    <div class="cue"><b>Say it plainly:</b> we're not teaching them to store data — they have that. We're teaching the thing on top: search by meaning. That reframing is the whole course. <b>The hook:</b> the codeable facts got columns (diagnosis, med, lab) — but the <em>story</em> never did. There's no "short of breath" column and there never was one. That half is written in the notes and today it's unreachable; the vector store (then hybrid search) is how we reach it. Never frame it as the data being broken or lossy — it's a normal database that simply never modeled the narrative.</div>
   </section>
 
   <!-- 4 — Concept: why SQL can't -->

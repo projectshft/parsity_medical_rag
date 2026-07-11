@@ -1,22 +1,24 @@
 /**
- * Retell AI — outbound appointment-confirmation call (EXTENSION / demo)
+ * Retell AI — outbound appointment-confirmation call (EXTENSION / STUDENT STUB)
  *
  * After Cal.com books an appointment, place an automated voice call to confirm
- * the patient can attend. This is a teaching example of wiring a voice agent
- * into an action flow.
+ * the patient can attend — wiring a voice agent into an action flow.
  *
- * Setup (in the Retell dashboard):
- * 1. Create an agent whose prompt uses the dynamic variables {{patient_name}}
- *    and {{appointment_time}} (e.g. "Hi {{patient_name}}, this is the clinic
- *    confirming your appointment on {{appointment_time}} — can you make it?").
- * 2. Buy a phone number and assign it to that agent.
- * 3. Set env: RETELL_API_KEY, RETELL_FROM_NUMBER (the number you bought).
+ * 👉 YOUR JOB: implement callToConfirmAppointment below, and deploy the agent it
+ *    calls in scripts/retell/deploy-agent.ts. The schedule route already calls
+ *    this function; until you finish it, the booking still succeeds and the call
+ *    just no-ops. Reference: ../voice_ai/agents for the pattern and
+ *    https://docs.retellai.com.
  *
- * DEMO: set DEMO_PHONE_NUMBER to your own phone — the call goes there instead
- * of the (synthetic) patient's number, so it rings live in front of the class.
+ * Setup you'll need:
+ * 1. Deploy an agent (npm run retell:deploy) whose prompt uses {{patient_name}}
+ *    and {{appointment_time}}.
+ * 2. A Retell phone number you own → RETELL_FROM_NUMBER.
+ * 3. Env: RETELL_API_KEY, RETELL_FROM_NUMBER, RETELL_AGENT_ID.
+ *    DEMO: set DEMO_PHONE_NUMBER to your own cell so it rings you, not a patient.
  */
 
-import Retell from 'retell-sdk';
+// TODO: import Retell from 'retell-sdk';
 
 export function isRetellConfigured(): boolean {
   return Boolean(process.env.RETELL_API_KEY && process.env.RETELL_FROM_NUMBER);
@@ -30,8 +32,8 @@ export interface ConfirmationCallResult {
 }
 
 /**
- * Place the confirmation call. Best-effort by design — the caller should not
- * let a call failure break a successful booking.
+ * Place the confirmation call. Best-effort by design — a call failure must not
+ * break a successful booking, so this returns a result object and never throws.
  */
 export async function callToConfirmAppointment(opts: {
   patientName: string;
@@ -48,26 +50,17 @@ export async function callToConfirmAppointment(opts: {
     return { called: false, reason: 'no destination phone (set DEMO_PHONE_NUMBER or pass a patient phone)' };
   }
 
-  const client = new Retell({ apiKey: process.env.RETELL_API_KEY! });
+  // TODO — build the message and place the call, then return the result:
+  //   1. Turn opts.dateTime (ISO) into a human-friendly string for the agent's
+  //      {{appointment_time}} variable.
+  //   2. Create a Retell client (RETELL_API_KEY) and place an outbound phone
+  //      call: from your Retell number, to `to`, running your deployed agent
+  //      (RETELL_AGENT_ID), passing the dynamic variables its prompt expects
+  //      (the patient name + the appointment time).
+  //   3. Return { called: true, callId, to } on success.
+  //   Look up the call method + parameters in the Retell SDK docs, and see
+  //   ../voice_ai/agents for the shape.
 
-  const appointmentTime = new Date(opts.dateTime).toLocaleString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-
-  const call = await client.call.createPhoneCall({
-    from_number: process.env.RETELL_FROM_NUMBER!,
-    to_number: to,
-    // Injected into the agent's prompt as {{patient_name}} / {{appointment_time}}
-    retell_llm_dynamic_variables: {
-      patient_name: opts.patientName,
-      appointment_time: appointmentTime,
-    },
-    metadata: { purpose: 'appointment_confirmation', patientName: opts.patientName },
-  });
-
-  return { called: true, callId: call.call_id, to };
+  // Replace this once implemented:
+  return { called: false, reason: 'TODO: implement callToConfirmAppointment in lib/retell.ts' };
 }

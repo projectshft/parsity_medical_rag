@@ -1,8 +1,11 @@
-# Homework (optional) — The Poisoned Document
+# The Poisoned Document — indirect prompt injection
 
 **Needs: the running system; `docs/CHALLENGE-POISONED-DOCS.md` and `data/security/poisoned/`**
 
-This one is optional, and it's the most fun adversarial exercise in the course. Do it if you want to feel your own system get hijacked and then defend it.
+> **Self-paced learners: this is required.** It's the one place you build real defenses against an attack every retrieval system faces — don't skip it.
+> **Live cohort: you'll do this together in the Week 5 session.** Use this file as your reference and pre-read.
+
+It's also the most fun adversarial exercise in the course: you feel your own system get hijacked by a document it retrieved, then defend it.
 
 ## What you'll do
 

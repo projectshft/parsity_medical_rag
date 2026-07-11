@@ -1,30 +1,30 @@
 # Hybrid Queries: Facts Narrow the World, Meaning Ranks What's Left
 
-**Needs: both engines loaded — Postgres rows and the note index**
+**Needs: both engines loaded — Postgres rows and the note index; the SQL agent from w2-02**
 
 ## Today you will
 
-- Build the hybrid pattern by hand: structured filter → semantic search inside the filtered set
+- Build the hybrid pattern by hand: a structured filter → semantic search *inside* the filtered set
 - Learn why the *order* of the two steps is not a style choice
-- Trigger the empty-filter privacy bug on purpose, and understand why it's a leak and not a relevance glitch
+- Trigger the empty-filter privacy bug on purpose, and understand why it's a leak, not a relevance glitch
 
 ## Concept
 
-The interesting queries have always been the hybrids: *"What do the notes say about sleep problems for patients with depression?"* Neither engine can answer it alone:
+Your chat agent runs the SQL and vector agents **in parallel** and lets the aggregator merge them — that's the default, and it's right for most questions. But some questions want the two engines **in sequence**: *"What do the notes say about sleep problems for patients with depression?"* Neither engine answers it alone:
 
 - **Postgres alone** finds the depression patients perfectly, then hits a wall — a `LIKE '%sleep%'` over note text misses "insomnia," "wakes frequently," "poor sleep hygiene."
 - **The vector index alone** finds sleep-related notes beautifully — for *anyone*, including patients who've never had a depression diagnosis.
 
-The hybrid pattern runs them in sequence, each doing what it's for:
+The hybrid pattern narrows with facts, then ranks the survivors by meaning:
 
 ```mermaid
 flowchart LR
-    Q["sleep problems in<br/>patients with depression"] --> S[1. Postgres:<br/>patients WITH depression]
+    Q["sleep problems in<br/>patients with depression"] --> S[1. SQL agent:<br/>ids of patients WITH depression]
     S -->|"patient ids"| V[2. Vector search:<br/>'sleep problems'<br/>filter: those ids]
     V --> R[notes about sleep,<br/>only from depressed patients]
 ```
 
-Step 1 is `getPatientIdsByConditions` (in `lib/sql-queries.ts`, with the synonym mappings — "depression" expands to "depressive disorder," "major depressive," and so on). Step 2 is `searchClinicalNotes` with a `patientIds` filter. Postgres is the system of record, so it owns the *fact* of who has depression; Pinecone is the derived index, so it owns the *meaning* of "sleep problems." Each engine does the one thing it's good at.
+Step 1 is a SQL query — now written by the **SQL agent** (`textToSqlQuery`) — that returns the matching patients' **ids**. Step 2 is `searchClinicalNotes` with a `patientIds` filter. Postgres is the system of record, so it owns the *fact* of who has depression; Pinecone is the derived index, so it owns the *meaning* of "sleep problems." Each engine does the one thing it's good at.
 
 ### Why SQL first, vectors second — and not the reverse?
 
@@ -37,17 +37,18 @@ General rule worth keeping: **exact filters narrow the world; semantic search ra
 
 ## Implementation
 
-Build the hybrid by hand in a scratch script — no framework, just the two functions in sequence. This is exactly what `executeQuery`'s hybrid branch does; building it yourself first makes that branch readable:
+Build the hybrid by hand in a scratch script — the SQL agent for the ids, then `searchClinicalNotes` filtered to them:
 
 ```typescript
 import 'dotenv/config';
-import { getPatientIdsByConditions } from './lib/sql-queries';
+import { textToSqlQuery } from './lib/text-to-sql';
 import { searchClinicalNotes } from './lib/vector-search';
 
-async function hybrid(conditions: string[], semanticQuery: string) {
-  // Step 1: exact — who has the condition?
-  const patientIds = await getPatientIdsByConditions(conditions);
-  console.log(`patients with ${conditions.join('+')}: ${patientIds.length}`);
+async function hybrid(conditionAsk: string, semanticQuery: string) {
+  // Step 1: exact — ask the SQL agent for the matching patients' ids
+  const { rows } = await textToSqlQuery(`the patient ids of ${conditionAsk}`);
+  const patientIds = rows.map((r) => String(r.id ?? r.patientId)).filter((s) => s !== 'undefined');
+  console.log(`matched patients: ${patientIds.length}`);
 
   if (patientIds.length === 0) return [];
 
@@ -56,7 +57,7 @@ async function hybrid(conditions: string[], semanticQuery: string) {
 }
 
 async function main() {
-  const results = await hybrid(['depression'], 'trouble sleeping, insomnia, poor sleep');
+  const results = await hybrid('patients with depression', 'trouble sleeping, insomnia, poor sleep');
   for (const r of results) {
     console.log(`${r.score.toFixed(3)} ${r.patientName} (${r.date}) — ${r.contentPreview.slice(0, 90)}…`);
   }
@@ -73,15 +74,7 @@ The hybrid's value is exactly the gap between it and each control. Don't take th
 
 ### The empty-filter privacy bug
 
-Notice the `if (patientIds.length === 0) return [];` guard in the script above. It's there for a reason, and the reason is a real security bug living one level down.
-
-Look at how the production hybrid branch passes the filter (`lib/query-executor.ts`, ~line 53):
-
-```typescript
-patientIds: patientIds?.length ? patientIds : undefined,
-```
-
-And what `searchClinicalNotes` does with it (`lib/vector-search.ts`):
+Notice the `if (patientIds.length === 0) return [];` guard above. It's there for a reason, and the reason is a real security bug living one level down — in how `searchClinicalNotes` treats its `patientIds` option (`lib/vector-search.ts`):
 
 ```typescript
 if (patientIds && patientIds.length > 0) {
@@ -90,15 +83,15 @@ if (patientIds && patientIds.length > 0) {
 // else: no filter — search EVERY patient's notes
 ```
 
-Now trace a hybrid query whose condition matches **zero** patients — a real-sounding but absent condition, e.g. *"what do the notes say about sleep for patients with kuru?"* Step 1 returns `[]`. Then `[].length` is `0`, which is falsy, so `patientIds?.length ? patientIds : undefined` passes **`undefined`** — no filter — and the vector search runs across *the entire corpus*. A query that should have matched **nobody** instead returns notes from **everybody**.
+Now trace a hybrid query whose condition matches **zero** patients — a real-sounding but absent condition, e.g. *"notes about sleep for patients with kuru?"* Step 1 returns `[]`. If you then pass that straight through — `patientIds?.length ? patientIds : undefined`, or just handing `[]` to a filter that treats empty as "no filter" — the vector search runs across *the entire corpus*. A query that should have matched **nobody** instead returns notes from **everybody**.
 
 That is not a relevance bug. "Scoped to zero patients" silently became "scoped to all patients." In a medical system that's a **cross-patient data leak**: one answer, built from charts the query had no business touching. The empty array — the most innocent-looking value in the world — is the whole exploit.
 
-The fix is to distinguish *"no filter requested"* from *"filter requested, matched nobody."* If conditions were provided but resolved to zero ids, short-circuit to empty results — return nothing — instead of falling through to an unfiltered search. Prove it with the kuru query: after the fix, zero notes come back.
+The fix is to distinguish *"no filter requested"* from *"filter requested, matched nobody."* If step 1 ran and resolved to zero ids, short-circuit to empty results — return nothing — instead of falling through to an unfiltered search. That's exactly what the guard in the script does. Prove it with the kuru query: with the guard, zero notes come back; delete it and watch the leak.
 
 ### Common mistakes
 
-- **Skipping the empty-filter check.** The #1 hybrid bug, and it's a privacy bug, not a relevance one. Re-read your own guard and trace what an empty array does at every hop.
+- **Skipping the empty-filter check.** The #1 hybrid bug, and it's a privacy bug, not a relevance one. Trace what an empty array does at every hop.
 - **Putting the semantic part into SQL or the exact part into the vector query.** "Depression" in the vector query *and* the SQL filter feels like belt-and-suspenders; it actually skews the ranking toward notes that *mention* depression rather than notes about sleep. Each constraint goes to the engine built for it, once.
 - **Large id lists.** A condition matching thousands of patients makes a giant `$in` filter — legal, but slow, and a sign the structured step isn't narrowing much. If step 1 returns half the database, ask whether the question really has a structured component at all.
 
@@ -107,8 +100,8 @@ The fix is to distinguish *"no filter requested"* from *"filter requested, match
 Spend **no more than 45 minutes** here.
 
 1. Run the depression/sleep hybrid plus both controls. Record: how many of the vector-only top-10 were outside the depression cohort?
-2. Trigger the empty-filter leak. Run the kuru query (or any condition not in the corpus) *through `executeQuery`* and confirm you get notes back from unrelated patients. Then describe, in one sentence, exactly which expression let the empty array become "no filter."
-3. Build two more hybrids from your own labeled queries. For each: conditions, semantic query, and the top-3 results.
+2. Trigger the empty-filter leak: remove the `length === 0` guard, run the kuru query, and confirm you get notes back from unrelated patients. Then restore the guard and describe, in one sentence, exactly which expression let the empty array become "no filter."
+3. Build two more hybrids from your own labeled queries. For each: the condition ask, the semantic query, and the top-3 results.
 
 ## Check yourself
 
@@ -121,7 +114,7 @@ Spend **no more than 45 minutes** here.
 **Order:** math reason — filtering *after* a fixed-K vector search leaves an unpredictable (possibly zero) number of results, so you can't guarantee K; correctness reason — a diagnosis is an exact true/false fact, which belongs in a `WHERE` clause, and running it first means the fuzzy search operates inside an already-correct set.
 
 **The colleague's bug list:**
-1. **Empty/missing filter** — `getPatientIdsByConditions(['anxiety'])` returned `[]` (a mapping miss or a typo), and the empty array became "no filter." Check by logging `patientIds.length` before step 2. This is the leak from today.
+1. **Empty/missing filter** — step 1 returned `[]` (the SQL agent wrote a query over the wrong vocabulary, or matched nobody), and the empty array became "no filter." Check by logging `patientIds.length` before step 2. This is the leak from today.
 2. **Post-filtering or no filtering** — the `patientIds` never reached `index.query` (wrong options key, or filtered in JS afterward). Check by logging the actual filter object handed to Pinecone.
 
 Both bugs produce *plausible-looking results* — chest-pain notes are chest-pain notes — which is what makes hybrid bugs nastier than crashes. The fix for "plausible but wrong" is never staring harder; it's controls and counts.

@@ -26,7 +26,7 @@ You do **not** need every API key on Day 1. Each day lists what it needs.
 
 ## What you're building, and why
 
-**The problem.** A clinic's data lives in two incompatible shapes. *Structured* facts — diagnoses, medications, lab values, demographics — sit in database rows. *Unstructured* detail — the story of each visit — lives in free-text clinical notes. Neither half answers questions well alone:
+**The problem.** A clinic's data lives in two incompatible shapes. *Structured* facts — diagnoses, medications, lab values, demographics — sit in database rows. *Unstructured* detail — the story of each visit: the symptoms in the patient's words, why they came in, what the clinician observed — lives in free-text clinical notes, and was never turned into columns you can query. The database is a given; making that second half reachable is what you're here to build. Neither half answers questions well alone:
 
 - SQL can count diabetics, but can't find a note that says "short of breath climbing stairs" when the user asks about *dyspnea* — same meaning, zero shared words.
 - Keyword search over notes finds "dyspnea," but can't count, filter by lab value, or join across patients.
@@ -91,18 +91,18 @@ The company has all this data — how do we make the *notes* searchable by **mea
 6. [The vectorize script: database → vector store](w1-06-vectorize.md)
 7. [Semantic search + metadata](w1-07-semantic-search.md)
 8. [Chunking, introduced (and why our notes don't need it)](w1-08-chunking-intro.md) 🎥
-- 📝 [Homework — Bible chunking (side project, part 1)](homework-bible-chunking.md)
+- 📝 [Optional side project — Bible chunking (part 1)](homework-bible-chunking.md)
 
 **Week 2 — Agentic / hybrid search**
 An agent that answers by using **both** engines — exact SQL for facts, vector search for meaning.
 1. [Structured outputs: the LLM as a typed function](w2-01-structured-outputs.md)
-2. [The query analyzer: intent + entities](w2-02-query-analyzer.md)
-3. [Orchestration: routing to the right engine](w2-03-orchestration.md)
-4. [Hybrid queries: SQL filter, then vector search](w2-04-hybrid-queries.md)
+2. [The SQL agent: text-to-SQL](w2-02-query-analyzer.md)
+3. [Orchestration: router + parallel agents + aggregator](w2-03-orchestration.md)
+4. [Hybrid queries: facts narrow, meaning ranks](w2-04-hybrid-queries.md)
 5. [When cosine lies: reranking](w2-05-reranking.md)
 6. [The chat agent + the grounding contract](w2-06-chat-agent.md)
 7. [Failure day: bait, and refusing it](w2-07-failure-day.md) 🎥
-- 📝 [Homework — Bible chunking (part 2: chunk + upload)](homework-bible-chunking.md)
+- 📝 [Optional side project — Bible chunking (part 2: chunk + upload)](homework-bible-chunking.md)
 
 **Week 3 — MCP + human-in-the-loop**
 1. [MCP: your RAG as a tool for AI assistants](w3-01-mcp-intro.md)
@@ -122,9 +122,9 @@ Measure and trace a non-deterministic system so "it feels better" becomes a numb
 Show identifying details only where they belong — no login, just the channel. The front-office (MCP) door always obscures PII; the clinician (direct app) door sees full data.
 1. [PII de-identification and the channel access model](w5-02-rbac-pii.md)
 2. [Wrap-up: what you built, and where to go next](w5-03-wrap-up.md) 🎥
-- 📝 [Homework — Adversarial / poisoned documents](homework-poisoned-docs.md)
+- 📝 [**Required** — The poisoned document (indirect prompt injection)](homework-poisoned-docs.md) — self-paced: required; live cohort: done in the Week 5 session
 
-🎥 = weekly video deliverable · 📝 = homework (self-paced side project)
+🎥 = weekly video deliverable · 📝 = self-paced project (required or optional as noted per item)
 
 ## A note on AI-assisted coding
 

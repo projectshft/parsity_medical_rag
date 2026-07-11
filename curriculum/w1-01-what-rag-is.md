@@ -22,7 +22,7 @@ The database already answers a whole class of questions beautifully:
 
 Those are exact, structured questions, and Postgres was built for them. We are **not** going to reteach that. It's a given.
 
-The problem is the other half of the story — the one locked in the notes.
+The problem is the other half of the story. When these records were built, the *codeable* facts each got a column — a diabetes diagnosis, a prescription, a lab value. But the **narrative never did**: why the patient actually came in, the symptoms in their own words, what the clinician noticed and worried about. All of it was written down — it's sitting right there in the notes — but nobody ever turned it into something you can query. There is no "short of breath" column, and there was never going to be one. That half of the record is real, it's valuable, and right now it's unreachable. **Building the layer that reaches it is the whole reason this app exists**: you take the database the company already has and add semantic — and then hybrid — search on top, so the story in the notes finally answers questions too.
 
 ## Concept
 

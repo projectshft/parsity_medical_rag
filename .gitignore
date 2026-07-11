@@ -40,5 +40,8 @@ fhir/
 curriculum/Untitled
 curriculum/*.txt
 
+# Bible chunking lab corpus + generated chunks (downloaded, regenerable)
+data/bible/
+
 # gstack browser session artifacts
 .gstack/

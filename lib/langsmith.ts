@@ -38,6 +38,13 @@ export function createRun(name: string, runType: 'llm' | 'chain' | 'tool' | 'ret
 
 /**
  * Wrap an async function with LangSmith tracing
+ *
+ * TODO: Implement this function
+ * - If LangSmith is not enabled, just run the function directly
+ * - Create a RunTree with the given name and options
+ * - Post the run, execute the function, end with outputs
+ * - Handle errors by ending with error status
+ * - Return the function result
  */
 export async function traced<T>(
   name: string,
@@ -48,33 +55,18 @@ export async function traced<T>(
     metadata?: Record<string, unknown>;
   }
 ): Promise<T> {
-  if (!isLangSmithEnabled()) {
-    return fn();
-  }
-
-  const run = new RunTree({
-    name,
-    run_type: options?.runType || 'chain',
-    project_name: LANGSMITH_PROJECT,
-    inputs: options?.inputs,
-    extra: options?.metadata ? { metadata: options.metadata } : undefined,
-  });
-
-  try {
-    await run.postRun();
-    const result = await fn();
-    await run.end({ outputs: { result } });
-    await run.patchRun();
-    return result;
-  } catch (error) {
-    await run.end({ error: String(error) });
-    await run.patchRun();
-    throw error;
-  }
+  // TODO: Implement tracing wrapper
+  // For now, just run the function without tracing
+  return fn();
 }
 
 /**
  * Create a child run for nested tracing
+ *
+ * TODO: Implement this function for nested observability
+ * - Create a child run from the parent
+ * - Post, execute, and end the child run
+ * - Handle errors appropriately
  */
 export async function tracedChild<T>(
   parent: RunTree,
@@ -85,21 +77,7 @@ export async function tracedChild<T>(
     inputs?: Record<string, unknown>;
   }
 ): Promise<T> {
-  const child = await parent.createChild({
-    name,
-    run_type: options?.runType || 'chain',
-    inputs: options?.inputs,
-  });
-
-  try {
-    await child.postRun();
-    const result = await fn();
-    await child.end({ outputs: { result } });
-    await child.patchRun();
-    return result;
-  } catch (error) {
-    await child.end({ error: String(error) });
-    await child.patchRun();
-    throw error;
-  }
+  // TODO: Implement child tracing
+  // For now, just run the function without tracing
+  return fn();
 }

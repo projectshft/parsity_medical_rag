@@ -57,14 +57,16 @@ const result = await executeQuery(userQuery, { obscurePII: true });
 const formatted = formatResultsForLLM(result, /* obscure */ true);
 ```
 
+**Why the scrub is shape-agnostic.** The SQL side is now *text-to-SQL* — the LLM writes the query and chooses whatever columns it likes, so there's no fixed "name field" to pseudonymize. So `formatResultsForLLM`, when obscuring, runs **`obscureContent` over the entire rendered output** (names, SSNs, phones, dates, addresses) rather than field-by-field. That works for any query shape — and it's honestly imperfect: a regex de-identifier misses novel formats. Knowing *where* it leaks is the skill. (One nudge helps: the SQL agent is told to return a patient's name as a single `name` column, so the full-name regex can actually catch it.)
+
 **Front-office channel (`mcp-server/index.ts`).** Every tool hard-codes obscuring on — there is no way for a caller to turn it off:
 
 ```typescript
-const result = await executeQuery(query, { sqlLimit: limit });
+const result = await executeQuery(query);
 const formatted = formatResultsForLLM(result, true);   // always true, front-office
 ```
 
-and patient lists run each name through `obscureName` directly. The file's own header says it: *"this is a FRONT-OFFICE (STAFF) tool… every response here is PII-obscured, and only non-identifying tools are exposed."*
+The `query_notes` tool likewise runs each note's patient name through `obscureName`. The file's own header says it: *"this is a FRONT-OFFICE (STAFF) tool… every response here is PII-obscured, and only non-identifying tools are exposed."*
 
 **Clinician channel (`app/api/query/route.ts`).** Full data by default; the caller *may* opt into obscuring, header taking precedence over body:
 

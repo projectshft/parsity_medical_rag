@@ -19,7 +19,7 @@ flowchart LR
     CD[Claude Desktop] --> S
     CU[Cursor] --> S
     OTHER[any MCP client] --> S
-    S["YOUR MCP server<br/>(mcp-server/index.ts)"] --> RAG["your pipeline:<br/>sql-queries, vector-search,<br/>query-executor"]
+    S["YOUR MCP server<br/>(mcp-server/index.ts)"] --> RAG["your pipeline:<br/>text-to-sql, vector-search,<br/>query-executor"]
 ```
 
 A **tool** in MCP is a named capability with a typed schema: name, description, parameters. The client's LLM reads the descriptions and *decides* when to call which tool — exactly like your query analyzer decides between Postgres and the vector index, except now the deciding model belongs to someone else. That inversion has a consequence worth sitting with:

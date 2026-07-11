@@ -1,23 +1,24 @@
 /**
- * Cal.com API Client
+ * Cal.com Integration
  *
- * Integrates with Cal.com for patient appointment scheduling.
+ * Provides appointment scheduling via Cal.com API.
+ * This is the "action" part of the human-in-the-loop pattern.
  *
  * Setup:
  * 1. Create account at https://cal.com
- * 2. Go to Settings → Developer → API Keys
- * 3. Create new API key
- * 4. Add to .env: CAL_API_KEY=your-key
- * 5. Get your event type ID from Cal.com dashboard
+ * 2. Create an event type (e.g., "Patient Appointment")
+ * 3. Get API key from Settings -> Developer -> API Keys
+ * 4. Get event type ID from the URL when editing the event type
+ * 5. Add to .env: CAL_API_KEY and CAL_EVENT_TYPE_ID
  */
 
 const CAL_API_BASE = 'https://api.cal.com/v1';
 
 export interface ScheduleRequest {
   patientName: string;
-  patientEmail?: string;
   dateTime: string; // ISO 8601 format
-  notes?: string;
+  patientEmail?: string;
+  notes?: string | null;
 }
 
 export interface ScheduleResult {
@@ -28,28 +29,6 @@ export interface ScheduleResult {
 }
 
 /**
- * Get Cal.com API key from environment
- */
-function getApiKey(): string {
-  const key = process.env.CAL_API_KEY;
-  if (!key) {
-    throw new Error('CAL_API_KEY not configured');
-  }
-  return key;
-}
-
-/**
- * Get default event type ID
- */
-function getEventTypeId(): number {
-  const id = process.env.CAL_EVENT_TYPE_ID;
-  if (!id) {
-    throw new Error('CAL_EVENT_TYPE_ID not configured');
-  }
-  return parseInt(id, 10);
-}
-
-/**
  * Check if Cal.com is configured
  */
 export function isCalConfigured(): boolean {
@@ -57,83 +36,65 @@ export function isCalConfigured(): boolean {
 }
 
 /**
- * Schedule an appointment via Cal.com
+ * Schedule an appointment via Cal.com API
+ *
+ * TODO: Implement this function
+ * 1. Check if Cal.com is configured
+ * 2. Make POST request to Cal.com bookings API
+ *    - Endpoint: ${CAL_API_BASE}/bookings?apiKey=${apiKey}
+ *    - Body: { eventTypeId, start, responses: { name, email }, metadata }
+ * 3. Handle response and errors appropriately
+ * 4. Return ScheduleResult with booking details
+ *
+ * Cal.com API docs: https://cal.com/docs/api-reference/v1/bookings
  */
 export async function scheduleAppointment(
   request: ScheduleRequest
 ): Promise<ScheduleResult> {
-  try {
-    const apiKey = getApiKey();
-    const eventTypeId = getEventTypeId();
+  // TODO: Implement Cal.com booking API call
 
-    // Cal.com booking API
-    const response = await fetch(`${CAL_API_BASE}/bookings?apiKey=${apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        eventTypeId,
-        start: request.dateTime,
-        responses: {
-          name: request.patientName,
-          email: request.patientEmail || 'patient@example.com',
-          notes: request.notes || `Appointment for ${request.patientName}`,
-        },
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        language: 'en',
-        metadata: {
-          source: 'medical-rag',
-          patientName: request.patientName,
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      return {
-        success: false,
-        error: error.message || `Cal.com API error: ${response.status}`,
-      };
-    }
-
-    const booking = await response.json();
-
-    return {
-      success: true,
-      bookingId: booking.id?.toString(),
-      bookingUrl: booking.bookingUrl,
-    };
-  } catch (error) {
+  if (!isCalConfigured()) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: 'Cal.com is not configured. Set CAL_API_KEY and CAL_EVENT_TYPE_ID.',
     };
   }
+
+  // TODO: Make the API call to Cal.com
+  // const apiKey = process.env.CAL_API_KEY;
+  // const eventTypeId = parseInt(process.env.CAL_EVENT_TYPE_ID || '0', 10);
+
+  return {
+    success: false,
+    error: 'Not implemented - your turn!',
+  };
 }
 
 /**
- * Get available time slots for a date
+ * Cancel an appointment
+ *
+ * TODO (Extension): Implement appointment cancellation
  */
-export async function getAvailableSlots(
-  date: string // YYYY-MM-DD
-): Promise<string[]> {
-  try {
-    const apiKey = getApiKey();
-    const eventTypeId = getEventTypeId();
+export async function cancelAppointment(bookingId: string): Promise<ScheduleResult> {
+  // TODO: Implement cancellation via Cal.com API
+  return {
+    success: false,
+    error: 'Not implemented',
+  };
+}
 
-    const response = await fetch(
-      `${CAL_API_BASE}/availability?apiKey=${apiKey}&eventTypeId=${eventTypeId}&dateFrom=${date}&dateTo=${date}`,
-      { method: 'GET' }
-    );
-
-    if (!response.ok) {
-      return [];
-    }
-
-    const data = await response.json();
-    return data.slots || [];
-  } catch {
-    return [];
-  }
+/**
+ * Reschedule an appointment
+ *
+ * TODO (Extension): Implement appointment rescheduling
+ */
+export async function rescheduleAppointment(
+  bookingId: string,
+  newDateTime: string
+): Promise<ScheduleResult> {
+  // TODO: Implement rescheduling via Cal.com API
+  return {
+    success: false,
+    error: 'Not implemented',
+  };
 }

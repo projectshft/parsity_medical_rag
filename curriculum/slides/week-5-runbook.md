@@ -6,6 +6,8 @@
 
 > This runbook is backstage. Say anything here — including the HIPAA framing and the known runnable-state gaps, both named openly below. You do **not** need to have built the system to run this: Pre-flight and Code-together assume you're coming in cold, and the whole code-together runs on the **de-identification specs**, which mock external services and work on any network. The slide deck deliberately never says "HIPAA-compliant" — keep that discipline in the room too.
 
+> **Live cohorts — the poisoned-document lab runs in class this week.** Self-paced learners do `curriculum/homework-poisoned-docs.md` on their own (it's **required** for them); in a live cohort you run it **together**. It's the back-door sequel to Week 2's front-door injection (`w2-07-failure-day`): feel the system get hijacked by a retrieved note, then build defense-in-depth. Materials: `curriculum/homework-poisoned-docs.md` (the arc), `docs/CHALLENGE-POISONED-DOCS.md` (full spec), `scripts/security/demo-poisoned-docs.ts` (the live "watch it obey the attacker" demo), and the three planted attacks in `data/security/poisoned/`. Budget it its **own ~60–90 min block** — as a second Week 5 session, or appended after the PII session below. **Decide the placement for your schedule;** whichever runs last is the real course close (the PII session's "close the course here" beat moves to the end of the lab if you append it).
+
 ---
 
 ## Pre-flight (before the room arrives)
