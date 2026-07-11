@@ -1,5 +1,7 @@
 # Medical RAG: AI-Powered Patient Records
 
+> **Start here:** [docs/WHAT-WERE-BUILDING.md](docs/WHAT-WERE-BUILDING.md) — what we're building and why, in two minutes.
+
 ## The Challenge
 
 You're building an AI assistant for healthcare providers. Doctors need to quickly find patient information across thousands of records—but the data is messy:

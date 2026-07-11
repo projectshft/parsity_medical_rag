@@ -34,30 +34,33 @@ When the user asks to schedule an appointment:
 Keep your response brief when scheduling - the UI will handle the actual booking.`;
 
 export type AggregateInput = {
-  query: string;
-  history: Message[];
-  sqlText?: string;
-  ragText?: string;
-  /** Override the system prompt (e.g. the scheduling flow). */
-  system?: string;
+	query: string;
+	history: Message[];
+	sqlText?: string;
+	ragText?: string;
+	/** Override the system prompt (e.g. the scheduling flow). */
+	system?: string;
 };
 
-export function aggregate(input: AggregateInput): ReturnType<typeof streamText> {
-  const context = [input.sqlText, input.ragText].filter(Boolean).join('\n\n');
-  const system = input.system ?? (context ? AGGREGATOR_PROMPT : GENERAL_PROMPT);
+export function aggregate(
+	input: AggregateInput,
+): ReturnType<typeof streamText> {
+	const context = [input.sqlText, input.ragText].filter(Boolean).join('\n\n');
+	const system =
+		input.system ?? (context ? AGGREGATOR_PROMPT : GENERAL_PROMPT);
 
-  const userContent = context
-    ? `Retrieved data:\n${context}\n\nUser question: ${input.query}`
-    : input.query;
+	const userContent = context
+		? `Retrieved data:\n${context}\n\nUser question: ${input.query}`
+		: input.query;
 
-  const messages = [
-    ...input.history.map((m) => ({ role: m.role, content: m.content })),
-    { role: 'user' as const, content: userContent },
-  ];
+	const messages = [
+		...input.history.map((m) => ({ role: m.role, content: m.content })),
+		{ role: 'user' as const, content: userContent },
+	];
 
-  return streamText({
-    model: openaiProvider('gpt-4o-mini'),
-    system,
-    messages,
-  });
+	return streamText({
+		model: openaiProvider('gpt-4o-mini'),
+		system,
+		messages,
+	});
 }
