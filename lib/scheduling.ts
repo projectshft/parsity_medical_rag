@@ -43,7 +43,6 @@ export type SchedulingIntent = z.infer<typeof SchedulingIntentSchema>;
  *    - Explain how to parse "next Tuesday", "tomorrow", etc.
  *    - Default to 09:00 if no time specified
  * 3. Return parsed scheduling intent
- * 4. Wrap in traced() for LangSmith observability
  */
 export async function detectSchedulingIntent(query: string): Promise<SchedulingIntent> {
   // TODO: Implement intent detection with structured outputs

@@ -70,7 +70,6 @@ export async function runAgent(
   //     useSql ? textToSqlQuery(query, conversationHistory) : Promise.resolve(undefined),
   //     useVector ? searchClinicalNotes(analysis.semanticQuery || query, { topK: 10 }) : Promise.resolve(undefined),
   //   ]);
-  //   (Wrap each in `traced("sql_agent" | "vector_agent", ...)` so you can see them.)
 
   // TODO 3 — AGGREGATOR: build a QueryResult { analysis, sql?, vectorResults? },
   //          const context = formatResultsForLLM(result), then stream the answer.
