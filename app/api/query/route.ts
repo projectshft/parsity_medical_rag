@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { runSpecialists } from "@/lib/agents/orchestrate";
+import { select } from "@/lib/agents/selector";
+import { runSql } from "@/lib/agents/sql";
+import { runRag } from "@/lib/agents/rag";
 import { shouldObscurePII, obscureContent } from "@/lib/pii";
 
 const QueryRequestSchema = z.object({
@@ -15,8 +17,8 @@ const QueryRequestSchema = z.object({
  * data by default. The front-office channel (the MCP server) is the one that
  * always obscures PII. Callers here may still opt into obscuring.
  *
- * It runs the same agents as the chat pipeline (selector → sql ‖ rag) but does
- * NOT stream — it returns the combined text, optionally PII-scrubbed.
+ * Same agents as the chat pipeline (selector → sql ‖ rag), but it does NOT
+ * stream — it returns the combined text, optionally PII-scrubbed.
  *
  * POST /api/query
  * Body: { query: string, obscurePII?: boolean }
@@ -26,14 +28,21 @@ export async function POST(request: Request) {
     const { query, obscurePII } = QueryRequestSchema.parse(await request.json());
     const obscure = shouldObscurePII(obscurePII);
 
-    const { selection, sqlText, ragText } = await runSpecialists(query);
+    const plan = await select(query);
+    const [sqlText, ragText] = plan.needsSearch
+      ? await Promise.all([
+          plan.useSql ? runSql(query) : undefined,
+          plan.useRag ? runRag(plan.semanticQuery) : undefined,
+        ])
+      : [undefined, undefined];
+
     const combined = [sqlText, ragText].filter(Boolean).join("\n\n");
 
     // Shape-agnostic PII scrub for the obscured channel: the regex de-identifier
     // runs over the whole rendered output (Week 5 lesson — imperfect by design).
     const text = obscure ? obscureContent(combined) : combined;
 
-    return NextResponse.json({ analysis: selection.analysis, text });
+    return NextResponse.json({ analysis: plan.analysis, text });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.message }, { status: 400 });

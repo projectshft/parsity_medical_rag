@@ -73,9 +73,9 @@ server.registerTool(
 
 // TODO — add at least one more tool, following the query_notes example above.
 // Idea (front-office appropriate, since every response must be PII-obscured):
-//   - search_patients -> run runSpecialists(query) from '../lib/agents/orchestrate',
-//     combine its sqlText + ragText, then obscureContent(combined) — the regex
-//     de-identifier obscures PII for the front-office channel.
+//   - search_patients -> select(query) then runSql/runRag (lib/agents/*),
+//     combine the text, then obscureContent(combined) — the regex de-identifier
+//     obscures PII for the front-office channel.
 // For each: server.registerTool(name, { description, inputSchema: { ...zod } }, handler).
 // The handler returns { content: [{ type: 'text', text }] }. NEVER leak a real
 // patient name on this channel — the obscured formatter / obscureName() is the door.

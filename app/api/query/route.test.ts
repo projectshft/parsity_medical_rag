@@ -5,19 +5,27 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('@/lib/agents/orchestrate', () => ({
-  runSpecialists: vi.fn(async () => ({
-    selection: { analysis: { intent: 'population_analytics' } },
-    sqlText: 'Dr. Jane Roe has diabetes',
-    ragText: undefined,
+vi.mock('@/lib/agents/selector', () => ({
+  select: vi.fn(async () => ({
+    analysis: { intent: 'population_analytics' },
+    needsSearch: true,
+    useSql: true,
+    useRag: false,
+    semanticQuery: 'diabetes',
   })),
 }));
+vi.mock('@/lib/agents/sql', () => ({
+  runSql: vi.fn(async () => 'Dr. Jane Roe has diabetes'),
+}));
+vi.mock('@/lib/agents/rag', () => ({
+  runRag: vi.fn(async () => ''),
+}));
 
-import { runSpecialists } from '@/lib/agents/orchestrate';
+import { select } from '@/lib/agents/selector';
 import { POST } from './route';
 
 beforeEach(() => {
-  vi.mocked(runSpecialists).mockClear();
+  vi.mocked(select).mockClear();
 });
 
 function queryRequest(body: object, headers: Record<string, string> = {}): Request {
@@ -35,7 +43,7 @@ describe('POST /api/query', () => {
     const body = await res.json();
     expect(body.analysis.intent).toBe('population_analytics');
     expect(body.text).toContain('diabetes');
-    expect(runSpecialists).toHaveBeenCalledOnce();
+    expect(select).toHaveBeenCalledOnce();
   });
 
   it('returns full data by default (clinician channel)', async () => {
@@ -50,6 +58,6 @@ describe('POST /api/query', () => {
   it('rejects an empty query with 400', async () => {
     const res = await POST(queryRequest({ query: '' }));
     expect(res.status).toBe(400);
-    expect(runSpecialists).not.toHaveBeenCalled();
+    expect(select).not.toHaveBeenCalled();
   });
 });
