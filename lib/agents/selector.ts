@@ -8,7 +8,7 @@
  */
 
 import { z } from 'zod';
-import { getOpenAIClient } from '../openai';
+import { openai } from '../openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import type { Message } from '../agent';
 
@@ -43,17 +43,15 @@ TODO: Complete this prompt!
 `;
 
 export async function select(query: string, history: Message[] = []): Promise<Plan> {
-  const client = getOpenAIClient();
-
   // TODO:
   // 1. Ask the LLM for { requiresSQL, requiresVector, semanticQuery } with
-  //    client.responses.parse({ model, input: [system(SYSTEM_PROMPT), ...recent
+  //    openai.responses.parse({ model, input: [system(SYSTEM_PROMPT), ...recent
   //    history, user(query)], temperature: 0,
   //    text: { format: zodTextFormat(PlanSchema, 'plan') } }), then
   //    PlanSchema.parse(response.output_parsed).
   // 2. useSql = requiresSQL; useRag = requiresVector;
   //    needsSearch = useSql || useRag  (both false → a general question).
   // 3. Return { useSql, useRag, needsSearch, semanticQuery: semanticQuery || query }.
-  void client;
+  void openai;
   throw new Error('Not implemented — your turn! (lib/agents/selector.ts)');
 }

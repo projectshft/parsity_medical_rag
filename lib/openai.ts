@@ -6,11 +6,6 @@ export const openai = new OpenAI({
 	baseURL: process.env.OPENAI_BASE_URL,
 });
 
-// Backwards compatibility
-export function getOpenAIClient(): OpenAI {
-	return openai;
-}
-
 // The Vercel AI SDK provider (for streamText in the aggregator), honoring the
 // same OPENAI_BASE_URL proxy as the OpenAI SDK client above. Exported here so
 // there's ONE place that configures how we talk to OpenAI.
