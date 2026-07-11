@@ -34,6 +34,19 @@ model_list:
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
 
+litellm_settings:
+  # In-memory response cache — zero infra (single Fly machine). Identical
+  # requests (same model + input) return a cached response at $0, no provider
+  # call. Cache hits don't draw down per-key budgets. Cleared on restart and
+  # not shared across machines — fine for one always-on box. Swap type: local
+  # -> redis (+ REDIS_URL secret) if you ever want it durable / multi-machine.
+  cache: true
+  cache_params:
+    type: local
+    ttl: 3600 # seconds; identical repeats within the hour hit the cache
+    supported_call_types: ["completion", "acompletion", "embedding", "aembedding"]
+
 # NOTE: Budget enforcement is per-key (set by new-cohort.sh at mint time).
 # Do NOT set litellm_settings.max_budget here — that is a GLOBAL ceiling across
 # all keys, and setting it to 0 makes the proxy reject every request immediately.
+# (max_budget is a SEPARATE key from the cache settings above — don't merge them.)
