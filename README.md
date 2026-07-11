@@ -81,7 +81,7 @@ cp .env.example .env
 Open `.env` and paste in these three values:
 
 ```
-DATABASE_URL="postgresql://student_ro:ro1cb37cd086ff963b4f70@ep-dark-voice-apy5nrfq-pooler.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require"
+DATABASE_URL="<shared in class — a read-only connection string, paste it as-is>"
 OPENAI_API_KEY=sk-...      # your own
 PINECONE_API_KEY=...       # your own
 ```
