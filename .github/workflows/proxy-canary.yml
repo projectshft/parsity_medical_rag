@@ -3,7 +3,7 @@
 #
 # Requires two repo secrets (Settings -> Secrets and variables -> Actions):
 #   PROXY_URL         e.g. https://parsity-litellm.fly.dev
-#   PROXY_CANARY_KEY  a dedicated low-budget key minted via 2-new-cohort.sh
+#   PROXY_CANARY_KEY  a dedicated low-budget key minted via new-cohort.sh
 name: proxy-canary
 
 on:

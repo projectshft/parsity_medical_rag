@@ -3,10 +3,10 @@
 # PER-COHORT SCRIPT: run every time a new cohort starts.
 #
 # Usage:
-#   ./2-new-cohort.sh <cohort-name> <roster.txt> [budget] [days]
+#   ./new-cohort.sh <cohort-name> <roster.txt> [budget] [days]
 #
 # Example:
-#   ./2-new-cohort.sh 2026-q3 roster.txt 10 90
+#   ./new-cohort.sh 2026-q3 roster.txt 10 90
 #
 # roster.txt = one student email (or name) per line.
 # budget     = total $ per student for the cohort (default 10)
@@ -16,7 +16,7 @@
 # =============================================================
 set -euo pipefail
 
-COHORT="${1:?Usage: ./2-new-cohort.sh <cohort-name> <roster.txt> [budget] [days]}"
+COHORT="${1:?Usage: ./new-cohort.sh <cohort-name> <roster.txt> [budget] [days]}"
 ROSTER="${2:?Provide a roster file (one student per line)}"
 BUDGET="${3:-10}"
 DAYS="${4:-90}"

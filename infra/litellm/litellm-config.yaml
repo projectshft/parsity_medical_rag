@@ -6,6 +6,26 @@
 # o-series, etc. all just work — no per-model config needed.
 
 model_list:
+  # --- Anthropic (Claude) ---
+  # Students call these with the OpenAI SDK too — just pass the model name.
+  # Named routes for the two blessed models:
+  - model_name: claude-sonnet-4-6
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+  - model_name: claude-haiku-4-5
+    litellm_params:
+      model: anthropic/claude-haiku-4-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+  # Wildcard: any other claude-* name (e.g. a dated snapshot) passes through
+  # to Anthropic. Must come BEFORE the catch-all "*" so it wins the match.
+  - model_name: "claude-*"
+    litellm_params:
+      model: anthropic/*
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # --- OpenAI (everything else) ---
+  # Catch-all: gpt-4o, gpt-4o-mini, text-embedding-3-small, o-series, etc.
   - model_name: "*"
     litellm_params:
       model: openai/*
@@ -14,6 +34,6 @@ model_list:
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
 
-# NOTE: Budget enforcement is per-key (set by 2-new-cohort.sh at mint time).
+# NOTE: Budget enforcement is per-key (set by new-cohort.sh at mint time).
 # Do NOT set litellm_settings.max_budget here — that is a GLOBAL ceiling across
 # all keys, and setting it to 0 makes the proxy reject every request immediately.

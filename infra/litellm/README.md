@@ -37,7 +37,7 @@ for the proxy itself (it's only the Bedrock model backend, if you use it).
 
 | File | What it is |
 |------|-----------|
-| `2-new-cohort.sh` | Per-cohort: mints one budget-capped key per student → `keys-<cohort>.csv`. |
+| `new-cohort.sh` | Per-cohort: mints one budget-capped key per student → `keys-<cohort>.csv`. |
 | `litellm-config.yaml` | Routing — wildcard passthrough to OpenAI (any model). |
 | `docker-compose.yml` | Local dev: LiteLLM + Postgres (key/budget state). |
 | `Dockerfile` + `fly.toml` | Production deploy to Fly.io. |
@@ -101,7 +101,7 @@ That public URL is your students' `OPENAI_BASE_URL`.
 
 ```bash
 printf "ada@example.com\ngrace@example.com\n" > roster.txt
-./2-new-cohort.sh 2026-q3 roster.txt 10 90   # $10/student, 90-day keys
+./new-cohort.sh 2026-q3 roster.txt 10 90   # $10/student, 90-day keys
 # -> keys-2026-q3.csv  (gitignored; do not commit)
 ```
 
@@ -114,7 +114,7 @@ OPENAI_BASE_URL=https://<your-proxy-host>
 ```
 
 Keys default to **all models** (no `models` restriction). To limit, edit the
-`/key/generate` body in `2-new-cohort.sh`.
+`/key/generate` body in `new-cohort.sh`.
 
 ## Dogfood + canary ("make sure it always works")
 
@@ -124,7 +124,7 @@ Keys default to **all models** (no `models` restriction). To limit, edit the
   low-budget key for the app (don't reuse the master key):
 
   ```bash
-  ./2-new-cohort.sh app <(echo app) 20 365   # -> keys-app.csv
+  ./new-cohort.sh app <(echo app) 20 365   # -> keys-app.csv
   # then set in the app's env:
   #   OPENAI_API_KEY=<key from keys-app.csv>
   #   OPENAI_BASE_URL=https://parsity-litellm.fly.dev
