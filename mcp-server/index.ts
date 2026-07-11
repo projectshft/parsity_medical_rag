@@ -17,9 +17,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
-import { executeQuery, formatResultsForLLM } from '../lib/query-executor';
+import { runSpecialists } from '../lib/agents/orchestrate';
 import { searchClinicalNotes } from '../lib/vector-search';
-import { obscureName } from '../lib/pii';
+import { obscureName, obscureContent } from '../lib/pii';
 
 const server = new McpServer({
   name: 'medical-rag',
@@ -39,9 +39,10 @@ server.registerTool(
   },
   async ({ query }) => {
     try {
-      const result = await executeQuery(query);
+      const { sqlText, ragText } = await runSpecialists(query);
+      const combined = [sqlText, ragText].filter(Boolean).join('\n\n');
       // Front-office channel — always obscure PII in the rendered results.
-      const formatted = formatResultsForLLM(result, true);
+      const formatted = obscureContent(combined);
 
       return {
         content: [{ type: 'text', text: formatted || 'No matching patients found.' }],

@@ -6,11 +6,11 @@
  */
 
 import { textToSqlQuery, type TextToSqlResult } from '../text-to-sql';
-import type { ConversationMessage } from '../query-analyzer';
+import type { Message } from '../agent';
 
 export async function runSql(
   query: string,
-  history: ConversationMessage[] = [],
+  history: Message[] = [],
 ): Promise<string> {
   const result = await textToSqlQuery(query, history);
   return formatSqlResult(result);

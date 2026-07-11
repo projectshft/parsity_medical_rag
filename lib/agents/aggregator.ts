@@ -9,7 +9,7 @@
 
 import { streamText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
-import type { ConversationMessage } from '../query-analyzer';
+import type { Message } from '../agent';
 
 // Honor OPENAI_BASE_URL (the LiteLLM proxy). The default `openai` export ignores
 // it and always hits api.openai.com — which 401s with a proxy-issued key.
@@ -42,7 +42,7 @@ Keep your response brief when scheduling - the UI will handle the actual booking
 
 export type AggregateInput = {
   query: string;
-  history: ConversationMessage[];
+  history: Message[];
   sqlText?: string;
   ragText?: string;
   /** Override the system prompt (e.g. the scheduling flow). */
