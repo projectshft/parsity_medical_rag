@@ -29,6 +29,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Cohort')
     .addItem('Mint keys for new rows', 'mintNewRows')
+    .addItem('Email keys to unsent rows', 'emailKeys')
     .addItem('Update budget for selected rows…', 'updateBudgetForSelection')
     .addToUi();
 }
@@ -91,6 +92,84 @@ function updateBudgetForSelection() {
 
   SpreadsheetApp.getActiveSpreadsheet().toast(
     'Updated ' + updated + ', skipped ' + skipped + ', failed ' + failed + '.', 'Cohort', 6);
+}
+
+/**
+ * Mail-merge: email each student their key. Sends from the Google account
+ * running the script — so open the sheet as brian@parsity.io before using this,
+ * NOT a personal gmail. Idempotent: sends only rows with a key that aren't yet
+ * marked in the "Emailed" column, and stamps that column so re-runs don't
+ * double-send. Prompts for confirmation (and shows the sending address) first.
+ */
+var EMAIL_SUBJECT = 'Your Parsity API key (for class)';
+
+function emailBody_(key, proxyUrl) {
+  return [
+    "Hey — here's your private API key for class, courtesy of Parsity. It has $10 in credits, plenty to get started.",
+    '',
+    "Set BOTH of these when you use it. The key ONLY works through our proxy — with just the key on its own it won't:",
+    '',
+    '  OPENAI_API_KEY=' + key,
+    '  OPENAI_BASE_URL=' + proxyUrl,
+    '',
+    "Then use it with the OpenAI SDK exactly as normal (any model, e.g. gpt-4o-mini). Nothing to do right now — you'll need it for class. If it doesn't work, just reply to brian@parsity.io.",
+    '',
+    '— Brian',
+  ].join('\n');
+}
+
+function emailKeys() {
+  var props = PropertiesService.getScriptProperties();
+  var proxyUrl = (props.getProperty('PROXY_URL') || 'https://parsity-litellm.fly.dev').replace(/\/+$/, '');
+  var ui = SpreadsheetApp.getUi();
+  var sheet = SpreadsheetApp.getActiveSheet();
+
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) { ui.alert('No data rows.'); return; }
+
+  var header = values[0].map(function (h) { return String(h).trim().toLowerCase(); });
+  var col = function (name) { return header.indexOf(name.toLowerCase()); };
+
+  // Ensure an "Emailed" column exists (for idempotency).
+  if (col('emailed') === -1) {
+    header.push('emailed');
+    sheet.getRange(1, header.length).setValue('Emailed');
+  }
+  var iEmail = col('email'), iKey = col('api key'), iEmailed = col('emailed');
+  if (iEmail === -1 || iKey === -1) { ui.alert('Need "Email" and "API Key" columns.'); return; }
+
+  var targets = [];
+  for (var r = 1; r < values.length; r++) {
+    var email = String(values[r][iEmail] || '').trim();
+    var key = String(values[r][iKey] || '').trim();
+    var already = iEmailed < values[r].length ? String(values[r][iEmailed] || '').trim() : '';
+    if (email && key && !already) targets.push({ row: r + 1, email: email, key: key });
+  }
+  if (!targets.length) { ui.alert('Nothing to send — every row with a key is already marked in "Emailed".'); return; }
+
+  var from = Session.getActiveUser().getEmail();
+  var ok = ui.alert(
+    'Send keys',
+    'Email the key to ' + targets.length + ' student(s), sending FROM: ' + from + ' ?\n\n' +
+      '(If that is not brian@parsity.io, cancel and reopen the sheet as the Parsity account.)',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (ok !== ui.Button.OK) return;
+
+  var sent = 0, failed = 0;
+  var today = new Date().toISOString().slice(0, 10);
+  targets.forEach(function (t) {
+    try {
+      GmailApp.sendEmail(t.email, EMAIL_SUBJECT, emailBody_(t.key, proxyUrl));
+      sheet.getRange(t.row, iEmailed + 1).setValue('sent ' + today);
+      sent++;
+    } catch (e) {
+      sheet.getRange(t.row, iEmailed + 1).setValue('ERROR: ' + e.message);
+      failed++;
+    }
+  });
+
+  SpreadsheetApp.getActiveSpreadsheet().toast('Emailed ' + sent + ', failed ' + failed + '.', 'Cohort', 6);
 }
 
 function mintNewRows() {
