@@ -4,9 +4,7 @@ import { z } from "zod";
 import { select } from "@/lib/agents/selector";
 import { runSql } from "@/lib/agents/sql";
 import { runRag } from "@/lib/agents/rag";
-import { aggregate, SCHEDULING_SYSTEM_PROMPT } from "@/lib/agents/aggregator";
-import { detectSchedulingIntent, getDefaultDate } from "@/lib/scheduling";
-import { findPatientByName } from "@/lib/patients";
+import { aggregate } from "@/lib/agents/aggregator";
 
 const ChatRequestSchema = z.object({
   query: z.string().min(1),
@@ -21,60 +19,32 @@ const ChatRequestSchema = z.object({
 });
 
 /**
- * The chat pipeline. This route IS the orchestrator:
+ * The chat pipeline — YOUR TASK. This route IS the orchestrator:
  *
- *   1. accept the message + history
- *   2. selector decides what to do
+ *   1. accept the message + history   (done — parsed below)
+ *   2. the selector decides which stores to hit
  *   3. call 0, 1, or 2 specialists (sql / rag)
- *   4. aggregator streams the answer back
+ *   4. the aggregator streams the answer back
  *
- * A scheduling action (when the intent fires) rides in the X-Scheduling-Action
- * response header. The agents live in lib/agents/ — selector, sql, and rag are
- * yours to implement.
+ * You implement `select`, `runSql`, and `runRag` (lib/agents/). `aggregate` is
+ * provided — it's the only piece that streams.
  */
 export async function POST(request: Request) {
   try {
     const { query, messages } = ChatRequestSchema.parse(await request.json());
 
-    // 1. Scheduling intent (offer a card only if the named patient exists).
-    const scheduling = await detectSchedulingIntent(query);
-    let patient: { firstName: string | null; lastName: string | null } | null = null;
-    if (scheduling.isSchedulingRequest && scheduling.patientName) {
-      patient = (await findPatientByName(scheduling.patientName))[0] ?? null;
-    }
-
-    // 2. SELECTOR — decide what to run.
-    const plan = await select(query, messages);
-
-    // 3. Call 0, 1, or 2 specialists (each returns text). Skipped on short-circuit.
-    const [sqlText, ragText] = plan.needsSearch
-      ? await Promise.all([
-          plan.useSql ? runSql(query, messages) : undefined,
-          plan.useRag ? runRag(plan.semanticQuery) : undefined,
-        ])
-      : [undefined, undefined];
-
-    // 4. Aggregator streams the answer.
-    const stream = aggregate({
-      query,
-      history: messages,
-      sqlText,
-      ragText,
-      system: patient ? SCHEDULING_SYSTEM_PROMPT : undefined,
-    });
-
-    // The scheduling card rides in a header (the UI reads it off the response).
-    const headers: Record<string, string> = {};
-    if (patient) {
-      headers["X-Scheduling-Action"] = JSON.stringify({
-        patientName: [patient.firstName, patient.lastName].filter(Boolean).join(" "),
-        suggestedDate: scheduling.suggestedDate || getDefaultDate(),
-        suggestedTime: scheduling.suggestedTime || "09:00",
-        reason: scheduling.reason,
-      });
-    }
-
-    return stream.toTextStreamResponse({ headers });
+    // TODO — build the pipeline:
+    //  1. Ask the selector what to run:  const plan = await select(query, messages)
+    //  2. Run the specialists the plan calls for, in parallel (runSql / runRag).
+    //     Skip retrieval when plan.needsSearch is false (a general question).
+    //  3. Hand the text to the aggregator and stream it back:
+    //       const stream = aggregate({ query, history: messages, sqlText, ragText })
+    //       return stream.toTextStreamResponse()
+    void select;
+    void runSql;
+    void runRag;
+    void aggregate;
+    throw new Error("Not implemented — your turn! (app/api/chat/route.ts)");
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
