@@ -95,11 +95,11 @@ interface Patient { id: string; firstName: string | null }
 - **Neon PostgreSQL**: structured medical data (patients, conditions, observations, medications, notes, encounters) — the system of record.
 - **Pinecone**: vector search over the clinical notes — a *derived* index, rebuildable from Postgres via `npm run vectorize`.
 - **Prisma ORM**: type-safe database access.
-- **The chat agent** (`lib/agent.ts` → `runAgent`): **router** (`analyzeQuery` — which engines does this question need?) → **SQL agent ‖ vector agent** run in parallel → **aggregator** LLM synthesizes both and streams the answer.
+- **The chat pipeline** — one file per agent in `lib/agents/`, orchestrated by `app/api/chat/route.ts` (the route IS the orchestrator): **selector** (pure routing — `Plan { useSql, useRag, needsSearch, semanticQuery }`, no entity extraction) → **sql ‖ rag** run in parallel (each returns TEXT) → **aggregator** (the ONLY streamer; short-circuits to a direct answer when `needsSearch` is false). Scheduling actions ride in the `X-Scheduling-Action` response header. `lib/agent.ts` holds only the shared `Message` type. There is no `/api/query` — chat and the MCP server are the only channels.
 
 ### The SQL side is text-to-SQL — do NOT hand-code query builders
 
-The LLM writes the SQL. `lib/text-to-sql.ts` (`textToSqlQuery`) feeds the schema + real distinct-value grounding to the model, gets back `{ sql, explanation }`, validates it, and runs it read-only. **There is no `sql-queries.ts` / query-builder / `CONDITION_MAPPINGS` layer anymore — it was deleted. Do not recreate it.** When a query returns wrong/empty results, fix the schema prompt or the grounding in `lib/text-to-sql.ts` — never add a per-question function.
+The LLM writes the SQL. The SQL agent (`lib/agents/sql.ts`, `runSql`) feeds the schema + real distinct-value grounding to the model, gets back `{ sql, explanation }`, validates it, runs it read-only, and returns rendered text. **There is no `sql-queries.ts` / query-builder / `CONDITION_MAPPINGS` layer anymore — it was deleted. Do not recreate it.** When a query returns wrong/empty results, fix the schema prompt or the grounding in `lib/agents/sql.ts` — never add a per-question function.
 
 Two guardrails are the point:
 - **Safety** — an LLM writing SQL is an injection surface. `assertReadOnly` accepts only a single `SELECT` (no DML/DDL/`;`). In production also point `DATABASE_URL` at a read-only role (`student_ro`).
