@@ -6,7 +6,7 @@
 
 - Name the one question chunking answers, and see why our notes already answer it
 - Understand why a giant document embedded whole "means everything and matches nothing"
-- Set up the two-part side project: chunking the Bible
+- Set up the homework: chunk the Bible and store it in your own Pinecone index
 
 ## Concept
 
@@ -18,7 +18,7 @@ You already made this decision this week — without agonizing over it — when 
 
 A piece that's **too big** matches everything a little and nothing well: a 40-page document "mentions" diabetes, sleep, surgery, and billing, so it's a mediocre match for all of them. A piece that's **too small** is precise but useless on arrival: `"And he said unto them"` matches confidently and tells you nothing — said what? to whom?
 
-A clinical note sits in the sweet spot. It's one encounter, one date, one topic, ~450 characters, self-contained. Splitting it would only break it; padding several together would blur it. So **one note = one piece**, and the "chunking step" is a no-op. You proved that by measuring: the notes average ~450 characters, max in the low thousands — already the right size.
+A clinical note sits in the sweet spot. It's one encounter, one date, one topic, ~940 characters, self-contained. Splitting it would only break it; padding several together would blur it. So **one note = one piece**, and the "chunking step" is a no-op. You proved that by measuring: the notes average ~940 characters — already the right size.
 
 **Chunking** is the act of splitting documents into retrieval-sized pieces. The part most tutorials skip: *whether you need it at all is a property of your corpus, not a mandatory pipeline step.* Our corpus is pre-jointed into notes, so we don't.
 
@@ -28,8 +28,8 @@ To *learn* chunking you need a corpus that actually demands it — the opposite 
 
 | | Our clinical notes | The King James Bible |
 |---|---|---|
-| Documents | ~143,946 separate notes | **1** document |
-| Size each | ~450 characters | **4.3 million** characters |
+| Documents | ~21,090 separate notes | **1** document |
+| Size each | ~940 characters | **4.3 million** characters |
 | Natural piece | the whole note | ??? — that's the question |
 | Chunking needed? | **No** — already a piece | **Yes** — unavoidably |
 
@@ -39,21 +39,20 @@ That contrast is the whole point: **decide from the corpus in front of you, not 
 
 ## Implementation
 
-There's no build today — this lesson sets up a side project. Take five minutes to see the shape of the corpus you'll work with:
+There's no build today — this lesson sets up the homework. Take five minutes to see the shape of the corpus you'll work with:
 
 ```bash
-mkdir -p data/bible
-curl -o data/bible/kjv.txt https://www.gutenberg.org/cache/epub/10/pg10.txt
+npm run bible:fetch
 head -120 data/bible/kjv.txt
 ```
 
-Notice three things you'll reckon with in the side project:
+Notice three things the homework will reckon with:
 
-- A Project Gutenberg license header before `*** START OF THE PROJECT GUTENBERG EBOOK ***` — **not scripture; must be stripped** before any processing.
+- A Project Gutenberg license header before `*** START OF THE PROJECT GUTENBERG EBOOK ***` — not scripture; the provided parser strips it for you.
 - Book titles as plain lines: `The First Book of Moses: Called Genesis`.
 - Every verse prefixed `chapter:verse` — `1:1 In the beginning…` — built-in structure markers you can cut along, if you choose to.
 
-The scaffolding for the hands-on part lives in `scripts/bible/`. You'll run it during the second half of the side project. For now, just skim what's there.
+The scaffolding lives in `scripts/bible/`: the parser (`parse.ts` — `loadVerses()` hands you every verse as `{ book, chapter, verse, text }`), a deliberately naive fixed-size chunker (`npm run bible:fixed`) to learn from, an open stub where your chunker can go (`chunk-smart.ts`), and an optional measuring tool (`npm run bible:audit`). The strategy itself is yours to design — that's the assignment, not the scripts. For now, just skim what's there.
 
 ### Common mistakes
 
@@ -65,9 +64,9 @@ The scaffolding for the hands-on part lives in `scripts/bible/`. You'll run it d
 
 Spend **no more than 20 minutes** here — this is orientation, not the assignment.
 
-1. Download `kjv.txt` and confirm its size (`wc -c data/bible/kjv.txt` — about 4.4 million bytes).
-2. In your notes, answer: our notes are ~450 chars and we made each one a piece. If a corpus averaged 80,000 characters per document, chunk or not? What if it averaged 300? State the rule you're using.
-3. Read the side-project brief in `homework-bible-chunking.md` so you know what's coming.
+1. Run `npm run bible:fetch` and confirm the size (`wc -c data/bible/kjv.txt` — about 4.4 million bytes).
+2. In your notes, answer: our notes are ~940 chars and we made each one a piece. If a corpus averaged 80,000 characters per document, chunk or not? What if it averaged 300? State the rule you're using.
+3. Read the homework brief in `homework-bible-chunking.md` (the assignment of record is `docs/CHALLENGE-CHUNKING.md` in your repo) so you know what's coming.
 
 ## Check yourself
 
@@ -80,7 +79,7 @@ Spend **no more than 20 minutes** here — this is orientation, not the assignme
 
 **Too big** matches everything weakly (a 40-page doc is a mediocre match for each of its many topics). **Too small** matches precisely but delivers nothing usable (`"And he said unto them"`). Chunking is the search for the size in between — *for this corpus*.
 
-**One note vs the whole Bible:** a note is already one self-contained encounter at ~450 chars — the natural piece. The Bible is one 4.3-million-character document spanning every topic; as a single vector it means the average of all of them and matches nothing sharply. The corpus decides, and these two corpora decide oppositely.
+**One note vs the whole Bible:** a note is already one self-contained encounter at ~940 chars — the natural piece. The Bible is one 4.3-million-character document spanning every topic; as a single vector it means the average of all of them and matches nothing sharply. The corpus decides, and these two corpora decide oppositely.
 
 **Chunking** is deciding *where to split a document into retrieval-sized pieces* — and what metadata each piece carries so it can be cited, filtered, and traced. It's a set of trade-offs, not a default step.
 
@@ -96,9 +95,8 @@ Graded against one question: *can you explain the keyword-vs-meaning gap with a 
 
 **Submit:** [Typeform — submission](https://form.typeform.com/to/PLACEHOLDER-W1) <!-- PLACEHOLDER: replace with real Typeform URL -->
 
-Your other deliverable this block is the chunking side project — see `homework-bible-chunking.md`. Part 1 is due alongside this video.
+Your other deliverable this block is the chunking homework — chunk the Bible, store it in your own Pinecone index, and record its own short video; see `homework-bible-chunking.md`. (Searching what you stored comes next class.)
 
 ## Further reading (optional)
 
-- [Pinecone: Chunking strategies](https://www.pinecone.io/learn/chunking-strategies/) — a map of the strategy space the side project walks through.
-</content>
+- [Pinecone: Chunking strategies](https://www.pinecone.io/learn/chunking-strategies/) — a map of the strategy space the homework walks through. (The homework brief carries the fuller reading list.)

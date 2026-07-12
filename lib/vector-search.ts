@@ -68,15 +68,19 @@ export async function searchClinicalNotes(
 
   return (results.matches || []).map(match => {
     const rawContent = (match.metadata?.content as string) || '';
-    const rawPatientName = (match.metadata?.patientName as string) || undefined;
+    // The vectorize pipeline stores firstName/lastName (not a combined name).
+    const rawPatientName =
+      [match.metadata?.firstName, match.metadata?.lastName]
+        .filter(Boolean)
+        .join(' ') || undefined;
 
     return {
       id: match.id,
       score: match.score || 0,
       patientId: (match.metadata?.patientId as string) || '',
       patientName: obscure ? obscureName(rawPatientName) : rawPatientName,
-      documentType: (match.metadata?.type as string) || 'Clinical Note',
-      date: (match.metadata?.date as string) || undefined,
+      documentType: 'Clinical Note',
+      date: undefined,
       contentPreview: obscure
         ? obscureContent(truncateContent(rawContent, 500))
         : truncateContent(rawContent, 500),

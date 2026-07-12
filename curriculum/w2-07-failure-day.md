@@ -62,22 +62,27 @@ Use *your* dataset's reality for the bait: a name you've verified isn't in Postg
 
 ### 2. Run the attack
 
-Run every case through the chat UI (or `runAgent` in a scratch script). For each, record a verdict in the JSON: `pass`, `fail`, or — the important third bucket — `unclear` (the answer hedged in a way you can't classify). `unclear` is a failure of *specifiability*, and it usually means your expected-behavior line needs sharpening, not the prompt.
+Run every case through the chat UI (or hit the route directly — `POST /api/chat` with `{ "query": "..." }`). For each, record a verdict in the JSON: `pass`, `fail`, or — the important third bucket — `unclear` (the answer hedged in a way you can't classify). `unclear` is a failure of *specifiability*, and it usually means your expected-behavior line needs sharpening, not the prompt.
 
 ### 3. Fix, re-run, and watch the both-sides rule
 
-For each `fail`, decide *where the fix lives*. Most belong in the `SYSTEM_PROMPT` (a missing clause: what to do with empty retrieval, how to handle an unnamed referent). Some belong in your *expectations* — if the system answered a general question *clearly labeled as general knowledge* and you marked it failed, maybe the policy you wrote disagrees with the policy you actually want. That's a finding too.
+For each `fail`, decide *where the fix lives*. Many belong in the `AGGREGATOR_PROMPT` (`lib/agents/aggregator.ts` — a missing clause: what to do with empty retrieval, how to handle an unnamed referent). But the pipeline has more than one place to fail, and the prompt can't fix the other two:
+
+- **Vocabulary failures live in the SQL agent's grounding.** A confident "no patients had a heart attack" when the `conditions` column says *Myocardial Infarction* means the model wrote `ILIKE '%heart attack%'` against clinical vocabulary — the fix is the grounding in `lib/agents/sql.ts` (the distinct-value dump, or a lay-term → clinical-term map), not a nicer answer on top of 0 rows.
+- **Routing failures live in the selector's plan.** If a notes question never touched Pinecone, or a count went to the vector store, no downstream prompt saw the right data — read the plan first, then fix the selector's prompt (`lib/agents/selector.ts`).
+
+Some `fail`s belong in your *expectations* — if the system answered a general question *clearly labeled as general knowledge* (the selector's short-circuit) and you marked it failed, maybe the policy you wrote disagrees with the policy you actually want. That's a finding too.
 
 After each prompt change: re-run the **full battery** plus two happy-path queries. Every guardrail you tighten can over-trigger somewhere else, and the only way to know is the re-run.
 
-And remember the failure that *isn't* in the prompt at all: the **empty-filter privacy leak** you triggered earlier. A hybrid query for a condition nobody has silently widens to the whole corpus. No amount of prompt-tuning fixes that — it's a code fix in the hybrid branch (distinguish "no filter" from "filter matched nobody"). Add it to your battery as a case whose fix lives in `executeQuery`, not the prompt.
+And remember the failure that *isn't* in the prompt at all: the **empty-filter privacy leak** you triggered earlier. A hybrid query for a condition nobody has silently widens to the whole corpus — an empty `patientIds` array means *no filter*, not *no patients*. No amount of prompt-tuning fixes that — it's a code fix (distinguish "no filter" from "filter matched nobody"). Add it to your battery as a case whose fix lives in `searchClinicalNotes` (`lib/vector-search.ts`), not the prompt.
 
 ### Common mistakes
 
 - **Bait without ground truth.** Asking about "Robert Bigelow" without checking he's absent from your data makes the test meaningless in both directions. Verify the void before testing the void.
 - **Fixing failures one prompt-sentence per case.** Six failures should yield two or three *general* clauses, not six bolted-on patches. If your prompt is becoming a list of special cases, step back and find the principle they share.
 - **Marking hedged mush as a pass.** "There may be limited information available regarding this patient…" followed by speculation is a fail wearing a seatbelt. The expected behavior is a *clear* statement of absence.
-- **Stopping at the prompt.** Some failures can't be prompted away — the ambiguous-referent case is better solved upstream (the analyzer could flag a missing referent), and the void case downstream (code could check for empty retrieval before the LLM runs). Note these as "fix belongs in: [layer]." You own the whole pipeline now; the prompt is only one layer of it.
+- **Stopping at the prompt.** Some failures can't be prompted away — the ambiguous-referent case is better solved upstream (the selector could flag a missing referent), and the void case downstream (code could check for empty retrieval before the LLM runs — the SQL agent already does half of this: its formatter hands the aggregator "0 rows — nothing in the records matches"). Note these as "fix belongs in: [layer]." You own the whole pipeline now; the prompt is only one layer of it.
 
 ## Your turn
 
@@ -85,7 +90,7 @@ This session *is* its own your-turn. The deliverables, in your notes and repo:
 
 1. `eval/failure-battery.json` — 12+ cases across all six categories, each with expected behavior and a current verdict.
 2. A prompt changelog continued from the last lesson: failure → clause added → battery result, for every change.
-3. A short "fixes that don't belong in the prompt" list — failure id, and the layer (analyzer / executor / code-before-LLM) where a real fix would live. The empty-filter leak goes here.
+3. A short "fixes that don't belong in the prompt" list — failure id, and the layer (selector / SQL agent's grounding / code-before-LLM) where a real fix would live. The empty-filter leak goes here.
 
 ## Check yourself
 
@@ -95,7 +100,7 @@ This session *is* its own your-turn. The deliverables, in your notes and repo:
 <details>
 <summary>Solution / discussion</summary>
 
-**Retrieval-caused bait:** the *confident void* and the *near-neighbor trap* both originate in a fact you measured in Week 1 — vector search always returns the K nearest neighbors, with no concept of "nothing matched." The LLM is handed plausible-looking context either way. Prompting ("if the data doesn't answer, say so") is the mitigation; the *permanent* fixes live in code: check whether retrieval returned anything patient-matched before invoking the LLM (void), and surface similarity scores so downstream logic can treat weak matches differently (trap). You'll be positioned to build both once the system has observability — soon.
+**Retrieval-caused bait:** the *confident void* and the *near-neighbor trap* both originate in a fact you measured when you built the vector store — vector search always returns the K nearest neighbors, with no concept of "nothing matched." The LLM is handed plausible-looking context either way. Prompting ("if the data doesn't answer, say so") is the mitigation; the *permanent* fixes live in code: check whether retrieval returned anything patient-matched before invoking the LLM (void), and surface similarity scores so downstream logic can treat weak matches differently (trap). You'll be positioned to build both once the system has observability — soon.
 
 **Why `unclear` matters:** a battery where verdicts require squinting stops getting run — the friction kills the habit. Tracking `unclear` separately tells you your *spec* needs work, and over time the unclear-rate measures how well-defined your system's contract actually is. Pass/fail measures the system; unclear measures the specification. Both numbers matter, and now you have both.
 
@@ -103,11 +108,11 @@ This session *is* its own your-turn. The deliverables, in your notes and repo:
 
 </details>
 
-## Homework — Bible side project, Part 2
+## Homework — search your Bible index
 
-In Week 1 you researched chunking strategies and recorded a video explaining what chunking *is* and why our clinical notes don't need it (they're ~450 characters — one note, one vector). Now you build the other side of that contrast: a corpus that genuinely needs chunking.
+In the chunking homework you chunked the KJV with a strategy you chose, stored it in your own `bible-kjv` Pinecone index, and defended the choice on video. Back then, *searching* it wasn't in your toolkit. Now it is.
 
-**Part 2: chunk + upload.** Take the strategy you proposed and actually implement it against the KJV Bible using `scripts/bible/` — chunk the text, upsert the chunks into a vector store, then search them and find one place your boundary choice clearly hurt a result. Full instructions: `curriculum/homework-bible-chunking.md`.
+**Query your own index.** Run a few semantic searches against `bible-kjv` — same pattern as the note search: embed the query, `index.query` with topK. Try at least one query that shares *no keywords* with the passage it should find. Then hunt for one result where your **boundary choice clearly hurt** — a retrieved chunk that's cut mid-thought, or a passage that should have matched but was split across two chunks. That one bad result is your chunking strategy's cost, measured. What would you change?
 
 ## Deliverable 🎥
 
@@ -120,7 +125,7 @@ Bonus: trigger the empty-filter case and explain the leak. The happy path proves
 
 **Submit:** [Typeform — submission](https://form.typeform.com/to/PLACEHOLDER-W2) <!-- PLACEHOLDER: replace with real Typeform URL -->
 
-Next week the theme shifts: we stop trusting "looks right" and start *measuring* — the analyzer, the retrieval, and the reranker you couldn't honestly judge today all get put on a scale.
+Later in the course the theme shifts: we stop trusting "looks right" and start *measuring* — the selector, the retrieval, and the reranker you couldn't honestly judge today all get put on a scale.
 
 ## Further reading (optional)
 

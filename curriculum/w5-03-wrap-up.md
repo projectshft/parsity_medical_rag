@@ -36,9 +36,9 @@ Here's the thing about systems: anyone can screen-record a happy path. What prov
 
 Pick one. Small and complete beats large and half-built — the point is to run the full loop one more time, unaided:
 
-- **A "obscured view" toggle in the chat UI** — the direct app returns full data, but `/api/query` already honors an `obscurePII` flag. Wire a toggle in the UI that sends it, and make the channel idea *visible in the running product*: flip it and watch `Maria Gonzalez · 1975-04-12` become `Patient-A7B3 · 1975-XX-XX`. This makes the de-identification layer tangible end to end.
+- **An "obscured view" toggle in the chat UI** — the clinician channel returns full data and offers no switch. Add one, properly: accept an `obscurePII` flag in the `/api/chat` body schema, run `obscureContent` over the specialists' text (`sqlText` / `ragText`) before the aggregator sees it, and wire a UI toggle that sends the flag. Flip it and watch `Maria Gonzalez · 1975-04-12` become `Patient-A7B3 · 1975-XX-XX` — the de-identification layer made visible in the running product, end to end.
 - **Reranking, decided properly** — wire reranking into the live retrieval path and let your eval suite decide whether it stays. Ship the *decision*, with the number.
-- **A new front-office MCP tool** — a fourth tool on the front-office channel, PII-obscured like the rest, that a caller cannot coax into leaking a real name.
+- **A new front-office MCP tool** — another tool on the front-office channel, PII-obscured like the rest, that a caller cannot coax into leaking a real name.
 - **Harden `obscureContent`** — find an identifier format the regex misses (an all-lowercase name, an unusual phone format), add a failing case to `lib/pii.test.ts`, then fix the pattern. Ship the closed gap *and* the test that proves it.
 - **Your own idea** — if you have one, it's probably better than this list.
 
@@ -49,7 +49,7 @@ Whatever you pick: build it, measure it, and gate it on the suite. One extension
 Architecture and the *why* behind it. Not "what the code does" — the tradeoffs you'd defend in a review:
 
 - The two-engine split (structured store + meaning-based search) and why not one store
-- One chunking decision — including the call that the medical notes *don't* need chunking, justified by the measurement (they average a few hundred characters), against the Bible corpus that *did*
+- One chunking decision — including the call that the medical notes *don't* need chunking, justified by the measurement (they average ~900 characters), against the Bible corpus that *did*
 - One privacy decision (the channel model over login+RBAC? de-identifying at the channel vs. in the UI? pseudonymizing names instead of dropping them?) and the alternative you rejected
 - One thing you'd build differently starting over
 
@@ -58,7 +58,7 @@ Architecture and the *why* behind it. Not "what the code does" — the tradeoffs
 This is the credibility artifact. It's not a summary; it's an *honest account of contact with a system that fought back*. Structure:
 
 - **What broke.** Real failures you hit — a hybrid query that returned the wrong patient's notes, a reranker that didn't help, a front-office response that almost leaked a real name, an `obscureContent` regex that mangled "Chief Complaint" or missed a lowercase name. Name them.
-- **What you changed, and the number that told you to.** Each fix tied to its measurement. "I added a few-shot example and analyzer accuracy went 84% → 92%." This is where "no metric, no decision" becomes your voice, not the course's.
+- **What you changed, and the number that told you to.** Each fix tied to its measurement. "I added one example to the selector prompt and plan accuracy went 84% → 92%." This is where "no metric, no decision" becomes your voice, not the course's.
 - **What you deliberately did not build, and why.** The injection attack your defenses still miss. The eval you named but didn't write. The full login+RBAC layer you chose *not* to build because the channel model already draws the boundary. *Naming what you chose not to do is the strongest possible signal of judgment* — it proves you saw the whole board and made calls, rather than building until you ran out of time.
 - **What you'd do differently.** The decision you'd remake with what you know now.
 
@@ -112,4 +112,3 @@ Go build something, and measure it.
 ## Further reading (optional)
 
 - [How to write a good postmortem](https://sre.google/sre-book/postmortem-culture/) — Google SRE's chapter; the blameless, fact-driven posture is exactly what makes your capstone postmortem credible
-</content>

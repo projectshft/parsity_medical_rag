@@ -1,22 +1,22 @@
 # When Cosine Lies: Reranking as a Second Opinion
 
-**Needs: `COHERE_API_KEY` in `.env` (free trial tier is enough); the loaded note index**
+**Needs: nothing new — the reranker runs on the `PINECONE_API_KEY` you already have; the loaded note index**
 
 ## Today you will
 
 - Understand *why* cosine similarity sometimes ranks the wrong note first
 - Add a second-opinion stage — a reranker — on top of your search
-- Learn the funnel shape, and catch the silent Cohere fallback before it fools you
+- Learn the funnel shape, and catch the silent fallback before it fools you
 
 ## Concept
 
-In Week 1 you almost certainly caught the geometry lying: a note like *"the patient reports knee pain"* out-scoring *"dyspnea on exertion"* as a match for *"the patient reports shortness of breath"* — because the two sentences share a *template*, not a meaning. The root cause is structural, and worth saying precisely:
+You have almost certainly already caught the geometry lying: a note like *"the patient reports knee pain"* out-scoring *"dyspnea on exertion"* as a match for *"the patient reports shortness of breath"* — because the two sentences share a *template*, not a meaning. The root cause is structural, and worth saying precisely:
 
 **An embedding summarizes each text *separately*, before any query exists.** Each note was compressed into its vector by the `vectorize` script, with no idea what would ever be asked of it. At query time, all the system can do is compare two pre-made summaries. Anything lost in compression — emphasis, the role of each phrase, what's boilerplate vs what's signal — is lost forever.
 
 A **reranker** is a different kind of model with the one luxury embeddings can't have: it reads **the query and the document together, at query time**, and scores how well *this* document answers *this* query. No pre-compression. Boilerplate that matches boilerplate impresses it much less.
 
-So why not rerank everything and skip embeddings? Cost and speed. Reading query+document together means one model call *per candidate per query* — you cannot do that across ~144,000 notes. The standard architecture is a funnel:
+So why not rerank everything and skip embeddings? Cost and speed. Reading query+document together means the model does a full pass *per candidate per query* — you cannot do that across ~21,000 notes. The standard architecture is a funnel:
 
 ```mermaid
 flowchart LR
@@ -31,22 +31,29 @@ Cheap-and-broad finds candidates; expensive-and-careful orders them. It's the sa
 
 The reranker wrapper already exists — `rerankResults` in `lib/reranker.ts`. Read all of it, it's about twenty lines:
 
-- It sends the query plus the candidates' text to Cohere's `rerank-english-v3.0`.
-- It returns the candidates re-ordered, with new relevance scores.
-- **If the call fails, it returns the original order** (`results.slice(0, topN)`) — a deliberate choice: degraded search beats no search. Note what this also means: a **missing or invalid API key fails *silently* into a no-op.** No error, no crash — just the same order you started with.
+- It sends the query plus the candidates' text to **Pinecone's hosted reranker** — one call to `pc.inference.rerank('bge-reranker-v2-m3', query, docs, { topN, returnDocuments: false })`.
+- No new account, no new key: the reranker runs on the same `PINECONE_API_KEY` as the index. (Not nothing — every extra vendor in a retrieval stack is a signup, a bill, and a failure mode.)
+- The response is `[{ index, score }]` in relevance order; the wrapper maps each `index` back onto your candidates and swaps in the new score.
+- **If the call fails, it returns the original order** (`results.slice(0, topN)`) — a deliberate choice: degraded search beats no search. Note what this also means: a network blip, or a typo'd model name, fails *silently* into a no-op. No error, no crash — just the same order you started with, plus one `console.error` line.
 
-Wire the funnel in a scratch script:
+Wire the funnel in a scratch script. One adapter step: `rerankResults` speaks `lib/pinecone`'s `SearchResult` shape, so map your `searchClinicalNotes` results onto the two fields it actually uses — `content` (the text to rerank) and `score`:
 
 ```typescript
 import 'dotenv/config';
-import { searchChunks } from './lib/pinecone';
+import { searchClinicalNotes } from './lib/vector-search';
 import { rerankResults } from './lib/reranker';
 
 async function main() {
   const query = 'patient struggling to breathe at night';
 
   // Stage 1: broad — over-fetch deliberately
-  const candidates = await searchChunks(query, 25);
+  const notes = await searchClinicalNotes(query, { topK: 25 });
+  const candidates = notes.map((n) => ({
+    id: n.id,
+    score: n.score,
+    content: n.contentPreview, // short notes: the preview is usually most of the note
+    metadata: { source: 'note' },
+  }));
 
   // Stage 2: careful — rerank, keep the best 5
   const reranked = await rerankResults(query, candidates, 5);
@@ -66,20 +73,20 @@ main();
 Run it on several queries. Three things to notice:
 
 1. **The over-fetch is the point.** Stage 1 pulls 25, not 5 — the reranker can only promote what's in the candidate pool. A great note ranked #19 by cosine is *invisible* unless the funnel mouth is wide enough to include it. (Also note: `rerankResults` returns the input unchanged when `results.length <= topN` — feed it fewer candidates than you keep and it can't do anything.)
-2. **The scores are from a different universe.** Cohere's relevance scores are not cosine similarities; comparing a 0.91 rerank score to a 0.58 cosine score is meaningless. Within one list, order is what matters.
+2. **The scores are from a different universe.** bge-reranker's relevance scores are normalized 0–1, but they are **not** cosine similarities; comparing a 0.91 rerank score to a 0.58 cosine score is meaningless. Within one ranked list, order is what matters.
 3. **The order changes — sometimes.** On some queries the top 5 barely moves; on others a #14 jumps to #1. Which brings us to the honest question.
 
 ### Did it actually help, though?
 
 Be very careful here. You just watched the order change and it *felt* like an improvement. But "the order changed" and "the results got better" are different claims — and the second one needs ground truth: which notes are *actually* relevant to this query? Nothing you've built so far knows that.
 
-This is the course's spine rule arriving early: **no metric, no decision.** A reranker adds latency (one extra model call per query), cost (per-candidate pricing), and a vendor dependency. Whether it pays for itself **on your corpus, for your queries** is an empirical question — and you can't answer it by eyeballing three examples. Plenty of real systems measure and conclude reranking doesn't earn its place; plenty conclude it's the single best upgrade available. Yours is one measurement away from knowing which kind it is. Building that measuring instrument is a later week; today you build the machinery and, crucially, resist concluding anything from a handful of queries.
+This is the course's spine rule arriving early: **no metric, no decision.** A reranker adds latency (one extra model call per query), cost (you pay per candidate scored), and another remote call that can fail. Whether it pays for itself **on your corpus, for your queries** is an empirical question — and you can't answer it by eyeballing three examples. Plenty of real systems measure and conclude reranking doesn't earn its place; plenty conclude it's the single best upgrade available. Yours is one measurement away from knowing which kind it is. Building that measuring instrument is a later week; today you build the machinery and, crucially, resist concluding anything from a handful of queries.
 
 ### Common mistakes
 
 - **Reranking the same K you keep.** Fetch 5, rerank 5 → the same 5, shuffled (and here, thanks to the `length <= topN` guard, not even shuffled). The reranker's power is *promotion from depth*; without over-fetching there's no depth to promote from.
 - **Comparing rerank scores to cosine scores.** Different models, different scales, different meanings. The only valid comparisons are within one ranked list.
-- **Not noticing the silent fallback.** No `COHERE_API_KEY`, or a failing call → original order returned, no error. If your reranked and original lists are *always identical*, suspect the key before you conclude "reranking does nothing." Check `.env` first.
+- **Not noticing the silent fallback.** A failing rerank call — network hiccup, a mistyped model name — returns the original order, no error. If your reranked and original lists are *always identical*, suspect the fallback fired before you conclude "reranking does nothing." The only witness is the `Reranking failed, using original order` line in your server log — check it first.
 - **Concluding anything from today.** Watching three queries change order is an anecdote, not a measurement. This restraint is exactly the discipline that separates measured systems from vibes-driven ones.
 
 ## Your turn
@@ -108,5 +115,5 @@ Spend **no more than 45 minutes** here.
 
 ## Further reading (optional)
 
-- [Cohere: rerank documentation](https://docs.cohere.com/docs/rerank-overview) — the model behind today's second opinion
+- [Pinecone: rerank results](https://docs.pinecone.io/guides/search/rerank-results) — the hosted reranker behind today's second opinion
 - [Anthropic: Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval) — note the headline numbers combine contextual chunks *with* reranking; production retrieval is a stack of measured techniques, not one trick

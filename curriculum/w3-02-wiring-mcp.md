@@ -60,7 +60,7 @@ Watch what happens before each answer: the assistant announces a tool call, show
 Two observations to make deliberately:
 
 - **Did it pick the right tool?** That's your description quality, scored live by a model you've never prompted.
-- **Did it pick good arguments?** Watch `query_notes` — does the assistant pass the user's words verbatim, or rephrase? Compare with what your own analyzer's semantic query would have done. You built that rephrasing on purpose; the foreign model may or may not be as thoughtful.
+- **Did it pick good arguments?** Watch `query_notes` — does the assistant pass the user's words verbatim, or rephrase? Compare with what your own selector's `semanticQuery` would have done. You built that rephrasing on purpose; the foreign model may or may not be as thoughtful.
 
 ### 3. Learn the debugging story now, not during a demo
 
@@ -112,4 +112,3 @@ Spend **no more than 45 minutes** here.
 ## Further reading (optional)
 
 - [modelcontextprotocol.io — connect to local servers](https://modelcontextprotocol.io/docs/develop/connect-local-servers) — the official client-wiring guide, incl. Windows paths
-</content>

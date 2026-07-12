@@ -53,18 +53,17 @@ By the end, a clinic worker can ask, in plain language:
 
 ```mermaid
 flowchart LR
-    U[User question] --> A[Query Analyzer<br/>LLM + Zod]
+    U[User question] --> A[Selector agent<br/>LLM + Zod]
     A -->|structured| S[(Postgres<br/>patients, conditions,<br/>meds, labs)]
     A -->|semantic| V[(Vector database<br/>clinical notes)]
-    S --> M[Merge + Format]
+    S --> M[Aggregator agent<br/>w/ guardrails]
     V --> M
-    M --> G[LLM Answer<br/>w/ guardrails]
-    G --> U2[Streamed response]
+    M --> U2[Streamed response]
 ```
 
-A hybrid RAG system over ~1,278 synthetic patients (Synthea Coherent dataset). You'll build it in this order:
+A hybrid RAG system over ~200 synthetic patients (Synthea Coherent dataset). You'll build it in this order:
 
-1. **The two retrieval engines** — Postgres for structured data, a vector database for ~144,000 clinical notes
+1. **The two retrieval engines** — Postgres for structured data, a vector database for ~21,000 clinical notes
 2. **Document preparation** — chunking, boundaries, and metadata (taught on an open-source corpus that actually needs it)
 3. **The LLM layer** — a query analyzer that routes questions, an agent that answers them
 4. **Exposure** — your RAG becomes a tool AI assistants can call, with tracing and human-in-the-loop actions
@@ -109,13 +108,13 @@ An agent that answers by using **both** engines — exact SQL for facts, vector 
 2. [Wiring MCP into Claude Desktop and Cursor](w3-02-wiring-mcp.md)
 3. [Securing MCP: API keys and scopes](w3-03-securing-mcp.md)
 4. [Human-in-the-loop: propose, approve, execute](w3-04-human-in-the-loop.md)
-5. [A new tool, with an audit trail](w3-05-new-tool-audit.md) 🎥
+5. [Build: add a new tool](w3-05-new-tool-audit.md) 🎥
 
 **Week 4 — Agents, evals & observability**
 Measure and trace a non-deterministic system so "it feels better" becomes a number.
 1. [Observability: tracing with LangSmith](w4-01-observability.md)
 2. [Retrieval evals: hit@5](w4-02-retrieval-evals.md)
-3. [Analyzer evals: exact match](w4-03-analyzer-evals.md)
+3. [Selector evals: exact match](w4-03-analyzer-evals.md)
 4. [Evals as the spine: no metric, no decision](w4-04-evals-as-spine.md) 🎥
 
 **Week 5 — Privacy & data**

@@ -4,9 +4,9 @@
 
 ## Where we are
 
-Coming out of Week 1 you have two ways to find things. **Postgres** is the system of record — every patient, condition, observation, and the full text of every clinical note lives there. **Pinecone** is a *derived* index: the `vectorize` script read those notes out of Postgres, embedded them, and upserted them so you can search by meaning. Two engines, both loaded, both working.
+Coming out of the vector-store block you have two ways to find things. **Postgres** is the system of record — every patient, condition, observation, and the full text of every clinical note lives there. **Pinecone** is a *derived* index: the `vectorize` script read those notes out of Postgres, embedded them, and upserted them so you can search by meaning. Two engines, both loaded, both working.
 
-What you don't have yet is a **driver**. A user doesn't know or care which engine answers their question — they type plain English and expect an answer. This week you build the thing in the middle: an agent that reads the question, decides which engine (or both) to hit, runs it, and answers *only* from what came back.
+What you don't have yet is a **driver**. A user doesn't know or care which engine answers their question — they type plain English and expect an answer. This week you build the thing in the middle: a small team of agents that reads the question, decides which engine (or both) to hit, runs them, and answers *only* from what came back.
 
 That driver is going to make decisions in code — `if (this) hit Postgres, else search notes`. Which means, before anything else, we need the LLM to stop talking in paragraphs and start returning data your code can branch on. That's today.
 
@@ -27,7 +27,7 @@ Code can't branch on prose. If the model replies:
 …what does your `if` statement test? You need:
 
 ```json
-{ "intent": "patient_summary", "requiresSQL": true, "requiresVector": false }
+{ "requiresSQL": true, "requiresVector": false, "semanticQuery": null }
 ```
 
 The naive approach — adding *"please respond in JSON"* to the prompt — fails in every way that matters: sometimes you get markdown fences around the JSON, sometimes a chatty preamble, sometimes a field goes missing, sometimes `"intent": "kind of a lookup?"` appears even though you never offered that value. Works in the demo, breaks in production — the worst possible combination.
@@ -43,18 +43,18 @@ The reliable approach is **schema-enforced output**: you hand the API a formal s
 
 Two design notes worth absorbing:
 
-- **`.describe()` is prompting.** Every field description is read by the model — `intent: z.enum([...]).describe('The type of query')` is simultaneously a type constraint *and* an instruction. Schema-first design moves half your prompt into the place where it can't drift out of sync with the types.
+- **`.describe()` is prompting.** Every field description is read by the model — `requiresSQL: z.boolean().describe('Structured data is needed — counts, filters, or a specific patient')` is simultaneously a type constraint *and* an instruction. Schema-first design moves half your prompt into the place where it can't drift out of sync with the types.
 - **Step 4 looks redundant and isn't.** The API promises conformant output; `Schema.parse` *verifies* it at the boundary, so any violation surfaces as a loud error at the call site — not as `undefined` propagating three files downstream. Trust, but parse.
 
 ## Implementation
 
-A warm-up extractor, no medicine involved — customer-support email triage. It's the exact shape of the query analyzer you'll build next, on a domain with no learning curve. Scratch script:
+A warm-up extractor, no medicine involved — customer-support email triage. It's the exact shape of the selector agent you'll build next, on a domain with no learning curve. Scratch script:
 
 ```typescript
 import 'dotenv/config';
 import { z } from 'zod';
 import { zodTextFormat } from 'openai/helpers/zod';
-import { getOpenAIClient } from './lib/openai';
+import { openai } from './lib/openai';
 
 const TicketSchema = z.object({
   product: z.string().describe('Which product or service the customer is writing about'),
@@ -72,7 +72,7 @@ async function main() {
     "This is the second time this has happened and I'm honestly fed up. " +
     'Please refund the duplicate charge today or cancel my account entirely.';
 
-  const response = await getOpenAIClient().responses.parse({
+  const response = await openai.responses.parse({
     model: 'gpt-4o-mini',
     input: [
       { role: 'system', content: 'Extract structured data from customer support emails.' },

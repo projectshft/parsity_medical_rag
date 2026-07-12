@@ -11,7 +11,7 @@
 
 ## What you're joining
 
-You didn't build this company's data. It's already here — a Postgres database with **1,278 patients**: their conditions, medications, lab values, visit dates, and the free-text **clinical notes** a clinician wrote at every encounter. Roughly **143,946 notes** in all, about **113 per patient** on average. Nothing to ingest, nothing to seed. You connect to it and it's full.
+You didn't build this company's data. It's already here — a Postgres database with **200 patients**: their conditions, medications, lab values, visit dates, and the free-text **clinical notes** a clinician wrote at every encounter. Roughly **21,090 notes** in all, about **105 per patient** on average. Nothing to ingest, nothing to seed. You connect to it and it's full.
 
 Your job is the layer *on top*: make it possible to **ask in plain English and get an answer grounded in the actual records** — and a refusal, not a guess, when the answer isn't there.
 
@@ -118,11 +118,11 @@ No Active Medications.
 Notice two things you'll exploit this week:
 
 - It has **structure** — headed sections, a date, one encounter's worth of narrative.
-- It's **short** — about 450 characters on average. That single number decides a real architecture choice later this week, and it's a measurement, not a vibe.
+- It's **short** — about 938 characters on average. That single number decides a real architecture choice later this week, and it's a measurement, not a vibe.
 
 ### Common mistakes
 
-- **"RAG is dead, context windows are huge now."** A 1M-token window doesn't fix this. The notes alone are tens of millions of characters; they don't fit. Even when data *fits*, stuffing it all in costs money per query and *degrades* answers (models reason worse over haystacks). Retrieval is selection, and selection is the point.
+- **"RAG is dead, context windows are huge now."** A 1M-token window doesn't fix this. The notes alone are roughly twenty million characters — about five million tokens; they don't fit. Even when data *fits*, stuffing it all in costs money per query and *degrades* answers (models reason worse over haystacks). Retrieval is selection, and selection is the point.
 - **Thinking meaning-search replaces the database.** It answers "what is *similar* to this?" It cannot answer "how many," "most recent," or "exactly which." Half the skill is knowing which question you're holding.
 - **Skipping the data.** Every bad retrieval decision later traces back to someone who never read their own documents.
 
@@ -165,5 +165,3 @@ You're done when you can answer these without scrolling up:
 
 - [3Blue1Brown — But what is a GPT?](https://www.youtube.com/watch?v=yMQPQuz5WpA) — the best high-level picture of what an LLM actually *is*. You don't need it to build the system, but if "the model predicts the next token" has always been a black box, 27 minutes here fixes that.
 - [The original RAG paper (Lewis et al.)](https://arxiv.org/abs/2005.11401) — skim the abstract; the ideas aged well.
-</content>
-</invoke>

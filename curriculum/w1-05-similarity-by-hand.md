@@ -84,8 +84,8 @@ Say it out loud: "short of breath" and "dyspnea on exertion" share **zero letter
 
 If search is just that loop, why not ship the loop? Two reasons, and only two:
 
-1. **Persistence.** Your script re-embeds the corpus every single run. A database embeds once and *keeps* the vectors — you pay the embedding cost one time. Re-embedding ~144,000 notes on every query would be absurd.
-2. **Speed at scale.** Your loop compares the query against *every* vector — fine for 3, hopeless for 144,000 (that's 144,000 cosine computations per query). A vector database builds an **index** — approximate nearest-neighbor search — that finds the closest vectors *without* checking every one, trading a sliver of accuracy for enormous speed.
+1. **Persistence.** Your script re-embeds the corpus every single run. A database embeds once and *keeps* the vectors — you pay the embedding cost one time. Re-embedding ~21,000 notes on every query would be absurd.
+2. **Speed at scale.** Your loop compares the query against *every* vector — fine for 3, hopeless for 21,090 (that's 21,090 cosine computations per query). A vector database builds an **index** — approximate nearest-neighbor search — that finds the closest vectors *without* checking every one, trading a sliver of accuracy for enormous speed.
 
 Everything else (metadata filtering, the API, the dashboard) is convenience around those two. The *search* is the loop you just wrote — so when you call Pinecone later this week, you already know exactly what it's doing under the hood.
 
@@ -120,4 +120,3 @@ Spend **no more than 30 minutes** here.
 ## Further reading (optional)
 
 - [Pinecone: what is a vector database?](https://www.pinecone.io/learn/vector-database/) — the architecture under the two function calls you'll make next.
-</content>

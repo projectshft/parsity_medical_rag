@@ -151,4 +151,3 @@ Spend **no more than 45 minutes** here.
 - [3Blue1Brown — Vectors, what even are they?](https://www.youtube.com/watch?v=fNk_zzaMoSs) — the picture behind "a point in 1,536-dimensional space."
 - [3Blue1Brown — Dot products and duality](https://www.youtube.com/watch?v=LyGKycYT2v0) — the geometric meaning of the dot product that powers cosine.
 - [OpenAI: embeddings guide](https://developers.openai.com/api/docs/guides/embeddings) — the official docs for the API you used today.
-</content>

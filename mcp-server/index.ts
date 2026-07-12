@@ -83,6 +83,8 @@ server.registerTool(
       const results = await searchClinicalNotes(query, {
         topK,
         patientIds: patientId ? [patientId] : undefined,
+        // Front-office channel: ALWAYS obscure, regardless of the env default.
+        obscurePII: true,
       });
 
       if (!results.length) {
