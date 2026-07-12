@@ -34,7 +34,7 @@ Name this connection when you teach the production-gates block — it turns
 |---|---|
 | Minimum-necessary access | The **channel access model** (Week 5): the front-office (MCP) channel exposes only non-identifying tools and never surfaces PII; the direct app is the clinician channel. Enforced by the entry point, not by roles. |
 | De-identification | PII obscuring (`lib/pii.ts`, CHALLENGE-PII): pseudonymized names, redacted dates/locations, scrubbed note text |
-| Don't overshare / leak | Grounding + refusals (Days 22–23), injection defenses (Day 34) |
+| Don't overshare / leak | Grounding + refusals (w2-06 / w2-07), injection defenses (poisoned-docs homework / the Week 5 session) |
 
 > **Not built:** an audit trail and RBAC/login. Earlier drafts had role-based
 > access + audit logging; both were removed. Minimum-necessary is now enforced
@@ -45,7 +45,7 @@ Name this connection when you teach the production-gates block — it turns
 ### The honest caveat (teach this — don't hide it)
 The course teaches the **technical controls**, not full compliance. Real
 HIPAA compliance also requires: **BAAs with every vendor** (OpenAI,
-Pinecone, Neon, Cohere, LangSmith, Cal.com), **HIPAA-eligible
+Pinecone, Neon, LangSmith, Cal.com, Retell), **HIPAA-eligible
 service tiers** (e.g. OpenAI's zero-retention/BAA path; Pinecone/Neon HIPAA
 tiers), encryption, risk assessments, written policies, training, and breach
 procedures. The **default consumer setups of these APIs are NOT
@@ -66,8 +66,8 @@ records as-is.
 ### Optional additions not yet made (decided to keep as notes for now)
 - A one-line UI disclaimer ("Demo on synthetic data — not for real patient
   records").
-- An explicit HIPAA sentence inside Day 33 connecting RBAC + audit to
-  "minimum necessary" and the audit-trail requirement.
+- An explicit HIPAA sentence inside w5-02 connecting the channel model to
+  "minimum necessary" and naming the audit-trail requirement as not-built.
 
 ---
 
@@ -85,15 +85,19 @@ demo.
   role. If Cal.com isn't configured the route returns 503; the propose→approve
   flow still demos (the confirmation card appears regardless).
 
-### Medication queries return nothing useful
-- "Which patients take lisinopril?" — the analyzer extracts the medication,
-  but `executeStructuredQuery` (`lib/sql-queries.ts`) only filters on
-  conditions and lab thresholds, not medications, so the LLM gets no data
-  and improvises. Genuine feature gap; not yet wired. Steer demos toward
-  condition counts, patient lookups, and semantic note search.
+### Text-to-SQL vocabulary: medications aren't grounded
+- The SQL agent (`lib/agents/sql.ts`) grounds its prompt with real DISTINCT
+  values for **conditions and observations only** — `getVocab` never samples
+  `medications.display`. Exact drug names usually work anyway (`ILIKE
+  '%lisinopril%'` matches the RxNorm display), but lay/class terms — "blood
+  pressure medication", "blood thinners" — can silently match nothing and
+  produce a confident "none." That's the lesson of the day (vocabulary
+  grounding), but know it before a live demo: steer toward named drugs, or
+  extend `getVocab` with a medications sample on your own build.
 
 ### Semantic/notes answers are thin locally
 - Pinecone bulk writes intermittently EPIPE from some networks, so a local
-  ingest may only partially populate the vector index (Postgres loads
-  fully). Counts and lookups are unaffected; notes-based answers improve
-  after a complete ingest (works cleanly from Vercel / a stable network).
+  `npm run vectorize` may only partially populate the vector index (Postgres
+  is pre-loaded and unaffected). Counts and lookups are fine; notes-based
+  answers improve after a complete vectorize run (works cleanly from Vercel /
+  a stable network).

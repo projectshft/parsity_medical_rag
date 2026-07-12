@@ -1,6 +1,6 @@
 # Build: Add a New Tool
 
-**Needs: the connected MCP server; the traced pipeline**
+**Needs: the connected MCP server**
 
 ## Today you will
 
@@ -13,14 +13,14 @@ This is a **build**. The training wheels from the earlier MCP lessons are off: y
 
 ## Concept
 
-Inventory of what this block assembled: your system is now **infrastructure** — tools other AIs call (MCP), served through a front-office channel that's safe to expose because its tools are non-identifying and every response is obscured, plus a flight recorder (tracing) and one human-gated write path (scheduling). Today's build forces the MCP half to work *for real*, because that's where the design either holds or leaks: a new tool is only as safe as the contract you remember to honor when you write it.
+Inventory of what this block assembled: your system is now **infrastructure** — tools other AIs call (MCP), served through a front-office channel that's safe to expose because its tools are non-identifying and every response is obscured, plus one human-gated write path (scheduling). Today's build forces the MCP half to work *for real*, because that's where the design either holds or leaks: a new tool is only as safe as the contract you remember to honor when you write it.
 
 The contract from the securing lesson is the whole game here. This channel is safe **because** of two properties, and a new tool has to preserve both or it breaks the door for every tool:
 
 - **Non-PII shaped.** The tool answers a front-office question — search, count, summarize-in-aggregate — not "hand me everything about this one named person." A tool whose *purpose* is to emit an identified chart doesn't belong on this channel no matter how you format it.
-- **Obscured output.** Whatever names or identifiers do appear in the result get run through `obscureName` / `formatResultsForLLM(result, true)` before the text leaves. No flag, no exception.
+- **Obscured output.** Whatever names or identifiers do appear in the result get run through `obscureName` / the `obscureContent` scrub before the text leaves. No flag, no exception.
 
-Get those right and the new tool is safe by construction, same as the three that shipped. Skip them and you've quietly turned the front-office door into a PII leak with no error to catch it.
+Get those right and the new tool is safe by construction, same as the two that shipped. Skip them and you've quietly turned the front-office door into a PII leak with no error to catch it.
 
 ## Implementation
 
@@ -37,10 +37,10 @@ Use the extra-tool spec you wrote on the wiring lesson if you have one. Otherwis
 The checklist is the lesson — each item exists because skipping it bit someone:
 
 1. **Spec first**: name, description-as-prompt (the colleague test applies — the description *is* the interface for a model you don't control), zod `inputSchema` with `.describe()` on every field.
-2. **Register it with `registerTool`** (not the deprecated `server.tool`) — match the shape of the three existing tools exactly: `registerTool(name, { description, inputSchema }, handler)`.
+2. **Register it with `registerTool`** (not the deprecated `server.tool`) — match the shape of the two existing tools exactly: `registerTool(name, { description, inputSchema }, handler)`.
 3. **Implementation** thin, calling your existing `lib/` functions — the hard parts already live there. The MCP-specific requirement is the return shape: `{ content: [{ type: 'text', text: '...' }] }`, text for a model to read.
-4. **Honor the contract**: any name or identifier in the output goes through `obscureName` / `formatResultsForLLM(result, true)`. If your tool renders notes, make sure raw PII in the note body is handled the same way the existing formatters handle it. This is the step that keeps the door safe.
-5. **Tracing** if the tool makes LLM or retrieval calls — the flight recorder doesn't skip new aircraft.
+4. **Honor the contract**: any name or identifier in the output goes through `obscureName` / `obscureContent`. If your tool renders notes, scrub raw PII in the note body the same way `search_patients` scrubs its whole rendered result. This is the step that keeps the door safe.
+5. **Know its cost path**: note every LLM, embedding, and database call your handler makes — you'll price it in the cost step below.
 
 ### 3. Prove it — the client can call it
 
@@ -56,13 +56,13 @@ Don't just show the code; show a client *discovering and calling* it. Run this s
 
 ### 4. Close the loop on cost
 
-One question, answered with the trace data you now have: **what does one call to your new tool cost?** Count the LLM calls in its trace (embedding calls count), estimate tokens in/out, and write the per-call figure in your notes. If you built `summarize_patient`, compare its cost to `list_conditions` — they can differ by 100×. A tool server where every tool looks free until the invoice arrives is the norm in this industry; yours now has per-tool price tags, which puts you ahead of most production teams.
+One question: **what does one call to your new tool cost?** Count the LLM calls it makes — read the handler and everything it calls into; embedding calls count — estimate tokens in/out, and write the per-call figure in your notes. (Next week you'll wire tracing and get these numbers *measured* instead of estimated; the estimate is still worth writing down, because the gap between it and the measurement is its own lesson.) If you built `summarize_patient`, compare its cost to `list_conditions` — they can differ by 100×. A tool server where every tool looks free until the invoice arrives is the norm in this industry; yours now has per-tool price tags, which puts you ahead of most production teams.
 
 ### Common mistakes
 
-- **A new tool that returns real names.** The single most important failure to catch. The three existing tools obscure on every path; your new one has to as well, or it breaks the front-office contract for the whole channel. Your proof sequence's step 3 exists to catch exactly this.
+- **A new tool that returns real names.** The single most important failure to catch. The two existing tools scrub every name they emit; your new one has to as well, or it breaks the front-office contract for the whole channel. Your proof sequence's step 3 exists to catch exactly this.
 - **A tool whose *job* is a named chart.** `get_patient`-shaped tools don't belong on this door — obscuring the name while dumping the full identified record is theater. If the tool's purpose can't survive pseudonymization, it's a clinician-channel tool, not an MCP tool.
-- **Using the deprecated `server.tool`.** The API here is `registerTool(name, { description, inputSchema }, handler)`. Copy the shape of the existing three; don't reintroduce the old signature.
+- **Using the deprecated `server.tool`.** The API here is `registerTool(name, { description, inputSchema }, handler)`. Copy the shape of the existing two; don't reintroduce the old signature.
 - **A demo of the happy path only.** If your proof has no obscuring check and no malformed call, you proved the tool runs, not that it's *safe* and *robust*. The obscuring check is the deliverable.
 
 ## Your turn
@@ -77,7 +77,7 @@ This *is* the your-turn: the tool, the checklist, the four-step proof sequence w
 <details>
 <summary>Solution / discussion</summary>
 
-**The note-text tool:** your responsibility is that no PII leaves in the text — the patient label obscured to a pseudonym (`obscureName`), *and* raw identifiers inside the note body (names, SSNs, phones) handled the way the existing formatters do. It lives in the tool's return path, right before you build the `text` string — the same place `search_patients` calls `formatResultsForLLM(result, true)` and the notes formatter runs each name through `obscureName`. Obscuring is a property of what you *emit*, so it belongs at the emission point, not scattered through the query.
+**The note-text tool:** your responsibility is that no PII leaves in the text — the patient label obscured to a pseudonym (`obscureName`), *and* raw identifiers inside the note body (names, SSNs, phones) handled the way the existing formatters do. It lives in the tool's return path, right before you build the `text` string — the same place `search_patients` runs its whole rendered result through `obscureContent` and the notes formatter runs each label through `obscureName`. Obscuring is a property of what you *emit*, so it belongs at the emission point, not scattered through the query.
 
 **Discovery as proof:** calling your function directly tests *your* code in *your* process, with your assumptions. `tools/list` + `tools/call` tests the actual contract a foreign client consumes — that the schema is well-formed, the description is legible to a model you don't control, the return shape is `{ content: [...] }`, and the transport carries it cleanly. Plenty of tools "work" when you call the function and fail when a client discovers them (bad schema, wrong return shape, a stray stdout write). The client round-trip is the only test that exercises the thing that's actually shipped.
 
@@ -99,4 +99,3 @@ Record **2–3 minutes**, phone camera is fine. Pick one:
 ## Further reading (optional)
 
 - [modelcontextprotocol.io — security best practices](https://modelcontextprotocol.io/specification/draft/basic/security_best_practices) — reread after building; note how much of "secure MCP" reduces to *be deliberate about what your tools can return*
-</content>

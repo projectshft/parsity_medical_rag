@@ -1,28 +1,28 @@
 # Semantic Search Over Clinical Notes (and Why Metadata Is the Point)
 
-**Needs: a vectorized slice from the previous lesson; OpenAI + Pinecone keys**
+**Needs: the fully vectorized index from the previous lesson (all 21,090 notes); OpenAI + Pinecone keys**
 
 ## Today you will
 
 - Implement `searchClinicalNotes` — the first production search code you write in this course
-- Learn what metadata each vector carries, and why `patientId` is a privacy boundary, not decoration
+- Use the metadata each vector carries, and see why `patientId` is a privacy boundary, not decoration
 - Pay off the very first lesson: the synonym pair that shares zero keywords, now found by your own code
 
 ## Concept
 
-Everything's in place. Notes are embedded and stored (you ran `vectorize`). The by-hand loop taught you what a search *is*. Today you write the real thing and meet the one idea that turns a toy search into a usable one: **metadata**.
+Everything's in place. All 21,090 notes are embedded and stored (you ran `vectorize`). The by-hand loop taught you what a search *is*. Today you write the real thing and meet the one idea that turns a toy search into a usable one: **metadata**.
 
 ### Metadata: the three jobs text can't do
 
-When you vectorized, each note got tagged with fields — `patientId`, `patientName`, `type`, `date`. The note's *text* is what gets **matched**. The metadata is everything else a real system has to do with a match:
+When you vectorized, each note got tagged with fields — `patientId`, `firstName`/`lastName`, `age`, `gender`, `race`, `city`, `state`, `currentMedications`. The note's *text* is what gets **matched**. The metadata is everything else a real system has to do with a match:
 
 | Job | Question it answers | Without it |
 |---|---|---|
-| **Filter** | "Search only *this patient's* notes" | You search all ~144,000, always |
-| **Cite** | "Whose note is this? From when?" | An anonymous fragment |
+| **Filter** | "Search only *this patient's* notes" | You search all 21,090, always |
+| **Cite** | "Whose note is this?" | An anonymous fragment |
 | **Debug** | "Why did this note match?" | You can't trace it back |
 
-Remember: one patient has ~113 notes. "Summarize this patient's history" is only possible if you can *narrow the search to that patient* — and that's what `patientId` is for.
+Remember: one patient has ~105 notes on average (the heaviest chart has 1,632). "Summarize this patient's history" is only possible if you can *narrow the search to that patient* — and that's what `patientId` is for.
 
 ### Filtering happens *inside* the search
 
@@ -32,10 +32,12 @@ The key new idea: Pinecone can restrict the nearest-neighbor search to vectors w
 filter: { patientId: { $in: ['abc', 'def'] } }
 ```
 
-This is **not** post-processing. The index finds the top-K *among only the matching vectors* — this patient's 113 notes instead of everyone's 144,000. That's cheaper, faster, and **correct** in a way that filtering afterward is not:
+This is **not** post-processing. The index finds the top-K *among only the matching vectors* — this patient's ~105 notes instead of everyone's 21,090. That's cheaper, faster, and **correct** in a way that filtering afterward is not:
 
 - Search globally for "chest pain," then keep only patient A's hits → you get "the global top 10, minus strangers," which is often **zero** of patient A's actually-relevant notes.
 - Search *filtered to patient A* → you get patient A's true top 10.
+
+(One caveat you learned when choosing the metadata: filters are **exact-match** — `$in` compares whole strings. Meaning lives in the text; filters narrow by facts.)
 
 And there's a safety edge. Without the filter, a question that should be about one chart returns fragments from strangers' charts — in a clinical product that's not a bad search result, it's a **patient-privacy boundary violation**. `patientId` is where that boundary is enforced, and it lives *inside* `index.query`, so other patients' note content never even transits your app code.
 
@@ -47,14 +49,14 @@ Open `lib/vector-search.ts`. The function is a skeleton:
 
 ```typescript
 export async function searchClinicalNotes(
-  query: string,
-  options: VectorSearchOptions = {}
+	query: string,
+	options: VectorSearchOptions = {},
 ): Promise<VectorSearchResult[]> {
-  const { topK = 10, patientIds } = options;
+	const { topK = 10, patientIds } = options;
 
-  // TODO: Implement vector search
+	// TODO: Implement vector search
 
-  throw new Error('Not implemented - your turn!');
+	throw new Error('Not implemented - your turn!');
 }
 ```
 
@@ -63,7 +65,7 @@ You know every ingredient. The recipe:
 1. Embed the query (`createEmbedding` — already imported).
 2. Build a metadata filter *only if* `patientIds` was provided — one id → `{ patientId: id }`; several → `{ patientId: { $in: ids } }`; none → no filter at all.
 3. Query the index: `index.query({ vector, topK, includeMetadata: true, filter })`.
-4. Map each match into a `VectorSearchResult` (check its shape in `lib/types.ts`) — id, score, the metadata fields, and a truncated `contentPreview`.
+4. Map each match into a `VectorSearchResult` (check its shape in `lib/types.ts`) — id, score, `patientId`, a display name assembled from the `firstName`/`lastName` metadata, and a truncated `contentPreview`.
 
 Write it before opening the solution.
 
@@ -76,17 +78,17 @@ import 'dotenv/config';
 import { searchClinicalNotes } from '../lib/vector-search';
 
 async function main() {
-  const query = process.argv[2] ?? 'patient struggling to breathe';
-  const patientId = process.argv[3]; // optional filter
-  const results = await searchClinicalNotes(query, {
-    topK: 5,
-    patientIds: patientId ? [patientId] : undefined,
-  });
-  console.log(`\nQuery: "${query}"${patientId ? `  (patient ${patientId})` : ''}\n`);
-  for (const r of results) {
-    console.log(r.score.toFixed(3), '·', r.patientName, '·', r.documentType);
-    console.log('   ', r.contentPreview.slice(0, 120).replace(/\s+/g, ' '), '\n');
-  }
+	const query = process.argv[2] ?? 'patient struggling to breathe';
+	const patientId = process.argv[3]; // optional filter
+	const results = await searchClinicalNotes(query, {
+		topK: 5,
+		patientIds: patientId ? [patientId] : undefined,
+	});
+	console.log(`\nQuery: "${query}"${patientId ? `  (patient ${patientId})` : ''}\n`);
+	for (const r of results) {
+		console.log(r.score.toFixed(3), '·', r.patientName);
+		console.log('   ', r.contentPreview.slice(0, 120).replace(/\s+/g, ' '), '\n');
+	}
 }
 main();
 ```
@@ -122,6 +124,10 @@ npx ts-node --compiler-options '{"module":"CommonJS"}' scripts/search.ts "chest 
 
 Every hit now shares that one patient. That's the boundary — enforced by one `filter` field.
 
+### 5. From function to endpoint
+
+In class we wrap this function in an API route — `/api/search`, a thin POST handler that validates the request body and calls `searchClinicalNotes`. The route is plumbing; the function you just wrote is the engine, and it's the same engine everything later in the course (the agent, the tools) will call.
+
 ### Common mistakes
 
 - **Filtering after the query instead of in it.** `index.query(...)` then `.filter(r => patientIds.includes(...))` *looks* equivalent and isn't — you get "global top 10 minus strangers" (often empty) instead of "this patient's top 10." The filter belongs inside the query.
@@ -149,39 +155,49 @@ A working implementation:
 
 ```typescript
 export async function searchClinicalNotes(
-  query: string,
-  options: VectorSearchOptions = {}
+	query: string,
+	options: VectorSearchOptions = {},
 ): Promise<VectorSearchResult[]> {
-  const { topK = 10, patientIds } = options;
+	const { topK = 10, patientIds } = options;
 
-  const index = getPinecone().Index(getIndexName());
-  const queryEmbedding = await createEmbedding(query);
+	const index = pinecone.Index(INDEX_NAME);
+	const queryEmbedding = await createEmbedding(query);
 
-  let filter: Record<string, unknown> | undefined;
-  if (patientIds && patientIds.length > 0) {
-    filter = patientIds.length === 1
-      ? { patientId: patientIds[0] }
-      : { patientId: { $in: patientIds } };
-  }
+	let filter: Record<string, unknown> | undefined;
+	if (patientIds && patientIds.length > 0) {
+		filter =
+			patientIds.length === 1
+				? { patientId: patientIds[0] }
+				: { patientId: { $in: patientIds } };
+	}
 
-  const results = await index.query({
-    vector: queryEmbedding,
-    topK,
-    includeMetadata: true,
-    filter,
-  });
+	const results = await index.query({
+		vector: queryEmbedding,
+		topK,
+		includeMetadata: true,
+		filter,
+	});
 
-  return (results.matches ?? []).map((match) => ({
-    id: match.id,
-    score: match.score ?? 0,
-    patientId: (match.metadata?.patientId as string) ?? '',
-    patientName: (match.metadata?.patientName as string) || undefined,
-    documentType: (match.metadata?.type as string) || 'Clinical Note',
-    date: (match.metadata?.date as string) || undefined,
-    contentPreview: truncateContent((match.metadata?.content as string) ?? '', 500),
-  }));
+	return (results.matches ?? []).map((match) => {
+		const meta = match.metadata ?? {};
+		const patientName = [meta.firstName, meta.lastName]
+			.filter(Boolean)
+			.join(' ');
+		const content = (meta.content as string) ?? '';
+		return {
+			id: match.id,
+			score: match.score ?? 0,
+			patientId: (meta.patientId as string) ?? '',
+			patientName: patientName || undefined,
+			documentType: 'Clinical Note', // every vector in this index is a note
+			contentPreview:
+				content.length > 500 ? content.slice(0, 500) + '…' : content,
+		};
+	});
 }
 ```
+
+Note the mapping: the vectors carry `firstName`/`lastName` (the metadata you chose during vectorize), so the display name is assembled here. The note *text* rides along in the `content` metadata field — that's what makes `contentPreview` possible without a trip back to Postgres.
 
 **Filter placement, two reasons:** *quality* — a post-filter discards globally-ranked strangers and can leave you zero of the patient's actually-relevant notes; *safety* — post-filtering means other patients' note content transits your app on every query, one log line away from a privacy incident. In-query filtering means it never leaves the database.
 
@@ -194,4 +210,3 @@ export async function searchClinicalNotes(
 ## Further reading (optional)
 
 - [Pinecone: metadata filtering](https://docs.pinecone.io/guides/index-data/indexing-overview#metadata) — the full filter syntax beyond `$in`.
-</content>

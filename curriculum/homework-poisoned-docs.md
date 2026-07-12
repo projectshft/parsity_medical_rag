@@ -98,4 +98,3 @@ The challenge is the work. Additionally, capture for your postmortem:
 
 - [OWASP: LLM01 prompt injection](https://genai.owasp.org/llmrisk/llm01-prompt-injection/) — reread the "indirect" section now that you've been hit by it; it'll read like a description of your afternoon
 - [Simon Willison: prompt injection](https://simonwillison.net/series/prompt-injection/) — the running chronicle of why this problem is unsolved, by the person who named it
-</content>

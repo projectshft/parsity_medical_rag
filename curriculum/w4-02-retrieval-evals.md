@@ -1,6 +1,6 @@
 # Retrieval Evals: hit@5, Compared to What
 
-**Needs: vector search working; `OPENAI_API_KEY`, `PINECONE_API_KEY`, and (for the second run) `COHERE_API_KEY` in `.env`**
+**Needs: vector search working; `OPENAI_API_KEY` and `PINECONE_API_KEY` in `.env` — the reranker runs on the same Pinecone key, no extra account needed**
 
 ## Today you will
 
@@ -83,18 +83,29 @@ Run it. Whatever number comes out — 60%, 80%, 93% — **that is your system's 
 
 ### 3. Score it a second time — with the reranker
 
-Now the payoff. The reranker (`rerankResults` in `lib/reranker.ts`) re-orders a wide candidate list using a second model that reads query and document *together*. It only helps if you **over-fetch** first — hand it 25 candidates, keep the best 5 — because a relevant note buried at #19 by cosine is invisible unless the funnel mouth is wide enough to include it before the reranker gets a look. (Fetch 5 and rerank 5 and the reranker early-returns unchanged: there's no depth to reorder.)
+Now the payoff. The reranker (`rerankResults` in `lib/reranker.ts` — Pinecone's hosted `bge-reranker-v2-m3`, on the same `PINECONE_API_KEY`) re-orders a wide candidate list using a second model that reads query and document *together*. It only helps if you **over-fetch** first — hand it 25 candidates, keep the best 5 — because a relevant note buried at #19 by cosine is invisible unless the funnel mouth is wide enough to include it before the reranker gets a look. (Fetch 5 and rerank 5 and the reranker early-returns unchanged: there's no depth to reorder.)
 
-Copy the harness and swap the search path to over-fetch then rerank, scoring the *same* eval set:
+Copy the harness and swap the search path to over-fetch then rerank, scoring the *same* eval set. `rerankResults` takes the `SearchResult` shape from `lib/pinecone` (it reranks on `.content`), so adapt what `searchClinicalNotes` returns:
 
 ```typescript
-import { searchChunks } from '../lib/pinecone';
+import { searchClinicalNotes } from '../lib/vector-search';
 import { rerankResults } from '../lib/reranker';
 
-const candidates = await searchChunks(c.query, 25);      // wide funnel mouth
-const top5 = await rerankResults(c.query, candidates, 5); // keep the best 5
+const candidates = await searchClinicalNotes(c.query, { topK: 25 }); // wide funnel mouth
+const top5 = await rerankResults(
+  c.query,
+  candidates.map((r) => ({
+    id: r.id,
+    score: r.score,
+    content: r.contentPreview,
+    metadata: { patientId: r.patientId, source: 'clinical-note' },
+  })),
+  5 // keep the best 5
+);
 const hit = top5.some((r) => r.metadata.patientId === c.expectPatientId);
 ```
+
+One trap to know before you read your numbers: `rerankResults` fails **soft** — if the Pinecone rerank call errors, it logs `Reranking failed` and returns the original vector order. Two identical rows in your table can mean "reranking doesn't help here" *or* "reranking never actually ran." Check the console before you conclude anything.
 
 Fill in the table:
 

@@ -12,7 +12,7 @@
 
 You can't build good retrieval over data you haven't read. Today is reading — and the data is already sitting in Postgres, so there's nothing to load. You just look.
 
-The database holds **1,278 synthetic patients**. Synthetic is the point: statistically realistic (real conditions, real medication patterns, real messiness) but zero actual humans, so there's no privacy risk while you learn. Later, when you build PII handling, you'll be glad you practiced on data that's safe to break.
+The database holds **200 synthetic patients**. Synthetic is the point: statistically realistic (real conditions, real medication patterns, real messiness) but zero actual humans, so there's no privacy risk while you learn. Later, when you build PII handling, you'll be glad you practiced on data that's safe to break.
 
 Six tables carry everything you'll touch this course:
 
@@ -40,14 +40,14 @@ The first five are **structured rows**: exact values the database queries exactl
 
 The single most important fact about this data: **a patient is not one note — they're many.**
 
-The average patient has about **113 notes** (143,946 notes ÷ 1,278 patients). The spread is wild: some patients have 2, one has **2,162**. Each note is one encounter — one visit, one date, one self-contained narrative.
+The average patient has about **105 notes** (21,090 notes ÷ 200 patients). The spread is wild: some patients have just a handful, one has **1,632**. Each note is one encounter — one visit, one date, one self-contained narrative.
 
 That has consequences you'll feel all week:
 
-- "Summarize *this patient's* health history" means gathering *their* notes out of ~144,000 — so every note had better be tagged with *which patient it belongs to*.
+- "Summarize *this patient's* health history" means gathering *their* notes out of ~21,000 — so every note had better be tagged with *which patient it belongs to*.
 - A single patient's chart is dozens of separate pieces, not one document. When you make notes searchable, each note becomes its own searchable unit.
 
-Hold onto the number 113. It comes back when you build search and when you decide (later this week) whether the notes need splitting.
+Hold onto the number 105. It comes back when you build search and when you decide (later this week) whether the notes need splitting.
 
 ## Implementation
 
@@ -89,11 +89,11 @@ Run it:
 npx ts-node --compiler-options '{"module":"CommonJS"}' meet-the-data.ts
 ```
 
-You should see ~113 notes per patient.
+You should see ~105 notes per patient.
 
 ### Common mistakes
 
-- **Assuming every patient has the same records.** Counts vary wildly — one patient has 2 notes, another has hundreds. Any code you write must handle "0 of X" gracefully.
+- **Assuming every patient has the same records.** Counts vary wildly — one patient has a handful of notes, another has hundreds. Any code you write must handle "0 of X" gracefully.
 - **Thinking the note text isn't in Postgres.** It is — `note.content` holds the full note. Postgres just can't search it by *meaning*, which is the whole reason the vector store exists. Postgres is the source of truth for everything, text included.
 - **Reading a patient as a single document.** A patient is a *collection* of notes across time. That's why the per-note patient tag matters so much.
 
@@ -120,11 +120,10 @@ Spend **no more than 30 minutes** here.
 
 **Different record counts are expected** because (1) sicker or older patients accumulate more encounters, and (2) the synthetic generator randomizes life trajectories. Variance is the data being realistic.
 
-**Why every note needs a patient tag:** with ~144,000 notes pooled together, "summarize this patient" is only possible if each note remembers which patient it belongs to. Lose that tag and one patient's notes bleed into another's answers — a privacy problem, not just a relevance one.
+**Why every note needs a patient tag:** with ~21,000 notes pooled together, "summarize this patient" is only possible if each note remembers which patient it belongs to. Lose that tag and one patient's notes bleed into another's answers — a privacy problem, not just a relevance one.
 
 </details>
 
 ## Further reading (optional)
 
 - [Synthea Coherent Data Set — MITRE](https://synthea.mitre.org/downloads) — where this synthetic data originally comes from, if you're curious about the source.
-</content>

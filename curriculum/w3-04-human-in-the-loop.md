@@ -6,7 +6,7 @@
 
 - Give the system its first ability to *act* on the world — booking appointments
 - Build the human-in-the-loop pattern: AI proposes, human approves, code executes
-- Read the intent detection (structured outputs again), the confirmation card, and the traced action
+- Read the intent detection (structured outputs again), the existence check, and the confirmation card
 
 ## Concept
 
@@ -30,7 +30,7 @@ Notice also *where the boundary sits*: the LLM's authority ends at **proposing s
 
 ## Implementation
 
-Three pieces, all provided on the solution branch — read them as a working example of the pattern, then probe it. The chat UI's confirmation card is already built; it appears when the agent emits a scheduling action.
+Three pieces, all provided on the solution branch — read them as a working example of the pattern, then probe it. The chat UI's confirmation card is already built. How the proposal reaches it is worth noticing: the chat route (`app/api/chat/route.ts`) runs `detectSchedulingIntent` on every turn, and — only if the named patient actually exists (`findPatientByName` in `lib/patients.ts`) — attaches the proposed action as an `X-Scheduling-Action` response header. The UI reads the header off the response and renders the card next to the streamed answer. Two gates before any card even appears: the model must detect intent, and the patient must be real.
 
 ### 1. Intent detection — `lib/scheduling.ts`
 
@@ -46,11 +46,11 @@ const SchedulingIntentSchema = z.object({
 });
 ```
 
-Two things to notice. First, the nullable fields: `patientName` is `.nullable()` so the model has a way to say *"I don't know"* — **do not invent a patient.** Second, the date trap: **"next Tuesday" needs today's date**, and the model doesn't reliably know it. The system prompt injects `Today's date is ${todayStr}` and demands resolved `YYYY-MM-DD` output — the code owns the calendar math, not the model. The whole function runs inside `traced(...)`, because a write path gets recorded.
+Two things to notice. First, the nullable fields: `patientName` is `.nullable()` so the model has a way to say *"I don't know"* — **do not invent a patient.** Second, the date trap: **"next Tuesday" needs today's date**, and the model doesn't reliably know it. The system prompt injects `Today's date is ${todayStr}` and demands resolved `YYYY-MM-DD` output — the code owns the calendar math, not the model.
 
 ### 2. The action — `lib/calendar.ts` and `app/api/schedule/route.ts`
 
-`scheduleAppointment(request)` in `lib/calendar.ts` is one Cal.com API call (`POST ${CAL_API_BASE}/bookings?apiKey=...`). `isCalConfigured()` guards it — the route returns a 503 when Cal.com isn't set up rather than crashing. The route handler receives the *confirmed* values from the UI (the card's current state, not the model's raw extraction) and books.
+`scheduleAppointment(request)` in `lib/calendar.ts` is one Cal.com API call (`POST ${CAL_API_BASE}/bookings?apiKey=...`). `isCalConfigured()` guards it — the route returns a 503 when Cal.com isn't set up rather than crashing. The route handler receives the *confirmed* values from the UI (the card's current state, not the model's raw extraction) and books. After a successful booking there's one optional extra: if Retell is configured, the route places a best-effort confirmation phone call (`callToConfirmAppointment`) — wrapped so a failed call never undoes a successful booking.
 
 Run the loop in the chat UI: *"schedule Abe for next Tuesday at 2pm"* → a card appears with extracted values → adjust the time → confirm.
 
@@ -60,15 +60,15 @@ Run the loop in the chat UI: *"schedule Abe for next Tuesday at 2pm"* → a card
 
 - **Letting the model's output reach the API directly.** If the confirm button posts the *model's* extraction rather than the *card's current values*, the human gate is decoration — the user's edits vanish and the model effectively booked. The card state, not the model output, is the source of truth.
 - **Defaulting instead of asking.** No patient name extracted? The wrong move is scheduling for a guessed patient; the right move is `patientName: null` and a card that demands a human fill it. Nullable schema fields are how the model says "I don't know" — honor them end to end.
-- **Skipping the trace on the write path.** Reads get traced for debugging; *writes* get traced for accountability. "Which appointments did the system book last week, triggered by whom?" must be answerable.
+- **Leaving the write path off your observability plan.** When you wire tracing next week, the write path goes first: reads get traced for debugging, *writes* get traced for accountability. "Which appointments did the system book last week, triggered by whom?" must be answerable.
 - **Date math in the model.** If `detectSchedulingIntent` shows flaky dates, resist prompt-tinkering toward calendar arithmetic. Resolve relative dates in code — deterministic work belongs in deterministic layers.
 
 ## Your turn
 
 Spend **no more than 45 minutes** here.
 
-1. Trigger the flow in the chat UI and watch the card appear with extracted values. (Without Cal.com configured the confirm returns a clean 503 — expected; the proposal step is what you're studying.) If you have Cal.com configured, book one real appointment and find the trace.
-2. Probe the gate: try to schedule with no patient name; with a date in the past; while mid-conversation about a *different* patient (`detectSchedulingIntent` reads the last 4 messages — does that help or grab the wrong name from history?). Record behaviors in your failure notes — these are new bait categories for a system that can act.
+1. Trigger the flow in the chat UI and watch the card appear with extracted values — then open the network tab and find the `X-Scheduling-Action` header on the chat response, the proposal in transit. (Without Cal.com configured the confirm returns a clean 503 — expected; the proposal step is what you're studying.) If you have Cal.com configured, book one real appointment.
+2. Probe the gate: try to schedule with no patient name; with a made-up patient (the `findPatientByName` check should mean no card appears at all); with a date in the past; while mid-conversation about a *different* patient (`detectSchedulingIntent` reads the last 4 messages — does that help or grab the wrong name from history?). Record behaviors in your failure notes — these are new bait categories for a system that can act.
 3. In your notes: list two more actions this system might someday take (refill request? referral letter?) and, for each, place it on the reversibility/cost grid — gate, or no gate?
 
 ## Check yourself
@@ -92,4 +92,3 @@ Spend **no more than 45 minutes** here.
 ## Further reading (optional)
 
 - [Cal.com API documentation](https://cal.com/docs/api-reference) — the booking endpoint behind today's one consequential function call
-</content>

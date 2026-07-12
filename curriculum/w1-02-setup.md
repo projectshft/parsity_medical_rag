@@ -27,7 +27,7 @@ Three services, three jobs:
 | **OpenAI** | Turns text into vectors (embeddings) and powers LLM answers | You, with a key |
 | **Pinecone** | The vector store — the searchable-by-meaning index you'll build this week | You, with a key |
 
-The big thing to internalize: **you are joining a company that already has its data.** Nobody creates or seeds the database. You're given a connection string to a database that's already full — 1,278 patients, ~143,946 notes — and you connect **read-only**. The layer you build this week (the vector store) sits on top of it.
+The big thing to internalize: **you are joining a company that already has its data.** Nobody creates or seeds the database. You're given a connection string to a database that's already full — 200 patients, ~21,090 notes — and you connect **read-only**. The layer you build this week (the vector store) sits on top of it.
 
 > **Why `.env` and not hardcoding keys?** A key in source is a key in git history forever, readable by anyone with repo access. `.env` is gitignored — it never leaves your machine. A leaked OpenAI key means someone spends your money; a leaked database URL means someone reads the data. Treat `.env` like a password file, because it is one.
 
@@ -137,4 +137,3 @@ git status         # .env is NOT listed
 ## Further reading (optional)
 
 - [Neon docs: connection errors](https://neon.tech/docs/connect/connection-errors) — if your `DATABASE_URL` misbehaves.
-</content>
