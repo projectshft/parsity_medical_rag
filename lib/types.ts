@@ -1,6 +1,3 @@
-// Query analysis types now live with the selector agent.
-export type { QueryAnalysis, QueryIntent } from './agents/selector';
-
 // Vector search result
 export interface VectorSearchResult {
   id: string;

@@ -18,7 +18,7 @@ import { streamText, tool } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import { searchClinicalNotes } from "./vector-search";
-import { textToSqlQuery } from "./text-to-sql";
+import { textToSqlQuery } from "./agents/sql";
 import type { Message } from "./agent";
 
 // Honor OPENAI_BASE_URL (the LiteLLM proxy) — same wiring as lib/agent.ts.

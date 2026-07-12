@@ -2,7 +2,7 @@
  * RAG agent — returns TEXT (never streams).
  *
  * Meaning-based search over the clinical notes, rendered into a context block
- * for the aggregator (or for /api/query and MCP).
+ * for the aggregator (or for MCP).
  */
 
 import { searchClinicalNotes } from '../vector-search';
