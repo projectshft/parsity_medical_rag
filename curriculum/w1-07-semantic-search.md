@@ -143,6 +143,44 @@ Spend **no more than 60 minutes** here (including implementing the function).
 2. Test the patient filter: pick one patient id, search a symptom with `{ patientIds: [thatId] }`, and confirm *every* result belongs to that patient.
 3. The keyword shootout: pick a clinical concept and search it three ways — clinical term, plain-English phrasing, and a *misspelled* version. Record the top-3 for each. Where does the geometry shine, and where does it wobble?
 
+```quiz
+[
+  {
+    "q": "Why must the patientId filter live INSIDE index.query rather than filtering the results afterward?",
+    "options": [
+      "Post-filtering is slower but produces the same results",
+      "Pinecone rejects queries that aren't followed by a filter step",
+      "Post-filtering gives you 'the global top 10 minus strangers' — often zero of the patient's relevant notes — and strangers' note content transits your app on every query",
+      "In-query filters are the only way to sort results by score"
+    ],
+    "answer": 2,
+    "explain": "Two failures at once. Quality: the index finds the top-K among ONLY matching vectors, so filtering inside returns the patient's true top 10. Safety: post-filtering means other patients' notes leave the database on every query — one log line away from a privacy incident."
+  },
+  {
+    "q": "What's the division of labor between a vector's text and its metadata?",
+    "options": [
+      "The text is matched by meaning; metadata is what search can filter, cite, and trace by — and those filters are exact-match, not semantic",
+      "Metadata is also searched by meaning, just at lower priority than the text",
+      "The text is only for display; metadata is what actually gets embedded",
+      "They're interchangeable — Pinecone merges them before embedding"
+    ],
+    "answer": 0,
+    "explain": "Meaning lives in the text; facts live in the metadata. A filter on currentMedications compares whole strings — 'aspirin' won't match 'Aspirin 81 MG Oral Tablet'. Two different tools, and confusing them is a classic silent failure."
+  },
+  {
+    "q": "Your search for 'diabetes medication side effects' returns notes scoring 0.45–0.55, while gibberish returns 0.30–0.35. What can you conclude?",
+    "options": [
+      "The 0.45–0.55 notes are good answers — they cleared the gibberish baseline",
+      "The notes are more related than gibberish — relative information only; whether they actually answer the question is empirical, settled by retrieval evals, not by the score",
+      "The search is broken — real matches should score above 0.9",
+      "Nothing — cosine scores in that range are indistinguishable from noise"
+    ],
+    "answer": 1,
+    "explain": "Same lesson as the embeddings day, now in production: scores rank candidates for one query, they don't certify answers. No absolute threshold exists, and pretending one does is how systems quietly return confident garbage."
+  }
+]
+```
+
 ## Check yourself
 
 - Why must the patient filter live inside `index.query` rather than after it? Give both reasons — one about quality, one about safety.

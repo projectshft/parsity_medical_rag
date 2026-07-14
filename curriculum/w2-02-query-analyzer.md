@@ -160,6 +160,41 @@ Spend **no more than 90 minutes** here.
 3. **Try to break the safety guard.** Craft a question that tries to get the model to write something other than a `SELECT` (it will usually refuse, but try). Confirm your validator rejects anything that slips through.
 4. Add five queries of your own to the routing battery, including one follow-up that only works with history. Any misroutes? Fix the prompt, not the caller.
 
+```quiz
+[
+  {
+    "q": "The SQL agent clearly needs condition names and age filters. Why doesn't the selector extract them while it's reading the question anyway?",
+    "options": [
+      "Extracting entities would make the selector's LLM call too slow to run on every message",
+      "The Plan schema can't express arrays of entities, so there's nowhere to put them",
+      "The SQL agent re-derives them better because it holds the database schema; upstream extraction is done blind and adds a second place for the same question to break"
+    ],
+    "answer": 2,
+    "explain": "The filters are a function of the schema — which columns exist, what the joins are — and only the SQL agent has it. A selector that only routes can only misroute: one failure mode, easy to inspect. A fat selector creates a routing bug AND an extraction bug per question."
+  },
+  {
+    "q": "Why keep BOTH the SELECT-only validator and a read-only database role — isn't one enough?",
+    "options": [
+      "The validator is a regex and regexes are foolable; the role is enforced by Postgres itself — the validator makes the common case cheap, the role makes the worst case impossible",
+      "The validator handles injection from users while the role handles injection from the LLM",
+      "The role only applies in production, so the validator is there to protect your dev database"
+    ],
+    "answer": 0,
+    "explain": "Defense in depth. The in-process check catches the obvious (DROP, stacked statements) before anything runs, but a query that beats it still physically cannot write, because the connecting role has no write grant."
+  },
+  {
+    "q": "The full table schema is in the prompt, yet 'any smokers?' confidently returns 0 rows. What's missing?",
+    "options": [
+      "A richer schema prompt — the model needs column types and indexes to write correct SQL",
+      "Semantic grounding — the schema says a display column exists, not that its value is 'Smokes tobacco daily'; the model needs the real vocabulary (distinct values or a synonym map)",
+      "The safety validator stripped the WHERE clause, so the query matched nothing"
+    ],
+    "answer": 1,
+    "explain": "The SQL was syntactically perfect — ILIKE '%smoker%' over the wrong vocabulary. The schema is structure; grounding is meaning. Text-to-SQL needs both, and a confident wrong 'none' is the failure smell that tells you grounding is the gap."
+  }
+]
+```
+
 ## Check yourself
 
 - Why does the selector *not* extract condition names or age filters, when the SQL agent will clearly need them?

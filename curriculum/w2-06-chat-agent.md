@@ -80,6 +80,41 @@ Spend **no more than 60 minutes** here.
 2. Run the three probes; if any misbehaves, sharpen the prompt until it behaves — and re-check two happy paths after each change (the both-sides rule).
 3. In your notes, save the final prompt plus a three-line changelog: probe that failed → sentence you added → result. That artifact — *a prompt change justified by observed behavior* — is the unit of work for the failure session next.
 
+```quiz
+[
+  {
+    "q": "What is the core rule of the grounding contract?",
+    "options": [
+      "The model must avoid all medical topics and only quote records verbatim",
+      "The model decides and writes, but it is never the source of facts — no record means no claim, and 'the retrieved records don't contain this' is an approved answer",
+      "When the records are thin, the model should fall back on its medical training data, clearly labeled"
+    ],
+    "answer": 1,
+    "explain": "For these patients, the model's million textbooks are noise — the only truth is what retrieval returned. And because retrieval always returns SOMETHING, saying the data doesn't answer has to be an explicitly encouraged answer shape, or the nearest neighbors will get quoted anyway."
+  },
+  {
+    "q": "You add a no-medical-advice refusal rule and the dosing probe now refuses correctly. Why must you re-test the happy paths too?",
+    "options": [
+      "A guardrail is a classifier with two error modes — an over-broad refusal starts declining legitimate work, like summarizing medication lists, and those are the failures staff hit fifty times a day",
+      "Prompt changes can corrupt the streamed output format",
+      "You don't need to — refusal rules only affect requests that ask for advice"
+    ],
+    "answer": 0,
+    "explain": "Probing only the refusal side lets false-positives grow unwatched. Every contract sentence gets a probe on BOTH sides: does it refuse what it should, and does it still do what it must?"
+  },
+  {
+    "q": "Why does the retrieved context ride in the user turn while the contract sits in the system prompt?",
+    "options": [
+      "The system prompt has a hard length limit that patient records would overflow",
+      "Models weight the user turn more heavily, so the data gets more attention there",
+      "System prompt = standing orders, user turns = situations: the contract stays static (and cacheable) while per-query data flows through the turns"
+    ],
+    "answer": 2,
+    "explain": "Both layouts can work in production — what matters is the separation: rules live in the system prompt, data flows through the turns. Don't scatter rules into the data or data into the rules."
+  }
+]
+```
+
 ## Check yourself
 
 - Recite the four clauses of the grounding contract from memory.

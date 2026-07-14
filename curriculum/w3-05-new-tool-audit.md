@@ -69,6 +69,41 @@ One question: **what does one call to your new tool cost?** Count the LLM calls 
 
 This *is* the your-turn: the tool, the checklist, the four-step proof sequence with captured output, and the cost figure. Spend **no more than 30 minutes** on tool choice — the value is in steps 2–4, not in tool novelty.
 
+```quiz
+[
+  {
+    "q": "What must a new tool preserve to belong on the front-office MCP channel?",
+    "options": [
+      "It must be read-only and require an API key",
+      "It must answer a front-office-shaped question AND obscure every name or identifier in its output",
+      "It must run its results through the clinician channel's aggregator first"
+    ],
+    "answer": 1,
+    "explain": "The channel is safe because of two properties — non-PII-shaped tools and always-obscured output — and a new tool has to preserve both. Skip either and the front-office door quietly becomes a PII leak with no error to catch it."
+  },
+  {
+    "q": "Why is 'a client can discover and call it' stronger proof than 'the function returns the right data when I call it directly'?",
+    "options": [
+      "The client round-trip exercises the actual shipped contract: schema validity, description legibility, return shape, and the transport",
+      "Direct function calls skip the database, so they don't test real data",
+      "Clients cache results, so only a client call tests production behavior"
+    ],
+    "answer": 0,
+    "explain": "Calling the function tests your code in your process with your assumptions. tools/list + tools/call tests what a foreign client actually consumes — plenty of tools 'work' locally and fail on discovery (bad schema, wrong return shape, a stray stdout write)."
+  },
+  {
+    "q": "Per call, which candidate tool is likely 10–100× more expensive than the others, and why?",
+    "options": [
+      "list_conditions — aggregate SQL queries scan the whole table",
+      "query_notes — every search embeds the query text",
+      "summarize_patient — it runs retrieval plus a full LLM completion inside the handler"
+    ],
+    "answer": 2,
+    "explain": "list_conditions is one SQL query (effectively free); query_notes is one embedding call (fractions of a cent); summarize_patient pays for retrieval AND a full LLM completion over a rendered chart. A tool's price tag is part of its spec."
+  }
+]
+```
+
 ## Check yourself
 
 - You add a tool that returns clinical-note text. What's your obscuring responsibility, and where does it live in the code?

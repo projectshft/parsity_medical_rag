@@ -131,6 +131,41 @@ Someone will ask. The only honest answer is: **compared to what?** A number mean
 
 This *is* the your-turn: 15+ pairs, the harness, **both** configurations scored, the table filled in your notes. Spend **no more than 30 minutes** reading failures before drawing conclusions — then write three sentences: what's your hit@5, did reranking earn its place, and which failed case taught you the most?
 
+```quiz
+[
+  {
+    "q": "Why must eval queries be written in different words than the notes they're supposed to find?",
+    "options": [
+      "Verbatim queries make the eval run slower because they match too many notes",
+      "A query that quotes the note tests only whether the database can find itself — the instrument must encode the user's vocabulary",
+      "The embedding model rejects exact duplicates of indexed text"
+    ],
+    "answer": 1,
+    "explain": "Users type 'trouble sleeping', not 'reports difficulty falling asleep, wakes frequently'. Verbatim pairs inflate every score and can't discriminate between configurations — the meaning gap between query and note is the very thing you're measuring."
+  },
+  {
+    "q": "Someone asks: 'Is your 73% hit@5 good?' The only honest answer?",
+    "options": [
+      "Yes — anything over 70% is production-grade retrieval",
+      "'Compared to what?' — an eval hands you a difference between configurations, not a grade",
+      "No — production systems need at least 95% before shipping"
+    ],
+    "answer": 1,
+    "explain": "A number in isolation is meaningless; it means everything next to the same number for a different configuration, or last month's system. Evals create differences, not grades — that's the whole discipline in one sentence."
+  },
+  {
+    "q": "Why over-fetch (say, 25 candidates) before reranking down to 5?",
+    "options": [
+      "A relevant note ranked #19 by cosine never reaches the reranker unless the funnel mouth is wide enough to include it",
+      "The reranker needs at least 25 documents to calibrate its scores",
+      "Over-fetching warms the vector index cache, making reranking faster"
+    ],
+    "answer": 0,
+    "explain": "Rerank 5 of 5 and there's no depth to reorder — the reranker early-returns unchanged. Its whole value is rescuing relevant documents that cosine buried, which requires fetching deep enough that they make the candidate list at all."
+  }
+]
+```
+
 ## Check yourself
 
 - You're done when the table above has your two numbers and a dated entry in your notes.

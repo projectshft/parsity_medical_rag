@@ -148,6 +148,41 @@ Spend **no more than 60 minutes** here.
 2. Trace five queries, including one hybrid. Do the step-2 read-through on the hybrid one.
 3. Answer three questions in your notes, **with numbers**: Which step is slowest? What did the model receive for one query — and was it what you assumed? How many LLM calls did one chat turn make? (Count them in the trace.)
 
+```quiz
+[
+  {
+    "q": "What does a trace give you that log lines can't?",
+    "options": [
+      "Proof that the model's answer was factually correct",
+      "The request as a tree — each step's inputs, outputs, and timing, including the exact context the model received",
+      "Automatic alerts when latency exceeds a threshold"
+    ],
+    "answer": 1,
+    "explain": "Logging is lines; a trace is a tree that stores the exact text the model saw at every step. That one field turns 'the AI hallucinated!' into 'retrieval handed it the wrong context' — a diagnosis instead of a guess."
+  },
+  {
+    "q": "The function inside traced() throws. What must the wrapper do?",
+    "options": [
+      "Catch the error, record it on the run, and return undefined so the request survives",
+      "Record the error on the run, then re-throw it to the caller",
+      "Retry the function once before recording anything"
+    ],
+    "answer": 1,
+    "explain": "A trace is a witness, not a participant: it reports the crime, never commits one. Swallow the error and every downstream bug becomes 'why is this undefined' instead of the real stack trace. (The twin rule: the wrapper must never throw its OWN error — tracing failures degrade to console noise, never to a dead request.)"
+  },
+  {
+    "q": "One hybrid chat turn makes how many LLM calls?",
+    "options": [
+      "One — the model that writes the answer",
+      "Two — one to search, one to answer",
+      "Four — scheduling-intent check, selector, SQL agent, aggregator (plus an embedding on the note-search path)"
+    ],
+    "answer": 2,
+    "explain": "Most people guess one, and that gap is why observability matters: you can't debug calls you didn't know were happening, and you can't price them either. Every box in the trace is money."
+  }
+]
+```
+
 ## Check yourself
 
 You're done when you can answer these without scrolling up:

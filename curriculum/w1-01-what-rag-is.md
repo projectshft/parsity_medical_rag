@@ -134,6 +134,44 @@ Spend **no more than 30 minutes** here. Start a notes file you'll keep all cours
 2. For one `semantic` query: two phrasings that *mean the same thing but share zero keywords* (like "shortness of breath" vs "dyspnea"). You'll run these against your own system later this week.
 3. One question this system should **refuse** to answer. Keep it — it becomes a guardrail test later in the course.
 
+```quiz
+[
+  {
+    "q": "The database stores every note's full text. Why does LIKE '%shortness of breath%' still return zero rows for a patient who is, in fact, short of breath?",
+    "options": [
+      "The note text isn't actually stored in Postgres — only the vector store has it",
+      "The clinician wrote 'dyspnea on exertion' — LIKE matches letters, and the two phrasings share none",
+      "LIKE is case-sensitive, so it missed 'Shortness of Breath' in the note",
+      "Postgres can't run text searches over columns that large"
+    ],
+    "answer": 1,
+    "explain": "The text is right there in Postgres — that's not the problem. LIKE matches character sequences, and 'dyspnea on exertion' expresses the same fact with zero shared letters. The gap is spelling vs meaning, and no pile of OR clauses closes it."
+  },
+  {
+    "q": "A clinician asks: 'How many patients have type 2 diabetes?' What's the right tool, and why?",
+    "options": [
+      "Meaning-based search — it understands what diabetes means better than a WHERE clause",
+      "Either works equally well; they're interchangeable for most questions",
+      "The database — 'how many' needs an exact count, and meaning-search returns a ranked list of similar things, not an integer",
+      "The LLM directly — counting is simple enough that retrieval isn't needed"
+    ],
+    "answer": 2,
+    "explain": "Meaning-search answers 'what is similar to this?' — it cannot answer 'how many', 'most recent', or 'exactly which'. Half the skill of this course is recognizing which kind of question you're holding."
+  },
+  {
+    "q": "'RAG is dead — context windows are a million tokens now, just paste everything in.' What's wrong with that?",
+    "options": [
+      "Nothing — with a big enough window, retrieval genuinely becomes unnecessary",
+      "The corpus often doesn't fit anyway, and even when it does, stuffing it all in costs money per query and degrades answers — retrieval is selection",
+      "Context windows can't accept medical text for compliance reasons",
+      "LLMs refuse inputs over a few thousand tokens in practice"
+    ],
+    "answer": 1,
+    "explain": "These notes alone are ~5 million tokens — they don't fit. And even when data fits, models reason worse over haystacks and you pay for every token on every query. Retrieval is about selecting the right context, and selection is the point."
+  }
+]
+```
+
 ## Check yourself
 
 You're done when you can answer these without scrolling up:

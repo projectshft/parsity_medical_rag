@@ -71,6 +71,41 @@ Spend **no more than 45 minutes** here.
 2. Probe the gate: try to schedule with no patient name; with a made-up patient (the `findPatientByName` check should mean no card appears at all); with a date in the past; while mid-conversation about a *different* patient (`detectSchedulingIntent` reads the last 4 messages — does that help or grab the wrong name from history?). Record behaviors in your failure notes — these are new bait categories for a system that can act.
 3. In your notes: list two more actions this system might someday take (refill request? referral letter?) and, for each, place it on the reversibility/cost grid — gate, or no gate?
 
+```quiz
+[
+  {
+    "q": "Search tools run with no gate, but booking an appointment requires a human click. What's the principle behind the difference?",
+    "options": [
+      "Writes are always slower, so the gate hides the latency",
+      "Weigh reversibility against the cost of being wrong: a bad search costs a shrug and a rephrase; a hallucinated booking corrupts a real calendar",
+      "LLMs are reliably accurate at retrieval but unreliable at extraction"
+    ],
+    "answer": 1,
+    "explain": "The grid is reversibility × cost-of-wrong. Low-stakes and reversible: automate freely. Consequential and hard to undo: a human reviews the actual parameters before code executes. The question is never 'can the model do it' — it's 'what does wrong cost, and who absorbs it.'"
+  },
+  {
+    "q": "When the user clicks confirm, what should the schedule route receive?",
+    "options": [
+      "The model's original extraction — it's the structured, validated version",
+      "The confirmation card's current values — the human may have adjusted them",
+      "The raw user message, re-extracted server-side for consistency"
+    ],
+    "answer": 1,
+    "explain": "If confirm posts the model's extraction, the human gate is decoration — the user's edits vanish and the model effectively booked. The card state, not the model output, is the source of truth."
+  },
+  {
+    "q": "detectSchedulingIntent can't find a patient name in the request. What's the right behavior?",
+    "options": [
+      "Extract the most recently discussed patient from conversation history",
+      "Return patientName: null and let the card demand a human fill it in",
+      "Retry the extraction with a more insistent prompt until a name comes back"
+    ],
+    "answer": 1,
+    "explain": "Nullable schema fields are how the model says 'I don't know' — honor them end to end. Defaulting to a guessed or contextually-nearby patient is exactly how a scheduling system books the wrong person with full confidence."
+  }
+]
+```
+
 ## Check yourself
 
 - State the HITL boundary in one sentence: what is the LLM allowed to produce, and what is it never allowed to touch?

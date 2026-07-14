@@ -93,6 +93,41 @@ Spend **no more than 45 minutes** here.
 2. Ask a question your tools *can't* answer well ("compare all patients' kidney function trends"). Watch how the assistant copes — multiple calls? wrong tool? honest limits? In your notes: is the gap a missing tool, or a tool description that overpromises?
 3. From your observations in step 2: write the spec (name, description, parameters — no implementation) for a *new* tool this server should have. Keep it front-office-shaped (answerable without handing back one named person's full chart); the build lesson will want it.
 
+```quiz
+[
+  {
+    "q": "Why does the Claude Desktop config need an env block with your database URL and API keys?",
+    "options": [
+      "The client encrypts secrets passed through config, which is safer than .env files",
+      "The subprocess inherits nothing from your dev shell and never reads your repo's .env — every secret must be passed explicitly",
+      "MCP requires credentials at the protocol level for authentication"
+    ],
+    "answer": 1,
+    "explain": "Claude Desktop launches your server as a subprocess from ITS working directory, without your shell profile or your repo's .env. Nothing travels unless the config carries it — which also means production credentials now sit in a plaintext desktop config file. Every integration seam is a place credentials pool."
+  },
+  {
+    "q": "A tool call hangs forever in Claude Desktop but works fine in the MCP inspector. First suspect?",
+    "options": [
+      "Claude Desktop's network connection to the server dropped",
+      "The zod schema is rejecting the client's arguments",
+      "Something wrote to stdout on a code path only the client triggers, corrupting the stream"
+    ],
+    "answer": 2,
+    "explain": "Hangs-in-client-works-in-inspector is the signature of stdout pollution — a log line that only fires under the client's call pattern. Check the client's MCP log for the malformed line; the fix is console.error."
+  },
+  {
+    "q": "You edit claude_desktop_config.json, retest, and nothing changed. Most likely cause?",
+    "options": [
+      "The config is read only at app launch — you have to fully restart the client",
+      "The JSON needs to be minified before the client can parse it",
+      "Config changes require reinstalling the MCP server package"
+    ],
+    "answer": 0,
+    "explain": "Both Claude Desktop and Cursor read the config at startup. Edit, then fully quit and reopen (Cmd-Q, not just closing the window) before testing — 'I changed it and nothing happened' is almost always this."
+  }
+]
+```
+
 ## Check yourself
 
 - Why does the `env` block exist, and what's the uncomfortable implication of where those values now live?

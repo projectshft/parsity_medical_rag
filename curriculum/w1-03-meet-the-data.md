@@ -105,6 +105,44 @@ Spend **no more than 30 minutes** here.
 2. Read three notes from three different patients. Mark the section headers you see. Do they all follow the same SOAP scaffolding?
 3. Answer in writing: for *"patients on a blood pressure medication"*, which table would you query? For *"patients whose notes mention dizziness"*, which one — and why can't the first table answer the second question?
 
+```quiz
+[
+  {
+    "q": "Where does a clinical note's full text physically live?",
+    "options": [
+      "Only in the vector store — Postgres just holds a pointer to it",
+      "In Postgres, in note.content — Postgres is the source of truth for everything, text included",
+      "In the original FHIR files on disk; the database holds summaries",
+      "Split between Postgres (structured fields) and a separate document store (narrative)"
+    ],
+    "answer": 1,
+    "explain": "A common wrong mental model is that the text 'moves' to the vector store. It doesn't — Postgres holds everything. What Postgres can't do is search that text by meaning, which is the entire reason a derived index exists."
+  },
+  {
+    "q": "Why does 'one patient has many notes' force every note to carry a patient tag?",
+    "options": [
+      "Pinecone requires a tag field on every vector or the upsert fails",
+      "With ~21,000 notes pooled together, gathering one patient's chart is only possible if each note remembers whose it is — lose the tag and patients' records bleed into each other",
+      "It makes the notes smaller and cheaper to store",
+      "The tag is what lets Postgres search notes by meaning"
+    ],
+    "answer": 1,
+    "explain": "A patient is a collection of notes, not one document. Without the per-note tag, 'summarize this patient' is impossible — and worse, one patient's notes leak into another's answers: a privacy problem, not just a relevance one."
+  },
+  {
+    "q": "One patient has 8 notes; another has 1,632. Is the data broken?",
+    "options": [
+      "Yes — a well-formed dataset would have roughly equal records per patient",
+      "Probably — the ingest likely dropped notes for the first patient",
+      "No — sicker and older patients accumulate more encounters, and the synthetic generator randomizes life trajectories; variance is the data being realistic",
+      "No, but it means the first patient can be skipped when building search"
+    ],
+    "answer": 2,
+    "explain": "Real medical data is wildly uneven, and this synthetic set imitates that on purpose. The practical consequence: any code you write must handle 'a handful of X' and 'thousands of X' — and '0 of X' — gracefully."
+  }
+]
+```
+
 ## Check yourself
 
 - Where does a note's text physically live, and why can't the database search it by meaning?

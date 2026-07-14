@@ -114,6 +114,41 @@ Spend **no more than 45 minutes** here.
 2. Run your own labeled query list through the pipeline. For each: which specialists ran, and did it match the label you assigned before any of this existed? Fix misroutes in the selector's prompt and re-run the whole list.
 3. Find one query where the plan is right but a specialist's block would still mislead the aggregator (a preview truncated mid-fact, a "0 rows" that's really a vocabulary miss). Write down what you'd change — you'll want it when you harden the chat agent.
 
+```quiz
+[
+  {
+    "q": "Why do runSql and runRag return plain text while only the aggregator streams?",
+    "options": [
+      "Streaming from the specialists would double the token cost of every hybrid question",
+      "Text composes, logs cleanly, and can be inspected mid-pipeline; a stream is consume-once and merge-never — and the client can only render one stream anyway",
+      "The models the specialists use don't support streaming output"
+    ],
+    "answer": 1,
+    "explain": "Intermediate results need to be joined into one context, logged at the seam, and reused elsewhere later. Strings do all three. The one component that talks to the client — the aggregator — is the one that streams."
+  },
+  {
+    "q": "The selector returns needsSearch: false for 'what's a normal A1C range?'. What should the route do?",
+    "options": [
+      "Treat it as a misroute and default to the RAG agent so the answer is at least grounded in something",
+      "Return a canned refusal — the system only answers questions about these patient records",
+      "Run zero specialists and let the aggregator answer under GENERAL_PROMPT — the short-circuit is a legitimate path, not an error"
+    ],
+    "answer": 2,
+    "explain": "Forcing retrieval on every message burns two LLM calls to decorate a general question with someone's chart — which is how leaks and hallucinated groundings start. GENERAL_PROMPT answers from general knowledge and refuses to guess about patients it didn't look up."
+  },
+  {
+    "q": "The chat gives a wrong answer. What do you inspect first?",
+    "options": [
+      "The generated SQL — that's where most retrieval bugs live",
+      "The selector's plan — if the route was wrong, no downstream component ever saw the right data",
+      "The aggregator's prompt — it wrote the final answer, so it owns the mistake"
+    ],
+    "answer": 1,
+    "explain": "The plan is your first stack frame. If useRag came back false for a notes question, no amount of staring at Pinecone or the SQL helps — engineers who skip the plan 'fix' working code for hours. Plan wrong: fix the selector. Plan right: read the specialists' blocks next."
+  }
+]
+```
+
 ## Check yourself
 
 - Name the four agents and what each is responsible for. Where does the orchestration itself live?

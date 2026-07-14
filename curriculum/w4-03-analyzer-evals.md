@@ -120,6 +120,41 @@ Repeat if you have appetite — but every change gets its own before/after line.
 
 This *is* the your-turn: the labeled set, the harness, baseline numbers, and at least one fully-documented tuning cycle (change → three numbers before/after → verdict). Spend **no more than 30 minutes** labeling before you start running — perfect coverage matters less than starting the loop.
 
+```quiz
+[
+  {
+    "q": "Why is the selector graded with exact match (===) instead of an LLM judge?",
+    "options": [
+      "Exact match is free — judges should be used wherever budget allows",
+      "The selector is a classifier returning booleans: the correct route either came back or it didn't, no judgment call at scoring time",
+      "LLM judges can't evaluate another model's routing decisions reliably"
+    ],
+    "answer": 1,
+    "explain": "Match the scoring to the output shape. Booleans against hand-written labels need no similarity threshold and no second model — the cheapest, most certain eval there is. Save the judge for outputs with no string to compare against."
+  },
+  {
+    "q": "Why must the labels exist before you run the selector on the eval set?",
+    "options": [
+      "Because running the selector first costs API calls you haven't budgeted",
+      "Label after running and the model's own answers anchor your judgment — the eval converges on measuring agreement-with-itself",
+      "The harness requires the JSON file to parse before it can import the selector"
+    ],
+    "answer": 1,
+    "explain": "Copying the selector's output into 'expected' scores 100% forever and measures nothing. It's hypothesis-before-experiment — the same discipline as 'don't tune on the test set', one layer earlier: don't CREATE the test set from the thing under test."
+  },
+  {
+    "q": "One added prompt rule fixes the hybrid-vs-notes boundary. Why re-run the whole set instead of just the failing cases?",
+    "options": [
+      "A rule that fixes one boundary can quietly break another — the easy-case canaries catch the regression",
+      "Re-running everything gives the model more context for future runs",
+      "Partial runs invalidate the statistics of the eval"
+    ],
+    "answer": 0,
+    "explain": "This is what separates measurement from theater: check the numbers you weren't trying to move. With the harness, catching a regression costs one re-run; without it, you ship the fix and the break together, feeling good about both."
+  }
+]
+```
+
 ## Check yourself
 
 - Your `useSql` accuracy is 96% but `useRag` is 84%. What does that combination tell you about where the selector's confusion lives?

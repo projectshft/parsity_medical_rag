@@ -83,6 +83,41 @@ Spend **no more than 30 minutes** here.
 2. In your notes: the wiring lesson ended with "every conversation in that client can now reach your patient data — write that sentence down." Revisit it. What was actually alarming about it, and which of the two design decisions above defuses it? (Be precise: it's not that access is *denied* — it's that what's reachable was made *non-identifying*.)
 3. One sentence each: name a question a clinician needs answered that this MCP channel deliberately *can't* answer, and explain why that's the design working, not a gap.
 
+```quiz
+[
+  {
+    "q": "The MCP server has no login, no roles, no per-tool permission checks. What makes it safe to leave open to any assistant?",
+    "options": [
+      "Its tools are read-only, so a connected model can't do any damage",
+      "Claude Desktop asks the human for approval before every tool call",
+      "Nothing identifying is behind the door: the tool set is deliberately narrow and every response is obscured before it leaves"
+    ],
+    "answer": 2,
+    "explain": "This is channel-based access: instead of guarding a room full of sensitive data, you empty the room. A channel that cannot emit PII makes no runtime promise it can break — unlike a permission system, which holds only as long as every tool remembers to check."
+  },
+  {
+    "q": "A teammate proposes adding get_patient to the MCP server: 'it's read-only, so it's safe.' What's the flaw?",
+    "options": [
+      "Read-only tools still consume compute, so the server needs rate limiting first",
+      "Read-only says nothing about what it reads OUT — it would hand a foreign model a fully identified chart",
+      "Nothing, as long as the returned name is run through obscureName"
+    ],
+    "answer": 1,
+    "explain": "The property that keeps this channel safe is identifying-vs-not, not read-vs-write. And obscuring just the name while dumping the full record is theater — a tool whose PURPOSE can't survive pseudonymization belongs on the clinician channel, not this one."
+  },
+  {
+    "q": "When is role-based access the right tool instead of channel-based access?",
+    "options": [
+      "Whenever the data is medical — regulations require RBAC",
+      "When the same door must serve people with genuinely different entitlements to the same data",
+      "Never — channels are strictly simpler and should always replace roles"
+    ],
+    "answer": 1,
+    "explain": "Channels work when audiences split cleanly and one of them needs nothing sensitive — you route them through different doors. When one endpoint must show different slices of the SAME data to different people, you need to know who's asking, and that's a role check."
+  }
+]
+```
+
 ## Check yourself
 
 - Explain channel-based access vs role-based access to a teammate in two sentences. When is each the right tool?
