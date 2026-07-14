@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RAG Visuals · interactive concepts</title>
+<style>
+  :root{--ink:#1b2330;--muted:#5b6675;--line:#e3e7ec;--bg:#fff;--panel:#f6f8fa;--accent:#2563eb;}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg);margin:0;padding:2.5rem 2rem;line-height:1.5}
+  .head{max-width:64rem;margin:0 auto 2rem}
+  h1{font-size:2rem;margin:0 0 .4rem}
+  .lead{color:var(--muted);font-size:1.2rem;margin:0}
+  .grid{max-width:64rem;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.1rem}
+  a.card{display:block;text-decoration:none;color:inherit;border:1px solid var(--line);border-radius:14px;
+         padding:1.3rem 1.4rem;background:var(--panel);transition:all .15s}
+  a.card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 20px rgba(37,99,235,.08)}
+  .tag{display:inline-block;font-size:.72rem;font-weight:600;color:var(--accent);background:#e8f0fe;
+       padding:.15em .6em;border-radius:999px;margin-bottom:.7rem}
+  .card h2{font-size:1.2rem;margin:0 0 .35rem}
+  .card p{margin:0;color:var(--muted);font-size:.98rem}
+  .card .go{margin-top:.9rem;color:var(--accent);font-size:.9rem;font-weight:600}
+  .foot{max-width:64rem;margin:2rem auto 0;color:var(--muted);font-size:.95rem;border-top:1px solid var(--line);padding-top:1.2rem}
+  code{font-family:ui-monospace,"SF Mono",Menlo,monospace;background:#f4f6f8;padding:.1em .35em;border-radius:4px}
+</style>
+</head>
+<body>
+  <div class="head">
+    <h1>RAG &amp; AI Agents — interactive visuals</h1>
+    <p class="lead">Drag, tweak, and watch the core ideas behind retrieval. Each page is self-contained — no install, no internet. Just open it.</p>
+  </div>
+
+  <div class="grid">
+    <a class="card" href="vector-search.html">
+      <span class="tag">embeddings · cosine</span>
+      <h2>Vector search</h2>
+      <p>Notes become points in meaning-space. “Similar” = smallest angle. See why cosine ignores length.</p>
+      <div class="go">Open →</div>
+    </a>
+    <a class="card" href="reranking.html">
+      <span class="tag">two-stage retrieval</span>
+      <h2>Re-ranking</h2>
+      <p>Fast vector retrieval gets fooled by negations and forms. A cross-encoder re-reads the top-K and fixes the order.</p>
+      <div class="go">Open →</div>
+    </a>
+    <a class="card" href="chunking.html">
+      <span class="tag">fixed vs structure-aware · Bible</span>
+      <h2>Chunking</h2>
+      <p>Notes don’t chunk — the Bible must. Watch fixed-size slicing split a verse, and structure-aware packing keep it whole.</p>
+      <div class="go">Open →</div>
+    </a>
+    <a class="card" href="hybrid-search.html">
+      <span class="tag">keyword + vector · RRF</span>
+      <h2>Hybrid search</h2>
+      <p>Keyword nails exact drug codes; vectors catch synonyms and brand names. Fusion gets both.</p>
+      <div class="go">Open →</div>
+    </a>
+    <a class="card" href="content-validation.html">
+      <span class="tag">prompt injection · defense</span>
+      <h2>Content validation</h2>
+      <p>A poisoned note smuggles instructions into the context. Validate, sanitize, and sandbox it — step by step.</p>
+      <div class="go">Open →</div>
+    </a>
+  </div>
+
+  <div class="foot">
+    <b>How to run:</b> double-click any <code>.html</code> file, or open this folder in a browser.
+    They’re plain HTML/JS — nothing to install. Built for the RAG &amp; AI Agents course.
+  </div>
+</body>
+</html>
