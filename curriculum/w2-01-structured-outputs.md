@@ -123,6 +123,41 @@ Spend **no more than 45 minutes** here.
 2. Feed it five inputs, including one that's missing a field and one that's *ambiguous*. Record what the schema's type choices (enum vs string, nullable vs required) did to the output in each case.
 3. Rewrite one field description to encode a judgment call, and find an input where the description changes the answer.
 
+```quiz
+[
+  {
+    "q": "Why does adding 'please respond in JSON' to the prompt fail as a way to build an LLM component?",
+    "options": [
+      "The model can't produce JSON at all without a formal schema attached",
+      "Nothing enforces the shape — fences, chatty preambles, missing fields, and invented enum values all appear eventually, and every edge case becomes your parsing problem",
+      "Prose-wrapped JSON costs significantly more tokens than schema-enforced output"
+    ],
+    "answer": 1,
+    "explain": "The model CAN produce JSON when asked — usually. That's the trap: it works in the demo and breaks in production. Schema enforcement constrains generation so conformance is guaranteed, not requested."
+  },
+  {
+    "q": "The schema already constrains the output via zodTextFormat. Why call Schema.parse(response.output_parsed) on top of it?",
+    "options": [
+      "It's redundant, but it's this repo's house style so the code reads consistently",
+      "Without it the response is still a raw JSON string that has to be deserialized",
+      "It verifies the type claim at runtime, so SDK drift, refusals, or truncated output surface as a loud error at the call site instead of undefined propagating downstream"
+    ],
+    "answer": 2,
+    "explain": "zodTextFormat constrains generation; Schema.parse verifies at the boundary. Refusals, length cutoffs, and SDK version drift can all yield non-conformant output — the parse converts all of that into one located error. Trust, but parse."
+  },
+  {
+    "q": "You make accountNumber a required z.string() (no nullable) and feed the extractor an email that mentions no account. What happens?",
+    "options": [
+      "The API returns a validation error because the field can't be filled from the text",
+      "The model returns an empty string for the field",
+      "The model fabricates a plausible account number — the schema is a demand, and an impossible demand gets satisfied with fiction"
+    ],
+    "answer": 2,
+    "explain": "A required field on absent information doesn't error — it forces an invention, which then flows into your system wearing a perfectly valid type. That's why nullable/optional semantics deserve real thought: make the schema match reality."
+  }
+]
+```
+
 ## Check yourself
 
 - What does `Schema.parse(response.output_parsed)` protect against that `zodTextFormat` alone doesn't?

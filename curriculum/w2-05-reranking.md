@@ -27,6 +27,10 @@ flowchart LR
 
 Cheap-and-broad finds candidates; expensive-and-careful orders them. It's the same logic as a recruiter skimming 200 résumés and carefully interviewing 6. You'll meet this funnel shape again and again in retrieval systems.
 
+```visual
+reranking | Watch the second stage promote a candidate that cosine buried deep in the pool
+```
+
 ## Implementation
 
 The reranker wrapper already exists — `rerankResults` in `lib/reranker.ts`. Read all of it, it's about twenty lines:
@@ -96,6 +100,41 @@ Spend **no more than 45 minutes** here.
 1. Run the funnel on five queries against the note index. For each, record: did the top-3 change? Did anything jump from below #10?
 2. Find one query where reranking visibly *rescued* a result — a clearly relevant note that cosine had buried. Save it; it's a candidate for the eval set you'll build later.
 3. Find one query where the two orders are essentially identical. Also save it. (A good eval set needs cases where the intervention *shouldn't* matter, or it can't detect over-claiming.)
+
+```quiz
+[
+  {
+    "q": "Why can a reranker judge relevance better than cosine similarity can?",
+    "options": [
+      "It's a larger model, so its similarity scores are more accurate on the same vectors",
+      "It reads the query and the document together at query time; an embedding compressed each text separately, before the query existed",
+      "It combines semantic matching with exact keyword matching, catching what embeddings blur"
+    ],
+    "answer": 1,
+    "explain": "Embeddings are pre-made summaries — anything lost in compression is lost forever, which is why template-alike notes out-score meaning-alike ones. The reranker's one luxury is scoring the actual pairing, with no pre-compression."
+  },
+  {
+    "q": "The funnel fetches 25 candidates to keep 5. Why not just fetch the 5 you want?",
+    "options": [
+      "The reranker can only promote what's in the pool — a relevant note cosine ranked #19 is invisible unless the funnel mouth includes it (and rerankResults no-ops when candidates <= topN)",
+      "The hosted reranker requires a minimum batch size per call",
+      "Fetching more candidates makes the vector search's own scores more reliable"
+    ],
+    "answer": 0,
+    "explain": "The reranker's whole power is promotion from depth. Fetch 5, rerank 5, and you get the same 5 back — here literally unchanged, thanks to the length guard. The over-fetch IS the point; the width tradeoff (25 vs 100) is cost and latency versus rescue chances."
+  },
+  {
+    "q": "Your reranked and original lists come back identical on every query. What should you suspect first?",
+    "options": [
+      "Reranking simply doesn't help on this corpus — conclude it and remove the stage",
+      "The rerank scores are on a different scale than cosine, so the order can't actually change",
+      "The silent fallback — a failed rerank call returns the original order with no error, just a console.error line; check the server log before concluding anything"
+    ],
+    "answer": 2,
+    "explain": "A network blip or a typo'd model name fails silently into a no-op by design (degraded search beats no search). The only witness is the 'Reranking failed, using original order' log line. And even with the call working, 'doesn't help' is a measurement, not an eyeball call."
+  }
+]
+```
 
 ## Check yourself
 

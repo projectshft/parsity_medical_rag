@@ -37,6 +37,10 @@ Embed the whole Bible as a single vector and it "means" the average of everythin
 
 That contrast is the whole point: **decide from the corpus in front of you, not from habit.** Our notes taught you "don't chunk." The Bible will teach you "how to chunk when you must."
 
+```visual
+chunking | Try the strategies on real text — watch what fixed-size cuts do to sentences, and what too-big and too-small pieces do to retrieval
+```
+
 ## Implementation
 
 There's no build today — this lesson sets up the homework. Take five minutes to see the shape of the corpus you'll work with:
@@ -67,6 +71,44 @@ Spend **no more than 20 minutes** here — this is orientation, not the assignme
 1. Run `npm run bible:fetch` and confirm the size (`wc -c data/bible/kjv.txt` — about 4.4 million bytes).
 2. In your notes, answer: our notes are ~940 chars and we made each one a piece. If a corpus averaged 80,000 characters per document, chunk or not? What if it averaged 300? State the rule you're using.
 3. Read the homework brief in `homework-bible-chunking.md` (the assignment of record is `docs/CHALLENGE-CHUNKING.md` in your repo) so you know what's coming.
+
+```quiz
+[
+  {
+    "q": "What goes wrong when a retrieval piece is too big — say, a 40-page document embedded as one vector?",
+    "options": [
+      "The embedding API rejects it for exceeding the token limit",
+      "It means the average of everything in it — matching every query a little and no query well",
+      "It costs too much to embed, so big pieces are a budget problem, not a quality one",
+      "Nothing — more context in a piece always makes retrieval better"
+    ],
+    "answer": 1,
+    "explain": "A document that mentions diabetes, sleep, surgery, and billing is a mediocre match for all of them. 'Bigger piece = more context = better' is the trap: granularity is a trade-off with two bad ends, not a dial you turn up."
+  },
+  {
+    "q": "Why is the chunking step a no-op for our clinical notes?",
+    "options": [
+      "Pinecone chunks documents automatically on upsert",
+      "Medical text is too sensitive to split legally",
+      "Each note is already one self-contained encounter at ~940 characters — the natural retrieval-sized piece; splitting would break it, merging would blur it",
+      "The notes are too short for the embedding model to split"
+    ],
+    "answer": 2,
+    "explain": "Whether you need chunking is a property of the corpus, not a mandatory pipeline step. 'Step 2 of every RAG tutorial is chunking' is habit, not analysis — our corpus arrived pre-jointed into pieces; the Bible is one 4.3M-character document and must be cut."
+  },
+  {
+    "q": "A corpus averages 450 characters per document. Safe to skip chunking?",
+    "options": [
+      "Yes — 450 is well inside the sweet spot, decision made",
+      "No — always chunk; every production RAG pipeline does",
+      "Not yet — an average can hide a few 50,000-character monsters; check the distribution (especially the max) before deciding",
+      "Yes, but only if the corpus is medical text"
+    ],
+    "answer": 2,
+    "explain": "Trusting the mean alone is the measurable version of chunking by habit. One outlier document that 'means everything and matches nothing' can poison retrieval — you decide from the distribution of the corpus in front of you, not from a single summary number."
+  }
+]
+```
 
 ## Check yourself
 

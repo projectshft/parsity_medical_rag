@@ -52,6 +52,44 @@ Watch these (a coffee's worth of time, and the best money-free upgrade to your i
 2. **3Blue1Brown — Dot products and duality** (Ch. 9) — the geometric meaning of the dot product that powers cosine similarity.
 3. **3Blue1Brown — But what is a GPT?** — a visual tour of the Transformer from §1.
 
+```quiz
+[
+  {
+    "q": "Strip away the mystique — what is an LLM fundamentally doing when it answers you?",
+    "options": [
+      "Looking up facts in a built-in database of everything it was trained on",
+      "Predicting the most likely next token, one at a time, given the text so far",
+      "Fetching relevant records from the internet and summarizing them",
+      "Matching your question against a library of pre-written answers"
+    ],
+    "answer": 1,
+    "explain": "Everything an LLM does — translation, code, summaries — is next-token prediction applied at scale. It has no database and fetches nothing; that gap (it can read records you hand it, but can't fetch yours) is exactly what this course builds around."
+  },
+  {
+    "q": "Cosine similarity between two embedding vectors measures what, exactly?",
+    "options": [
+      "How many words the two texts share",
+      "The difference in length between the two vectors",
+      "The angle between the vectors — same direction means same meaning",
+      "How often the two texts appeared together in training data"
+    ],
+    "answer": 2,
+    "explain": "Cosine is the dot product divided by both lengths, which isolates the angle. Two texts can share zero words ('heart attack' vs 'myocardial infarction') and still point the same way in meaning space — that's the whole trick."
+  },
+  {
+    "q": "Why can a computer compare two vectors but not two sentences directly?",
+    "options": [
+      "Sentences are too long to fit in memory at once",
+      "Computers compare numbers, not meanings — embedding turns meaning into geometry so arithmetic can measure it",
+      "Vectors are encrypted forms of the sentences, which is faster to process",
+      "It can — SQL's LIKE operator compares sentences by meaning"
+    ],
+    "answer": 1,
+    "explain": "There is no built-in operation for 'how similar are these meanings?' — but there is one for 'how close are these points?'. Embeddings translate the first question into the second, and LIKE only matches letters, not meaning."
+  }
+]
+```
+
 ## Check yourself
 
 Answer without scrolling up:

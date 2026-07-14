@@ -88,6 +88,41 @@ The important reading: full data here is not an oversight or a TODO — the chan
 3. **Try to defeat the front-office default.** From the MCP side, is there *any* argument a caller can pass to get an unobscured name back? Read both tool handlers and confirm there isn't. Then read `app/api/chat/route.ts` and confirm the reverse: nothing on the clinician path ever calls the scrubber — full data is the channel's design, not an oversight.
 4. **Find a leak in `obscureContent`.** Feed it a note with an all-lowercase name or an unusual phone format and find one identifier the regex misses. Naming an identifier your scrubber would *still* leak is exactly the honest sentence that belongs in your final video.
 
+```quiz
+[
+  {
+    "q": "Why does the front-office channel run obscureContent over the ENTIRE rendered output instead of pseudonymizing a name field?",
+    "options": [
+      "Scrubbing everything is faster than finding the right fields",
+      "The SQL agent is text-to-SQL — the LLM chooses the columns, so there's no fixed shape to obscure field-by-field",
+      "obscurePatient was deprecated because field-level obscuring is insecure by definition"
+    ],
+    "answer": 1,
+    "explain": "When a model writes the query, you can't know in advance which columns come back — so the scrub has to be shape-agnostic, applied to the rendered text. The honest cost: a regex de-identifier misses novel formats, and knowing WHERE it leaks is the skill."
+  },
+  {
+    "q": "OBSCURE_PII in .env is acceptable; an obscure: false flag in the request body would not be. Why?",
+    "options": [
+      "Env vars are encrypted at rest while request bodies travel in plaintext",
+      "A boundary is only a boundary if the party being kept out can't move it — the env var lives on the operator's side of the trust line; a request flag comes from the caller's",
+      "Request flags can't be typed strictly enough with zod"
+    ],
+    "answer": 1,
+    "explain": "Same bit of configuration, opposite sides of the line. A control the caller can switch off is decoration — which is why the front-office scrub is hard-coded in the tool handlers rather than parameterized."
+  },
+  {
+    "q": "A teammate suggests hiding patient names in the React UI instead of on the server. What's wrong?",
+    "options": [
+      "Client-side rendering of redactions is too slow for large result sets",
+      "Nothing, as long as the component never displays the raw field",
+      "The API response is the artifact — anyone with the network tab or curl reads the unobscured data the page received"
+    ],
+    "answer": 2,
+    "explain": "Boundaries live where the trusted system ends, and that's your server's response. The browser is part of the threat model — de-identify before the data leaves the building, or don't call it de-identified."
+  }
+]
+```
+
 ## Check yourself
 
 - Why is hiding PII in the front-end a de-identification failure even if users never see the data on screen?

@@ -94,6 +94,41 @@ Spend **no more than 60 minutes** here.
 2. Implement per-request cost logging. State, with a number, what one chat turn costs and what one full eval run costs.
 3. The completeness pass: name two pipeline stages that currently have no eval, and for each, the one metric you'd build. (These become postmortem material.)
 
+```quiz
+[
+  {
+    "q": "Why do deterministic tests gate every commit while LLM evals live behind npm run test:evals?",
+    "options": [
+      "LLM evals are paid and statistical — a flaky one-case dip would block good changes and burn money on every push",
+      "Deterministic tests cover more of the codebase, so they're the stronger gate",
+      "LLM evals require production data that CI can't access"
+    ],
+    "answer": 0,
+    "explain": "Gate on the cheap and certain; monitor the expensive and statistical. Same input, same result is exactly what a commit gate needs — LLM evals vary run to run, so they're read as trends over time, not pass/fail on one run."
+  },
+  {
+    "q": "'Using an LLM to grade an LLM is circular.' What's the actual defense of the judge pattern?",
+    "options": [
+      "The judge uses a bigger model, so its opinion outranks the generator's",
+      "Grading against an explicit rubric is easier than generating, and you spot-check the judge against your own eyes — a thermometer, not a supreme court",
+      "The judge and generator never see each other's prompts, which breaks the circularity"
+    ],
+    "answer": 1,
+    "explain": "The judge doesn't invent the standard — it applies a rubric you wrote, at temperature 0, on a task easier than generation. It's still noisy, which is exactly why judge scores are read as trends, never as hard commit gates."
+  },
+  {
+    "q": "Your reranker adds 16 points of hit@5. Do you turn it on?",
+    "options": [
+      "Yes — a measured accuracy gain is exactly what 'no metric, no decision' asks for",
+      "Not yet — cost is a metric too; the decision needs the accuracy gain and the per-query price side by side",
+      "No — rerankers overfit small eval sets, so the gain is probably noise"
+    ],
+    "answer": 1,
+    "explain": "A reranker that adds 16 points AND triples per-query cost isn't a default you flip on — it's a trade you make with both numbers on the table. 'No metric, no decision' applies to the invoice as much as to accuracy."
+  }
+]
+```
+
 ## Check yourself
 
 - Why do deterministic tests gate commits while LLM evals do not?

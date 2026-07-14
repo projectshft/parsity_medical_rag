@@ -111,6 +111,44 @@ Spend **no more than 20 minutes** here.
 2. Record the test summary line (e.g. "24 failed | 148 passed") in your course notes. You'll watch that "failed" number shrink — it's your progress bar.
 3. Run `git status` and confirm `.env` does **not** appear.
 
+```quiz
+[
+  {
+    "q": "Why do the API keys live in a .env file instead of directly in the code?",
+    "options": [
+      "It's faster — Node reads .env files more efficiently than constants",
+      "A key committed to source is in git history forever, readable by anyone with repo access — .env is gitignored and never leaves your machine",
+      ".env files are encrypted, so keys stored there can't be stolen",
+      "OpenAI and Pinecone reject keys that are hardcoded in source files"
+    ],
+    "answer": 1,
+    "explain": "Nothing about .env is encrypted or magic — it's just a file git ignores. The danger is git history: even deleting a committed key in a later commit doesn't remove it, which is why a leaked key must be rotated, not just deleted."
+  },
+  {
+    "q": "The app runs, the database is full of patients and notes — yet it can't answer meaning-based questions. Why?",
+    "options": [
+      "The vector store — the searchable-by-meaning index derived from the notes — doesn't exist yet; you build it this week",
+      "The database connection is read-only, which blocks search queries",
+      "The notes haven't been loaded into Postgres yet",
+      "The OpenAI key needs a paid tier before search will work"
+    ],
+    "answer": 0,
+    "explain": "Everything is in Postgres, including the full note text — but Postgres matches letters, not meaning. The missing piece is the derived index and the search code on top of it, which is exactly the layer you're here to build."
+  },
+  {
+    "q": "You just connected and the database is already full. What's the right relationship to it?",
+    "options": [
+      "Run db:push to sync the schema, then re-seed to make sure the data is fresh",
+      "It's pre-loaded company data; you connect read-only and never modify it — if a command wants to write schema, you're on the wrong path",
+      "Make a local copy first so you can edit rows safely while learning",
+      "Wipe it and re-ingest so you know exactly what's in it"
+    ],
+    "answer": 1,
+    "explain": "The framing of the whole course: you're joining a company that already has its data. The structured half is a given — your work is the semantic layer on top, which is why nothing ever asks you to seed, migrate, or reset."
+  }
+]
+```
+
 ## Check yourself
 
 ```bash

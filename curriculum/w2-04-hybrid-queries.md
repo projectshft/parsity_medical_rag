@@ -52,6 +52,10 @@ Why SQL first, vectors second — and not the reverse? Imagine flipping it: vect
 
 Same rule, applied inside one search: facts narrow the world, meaning ranks what's left — and the facts run first.
 
+```visual
+hybrid-search | Watch what the SQL filter does to the candidate pool before the semantic ranking runs
+```
+
 ## Implementation
 
 Build the scoped hybrid by hand in a scratch script — the SQL agent for the ids, then `searchClinicalNotes` filtered to them:
@@ -121,6 +125,41 @@ Spend **no more than 45 minutes** here.
 2. Run the scoped hybrid plus both controls. Record: how many of the unscoped top-10 were outside the depression cohort?
 3. Trigger the empty-filter leak: remove the `length === 0` guard, run the kuru query, and confirm you get notes back from unrelated patients. Then restore the guard and describe, in one sentence, exactly which expression let the empty array become "no filter."
 4. **Design question — write a paragraph, no code:** how would you wire scoping into the chat pipeline? Be honest about what it costs. Hint: `runSql` returns rendered *text* — where would the ids come from, and what happens to "the specialists run in parallel"?
+
+```quiz
+[
+  {
+    "q": "In this pipeline, what does 'hybrid' actually mean?",
+    "options": [
+      "Dense and sparse vector scores fused inside one search, like BM25 plus embeddings",
+      "Two engines picked per question: exact filters narrow the world in Postgres, semantic search ranks what's left in the vector index",
+      "Running the same query through both engines and keeping whichever returns more results"
+    ],
+    "answer": 1,
+    "explain": "Outside this course 'hybrid search' usually means dense+sparse in one store — worth knowing for interviews. Here the exact-match half is owned by Postgres, so the second thing is another engine, not another score. Each engine does the one thing the other can't."
+  },
+  {
+    "q": "Your pipeline's RAG block contains notes from patients outside the SQL cohort. Is that a bug?",
+    "options": [
+      "Yes — the route should pass the SQL agent's patient ids into runRag so the search is scoped",
+      "No — the aggregator filters out non-cohort notes before it answers, so the extras are harmless",
+      "No — it's the deliberate cost of independent, parallel specialists; the trade bought a ten-line orchestrator and inspectable seams"
+    ],
+    "answer": 2,
+    "explain": "The specialists never exchange ids — that's the design, not an oversight. And the aggregator can only weave what it's handed; it joins in language, it doesn't filter. The cost is real (cohort recall is hostage to the global top-10), which is why the scoped alternative exists — as a trade, not a fix."
+  },
+  {
+    "q": "A scoped query's condition matches zero patients, and the empty id array reaches searchClinicalNotes. What happens?",
+    "options": [
+      "The search returns zero notes — an empty filter matches nothing",
+      "Pinecone rejects the empty $in filter with an error",
+      "The empty array means 'no filter' — the search silently runs across every patient's notes, a cross-patient data leak"
+    ],
+    "answer": 2,
+    "explain": "'Scoped to zero patients' silently becomes 'scoped to ALL patients.' It's a privacy bug, not a relevance bug, and the fix is code: distinguish 'no filter requested' from 'filter requested, matched nobody' and short-circuit to empty results."
+  }
+]
+```
 
 ## Check yourself
 

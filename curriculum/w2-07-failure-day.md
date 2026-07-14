@@ -92,6 +92,41 @@ This session *is* its own your-turn. The deliverables, in your notes and repo:
 2. A prompt changelog continued from the last lesson: failure → clause added → battery result, for every change.
 3. A short "fixes that don't belong in the prompt" list — failure id, and the layer (selector / SQL agent's grounding / code-before-LLM) where a real fix would live. The empty-filter leak goes here.
 
+```quiz
+[
+  {
+    "q": "Which two bait categories does retrieval itself cause, rather than the answering LLM?",
+    "options": [
+      "The scope overstep and the smuggled instruction",
+      "The ambiguous referent and the missing fact",
+      "The confident void and the near-neighbor trap — vector search always returns the K nearest neighbors, with no concept of 'nothing matched'"
+    ],
+    "answer": 2,
+    "explain": "The LLM is handed plausible-looking context either way; prompting is only the mitigation. The permanent fixes live in code — check whether retrieval returned anything patient-matched before the LLM runs, and surface similarity scores so weak matches can be treated differently."
+  },
+  {
+    "q": "The agent confidently reports 'no patients had a heart attack' — but the conditions column says Myocardial Infarction. Where does the fix live?",
+    "options": [
+      "The aggregator's prompt — add a clause telling it to consider clinical synonyms",
+      "The SQL agent's grounding — the model wrote ILIKE '%heart attack%' against clinical vocabulary; no prompt on top of 0 rows can fix retrieval that never found the data",
+      "The selector — a condition question like this should have routed to the vector store instead"
+    ],
+    "answer": 1,
+    "explain": "The aggregator honestly reported the context it was handed — the failure happened upstream, in the query's vocabulary. Fix the grounding in lib/agents/sql.ts (the distinct-value dump or a lay-term map). A nicer answer over wrong retrieval is still a wrong answer."
+  },
+  {
+    "q": "Why track 'unclear' as its own verdict instead of folding it into 'fail'?",
+    "options": [
+      "Unclear cases are fails you haven't reproduced yet, so they need re-running first",
+      "Counting them as fails would make the pass rate look unfairly bad",
+      "Unclear measures the specification, not the system — an answer you can't classify usually means your expected-behavior line needs sharpening, not the prompt"
+    ],
+    "answer": 2,
+    "explain": "Pass/fail measures the system; unclear measures how well-defined your contract is. A battery whose verdicts require squinting stops getting run — and the unclear-rate over time tells you whether your spec is getting crisper."
+  }
+]
+```
+
 ## Check yourself
 
 - Which two bait categories does retrieval itself cause (rather than the answering LLM)? What does that imply about where their permanent fixes live?

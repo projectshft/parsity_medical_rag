@@ -55,6 +55,10 @@ There's no "correct" chunk. Every option trades something:
 | Paragraph-based | Follows the text's visible joints | KJV paragraphs are mostly single verses anyway — you inherit the per-verse problems |
 | ± Overlap (repeat a little content across seams) | A thought that straddles a boundary survives in at least one chunk | More vectors, more cost, near-duplicate results |
 
+```visual
+chunking | Play with chunk size and overlap — watch precision trade against context before you pick a strategy
+```
+
 The tiebreaker is a question most tutorials skip: **who queries this index, and what do they ask?** A quote-hunter ("where does it say *love thy neighbour*?") is served by verse-sized precision. Someone asking "what happens in the flood story?" needs passage-sized context. Your chunk size is a bet on the questions — make the bet, and be able to say why. You don't have to be right; you have to decide *with a reason*.
 
 ## Storing it: the practical bits
@@ -82,6 +86,41 @@ Open the Pinecone console: your `bible-kjv` index exists, the record count match
 Submit via the link pinned in Slack.
 
 The code is the easy half — **the reasoning is the assignment.**
+
+```quiz
+[
+  {
+    "q": "The fixed-size chunker breaks at 500 characters, and bumping it to 800 barely moves the audit numbers. Why?",
+    "options": [
+      "800 is still too small — chapter-sized chunks would pass the audit",
+      "The flaw isn't the size — character positions don't align with meaning, so any byte-offset cut starts mid-word, ends mid-sentence, and carries no idea where it came from",
+      "The audit script is calibrated for 500-character chunks, so other sizes score poorly"
+    ],
+    "answer": 1,
+    "explain": "No size fixes cutting at positions instead of joints. The text hands you real boundaries — verses, chapters, books — and whatever you design should cut along meaning, not offsets. Metadata falls out of that for free."
+  },
+  {
+    "q": "Per-verse chunks are perfectly citable and precisely matched. What do they cost you?",
+    "options": [
+      "Verses are too long for the embedding model's input window",
+      "Tiny fragments — 'And he said unto them' matches a query confidently and tells you nothing",
+      "Per-verse chunks can't carry a human-readable reference in their metadata"
+    ],
+    "answer": 1,
+    "explain": "Small chunks buy precision and pay in context: a fragment can score high on similarity while being useless to the reader. That's the core trade every strategy in the menu is negotiating from one side or the other."
+  },
+  {
+    "q": "Verse, chapter, packed passages, overlap — what's the tiebreaker for choosing between them?",
+    "options": [
+      "Whichever produces the fewest vectors, since embedding cost dominates",
+      "Who queries this index and what they ask — your chunk size is a bet on the questions",
+      "Always the smallest unit the text offers; precision beats context in retrieval"
+    ],
+    "answer": 1,
+    "explain": "A quote-hunter is served by verse-sized precision; 'what happens in the flood story?' needs passage-sized context. There's no correct chunk in the abstract — you make the bet on the expected questions, with a reason you can defend. The reasoning is the assignment."
+  }
+]
+```
 
 ## Further reading (optional)
 

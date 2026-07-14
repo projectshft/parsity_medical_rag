@@ -103,6 +103,44 @@ Spend **no more than 30 minutes** here.
 2. Grow the corpus to 6–8 short clinical phrases of your own and query it with your synonym pair from the first lesson. Did the paraphrase surface the right entry with zero shared keywords?
 3. Add a query the corpus *can't* answer ("how do I file my taxes"). Look at the top score. Is it zero? Write one sentence on what a real search should *do* with a best-match that's still weak.
 
+```quiz
+[
+  {
+    "q": "What does a vector database actually do when you run a search?",
+    "options": [
+      "Something proprietary — the ranking algorithms are trade secrets built on keyword indexes",
+      "Exactly your ten-line loop — embed the query, score against stored vectors, return the top-K — made persistent and fast",
+      "It asks an LLM to read the documents and pick the most relevant ones",
+      "It matches the query against pre-computed keyword indexes, then re-sorts by vector"
+    ],
+    "answer": 1,
+    "explain": "No magic. The core operation is the nearest-neighbor loop you just wrote by hand. The only two things a real database adds: persistence (embed once, keep the vectors) and speed at scale (an index that skips comparing against every vector)."
+  },
+  {
+    "q": "You query your corpus with 'how do I file my taxes' — nothing in it is remotely relevant. What happens?",
+    "options": [
+      "The search returns an empty list, since no document matches",
+      "The search throws an error because the top score falls below the built-in threshold",
+      "It still returns the K nearest neighbors — vector search always returns something, and no universal threshold separates a real match from the best of a bad lot",
+      "It returns results with a score of exactly zero, flagging them as non-matches"
+    ],
+    "answer": 2,
+    "explain": "Nearest-neighbor means nearest, however far away that is. The search layer cannot tell the system 'nothing matched' — something downstream has to decide that. Writing that sentence down now saves you a production incident later."
+  },
+  {
+    "q": "Your top hit scores 0.71 and the runner-up 0.68, 0.67, 0.66… what should that flat cluster make you think?",
+    "options": [
+      "Great — several strong matches means a rich corpus",
+      "The query didn't discriminate well — a clear winner has a visible gap to #2, and near-equal scores mean the ranking barely separated anything",
+      "The corpus was embedded with the wrong model",
+      "Nothing — only the #1 result matters in retrieval"
+    ],
+    "answer": 1,
+    "explain": "Judging by the top hit alone is the trap. The gap between #1 and #2 tells you whether the query actually separated signal from noise — a lesson that returns when you deliberately break the real search later."
+  }
+]
+```
+
 ## Check yourself
 
 - In one sentence: what does a vector database actually *do* on a search, and what are the only two things it adds over the loop you wrote?

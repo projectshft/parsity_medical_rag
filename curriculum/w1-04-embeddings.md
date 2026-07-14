@@ -36,6 +36,10 @@ Search, then, is geometry: embed the query, embed the documents (once, ahead of 
 
 This single idea is why the `LIKE '%shortness of breath%'` gap closes: a search for "trouble breathing" *can* find a note that only says "dyspnea." No synonym dictionary. No hand-maintained mapping table. The geometry *is* the synonym dictionary, learned from data.
 
+```visual
+vector-search | Drag the query point around the meaning space — watch which notes become its nearest neighbors, and how the cosine scores shift as the angle changes
+```
+
 ## Implementation
 
 The production wrapper already exists — `createEmbeddings` in `lib/openai.ts`. Read it: it's a few lines around one API call (`text-embedding-3-small`, 1536 dimensions). Today you use it raw.
@@ -129,6 +133,44 @@ Spend **no more than 45 minutes** here.
 1. Pull out the synonym pair you wrote earlier — the one that "means the same thing but shares zero keywords." Embed both. Did the geometry agree? Record the number.
 2. Build a five-phrase ladder of your own: two synonyms, one same-domain neighbor, one distant cousin, one absurdity. Predict the *order* before running. Score 5 pairs and check your predicted ranking.
 3. Reproduce the lie: find your own pair where shared *phrasing* beats shared *meaning*. (Hint: wrap two unrelated facts in identical boilerplate.)
+
+```quiz
+[
+  {
+    "q": "What is the one guarantee an embedding model is built to give you?",
+    "options": [
+      "Texts with similar meaning get placed close together in the vector space",
+      "Every distinct text gets a unique vector, like a fingerprint",
+      "Synonyms from its built-in dictionary get identical vectors",
+      "Longer texts get longer vectors, so length reflects information"
+    ],
+    "answer": 0,
+    "explain": "There's no dictionary and no fingerprinting — just geometry learned from oceans of text. All vectors are the same length (1,536 numbers here); what varies is where they land, and nearby means similar in meaning."
+  },
+  {
+    "q": "Why is 'is 0.6 a good cosine score?' a malformed question?",
+    "options": [
+      "Because 0.6 is always bad — good matches score above 0.9",
+      "Because cosine scores have no absolute calibration — they only mean something relative to other candidates for the same query",
+      "Because cosine scores are random and vary on every run",
+      "Because scores below 1.0 indicate the embedding model failed to parse the text"
+    ],
+    "answer": 1,
+    "explain": "Scores depend on the model, text lengths, domain, even shared boilerplate. The only well-formed question is: did the right document outrank the wrong ones for this query? Never hardcode a threshold off vibes."
+  },
+  {
+    "q": "The knee-pain sentence ('the patient reports knee pain') out-scored the true synonym ('dyspnea on exertion') against 'the patient reports shortness of breath'. Why?",
+    "options": [
+      "The embedding model is weak on medical vocabulary",
+      "The cosine function has a bug with sentences of different lengths",
+      "The two sentences share the template 'the patient reports …' — embeddings measure overall textual similarity, and phrasing leaves fingerprints alongside meaning",
+      "Knee pain and shortness of breath are medically related conditions"
+    ],
+    "answer": 2,
+    "explain": "The embedding is being honest: those two sentences ARE similar as texts — same framing, same opening. Meaning dominates the geometry, but boilerplate is signal to it too. Later pieces of the system (filtering before, a second opinion after) exist for exactly this limitation."
+  }
+]
+```
 
 ## Check yourself
 

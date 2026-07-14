@@ -85,6 +85,41 @@ Spend **no more than 45 minutes** here.
 2. Read each tool's description as if it were a few-shot example — then have a colleague (or an AI assistant in a fresh session) read *only* the two descriptions and predict which tool handles: "is anyone on insulin?", "notes about dizziness for patient X", "who has hypertension?". Wrong predictions = description bugs.
 3. In your notes: which one of your existing `lib/` functions would make the *worst* MCP tool for this channel, and why? (Think about what a remote model can and can't be trusted to call — and what would leak a real identity.)
 
+```quiz
+[
+  {
+    "q": "Your app already has REST API routes. Why build an MCP server instead of pointing Claude Desktop at those?",
+    "options": [
+      "MCP is faster because stdio has less overhead than HTTP",
+      "REST responses aren't in a format language models can read",
+      "MCP clients discover your tools and their schemas at connect time — no human writes per-client integration code"
+    ],
+    "answer": 2,
+    "explain": "REST serves programmers: a human reads docs and writes glue code for each client. MCP's contract is machine-readable at the protocol level — any client discovers your tools, schemas and all, the moment it connects."
+  },
+  {
+    "q": "The client model keeps calling query_notes for questions search_patients should handle. Where does the fix live?",
+    "options": [
+      "In the client's system prompt — add routing rules there",
+      "In your tool descriptions and schemas — they're the prompt for a model you don't control",
+      "In the handler — detect the mismatch and forward to the right tool"
+    ],
+    "answer": 1,
+    "explain": "You don't own the client's prompt, so the description IS your interface. A model you've never prompted routes entirely from your names, descriptions, and .describe() text — write and test them like few-shot examples."
+  },
+  {
+    "q": "One stray console.log in a stdio MCP server and the client disconnects with a cryptic error. Why?",
+    "options": [
+      "The MCP spec forbids servers from producing any log output",
+      "Stdout is the JSON-RPC protocol channel — any non-protocol line corrupts the stream",
+      "console.log is blocking, so the tool call times out"
+    ],
+    "answer": 1,
+    "explain": "The client talks to your server over stdin/stdout, so anything non-JSON-RPC on stdout is protocol corruption. Debug output goes to stderr (console.error) — the channel the protocol doesn't own."
+  }
+]
+```
+
 ## Check yourself
 
 - What does the client model read to decide which of your tools to call — and what's the implication for how you write it?

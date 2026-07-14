@@ -207,6 +207,44 @@ Spend **no more than 30 minutes** here.
 2. Read `withPineconeRetry` in `lib/pinecone.ts`. Why is the very first retry silent with zero delay, while later retries warn and back off? One sentence for each behavior.
 3. A metadata call of your own: the script tags active *medications* but not *conditions*. Would you add a `conditions` array to the metadata? Who would filter on it, and what's the noise cost? Three sentences, take a position.
 
+```quiz
+[
+  {
+    "q": "Why does the script read notes with a cursor loop instead of one big findMany()?",
+    "options": [
+      "Prisma requires a cursor for tables over 10,000 rows",
+      "Prisma doesn't paginate for you — a bare findMany() loads every row into memory, a habit that survives 21k notes and dies at the ten-million-row table",
+      "Cursor pagination is faster because Postgres caches each page",
+      "Pinecone only accepts vectors in batches of 100, so the read must match"
+    ],
+    "answer": 1,
+    "explain": "The cursor loop guarantees a bounded memory footprint (never more than 100 notes held) and incremental progress (each page embeds and upserts before the next read). And the orderBy is load-bearing: 'resume just after this row' only makes sense over a stable order."
+  },
+  {
+    "q": "What single decision makes re-running vectorize safe — no duplicates, no cleanup after a crash?",
+    "options": [
+      "Pinecone automatically deduplicates vectors with identical content",
+      "The script checks which notes are already in the index before embedding",
+      "The --limit flag caps how many vectors a re-run can add",
+      "Each vector's id is the note's own database id, so upserts overwrite the same vectors instead of adding new ones"
+    ],
+    "answer": 3,
+    "explain": "Upserts key on vector id. Reuse note.id and a re-run overwrites in place — so a crash at page 130 needs no archaeology, just run it again. Generate a random id per run instead and every run silently adds 21,090 near-identical copies, corrupting every search."
+  },
+  {
+    "q": "The metadata tags only ACTIVE medications (946 rows), not stopped ones (29,627). Why exclude the stopped ones?",
+    "options": [
+      "Pinecone metadata arrays have a hard size limit the stopped list would exceed",
+      "Stopped medications are protected health information and can't be indexed",
+      "Tag decades of expired prescriptions and 'patients on antibiotics' matches everyone who ever took one — noise, not signal",
+      "Stopped medications aren't stored in Postgres, only active ones"
+    ],
+    "answer": 2,
+    "explain": "Metadata choice is really the question 'who will filter on what?'. A filter that matches nearly everyone filters nothing. The stopped rows exist in Postgres (it's the system of record) — they just don't earn their place in the search payload."
+  }
+]
+```
+
 ## Check yourself
 
 - Why is the vector store called a *derived* index, and what happens if it disagrees with Postgres?

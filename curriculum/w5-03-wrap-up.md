@@ -81,6 +81,41 @@ The capstone is the your-turn, and it's the portfolio:
 
 Take the time it needs. This is the thing you point to.
 
+```quiz
+[
+  {
+    "q": "Why is the postmortem the artifact 'that can't be faked'?",
+    "options": [
+      "It requires numbers, and numbers can't be invented",
+      "You have to have lived the system to write it — a model can write your code, but it wasn't the one who watched the system lie and decided what to do about it",
+      "Employers verify postmortems against your commit history"
+    ],
+    "answer": 1,
+    "explain": "The postmortem carries documented judgment: real failures, fixes tied to measurements, deliberate non-builds. That's the evidence a screen-recorded happy path can't provide — and the reason it's the credibility artifact of the whole course."
+  },
+  {
+    "q": "A postmortem that reports 'everything worked great' signals what to a reviewer?",
+    "options": [
+      "A well-built system with good test coverage",
+      "That the author never stressed the system — it reads as a press release, not evidence",
+      "Appropriate confidence; dwelling on failures undermines the work"
+    ],
+    "answer": 1,
+    "explain": "The failures are the content. A reviewer trusts the doc that admits the attack it still misses far more than the one that claims immunity — the documented gap is the difference between 'I think this is done' and 'I know exactly where this ends.'"
+  },
+  {
+    "q": "Which sentence belongs in the postmortem?",
+    "options": [
+      "\"I added reranking because it improves quality\"",
+      "\"I added reranking because it's an industry best practice for RAG\"",
+      "\"I measured +18 points hit@5 against 2.4x per-query cost and kept it because our latency budget had room\""
+    ],
+    "answer": 2,
+    "explain": "Every claim earns a number or becomes an opinion. The first two are the tutorial-finisher's sentences; the third shows a trade made with both metrics on the table — the engineer's."
+  }
+]
+```
+
 ## Check yourself
 
 - Could a stranger read your postmortem and tell you *stressed* this system rather than just assembled it? If not, the failures are too sanitized.
