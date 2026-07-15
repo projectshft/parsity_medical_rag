@@ -1,6 +1,6 @@
 # Failure Session: Hallucination Bait and Ambiguous Queries
 
-**Needs: the working chat agent from the last lesson**
+**Needs: the working chat agent**
 
 ## Today you will
 
@@ -10,7 +10,7 @@
 
 ## Concept
 
-Last lesson you probed politely. Today you attack. The premise is a core belief of this course: **failure modes should be planted and hunted on purpose, not discovered by users.** A system that has only been asked fair questions is an unknown quantity; the engineer who has watched it fail — *on bait designed to make it fail* — knows what they actually built.
+When you built the chat agent, you probed politely. Today you attack. The premise is a core belief of this course: **failure modes should be planted and hunted on purpose, not discovered by users.** A system that has only been asked fair questions is an unknown quantity; the engineer who has watched it fail — *on bait designed to make it fail* — knows what they actually built.
 
 You can't tell a grounded agent from a confabulating one on the happy path. Both count the diabetics correctly. The difference only shows up when the answer *isn't* in the records — and the only way to see it is to go looking.
 
@@ -89,7 +89,7 @@ And remember the failure that *isn't* in the prompt at all: the **empty-filter p
 This session *is* its own your-turn. The deliverables, in your notes and repo:
 
 1. `eval/failure-battery.json` — 12+ cases across all six categories, each with expected behavior and a current verdict.
-2. A prompt changelog continued from the last lesson: failure → clause added → battery result, for every change.
+2. A prompt changelog continued from the chat-agent lesson: failure → clause added → battery result, for every change.
 3. A short "fixes that don't belong in the prompt" list — failure id, and the layer (selector / SQL agent's grounding / code-before-LLM) where a real fix would live. The empty-filter leak goes here.
 
 ```quiz
@@ -135,7 +135,7 @@ This session *is* its own your-turn. The deliverables, in your notes and repo:
 <details>
 <summary>Solution / discussion</summary>
 
-**Retrieval-caused bait:** the *confident void* and the *near-neighbor trap* both originate in a fact you measured when you built the vector store — vector search always returns the K nearest neighbors, with no concept of "nothing matched." The LLM is handed plausible-looking context either way. Prompting ("if the data doesn't answer, say so") is the mitigation; the *permanent* fixes live in code: check whether retrieval returned anything patient-matched before invoking the LLM (void), and surface similarity scores so downstream logic can treat weak matches differently (trap). You'll be positioned to build both once the system has observability — soon.
+**Retrieval-caused bait:** the *confident void* and the *near-neighbor trap* both originate in a fact you measured when you built the vector store — vector search always returns the K nearest neighbors, with no concept of "nothing matched." The LLM is handed plausible-looking context either way. Prompting ("if the data doesn't answer, say so") is the mitigation; the *permanent* fixes live in code: check whether retrieval returned anything patient-matched before invoking the LLM (void), and surface similarity scores so downstream logic can treat weak matches differently (trap). With `traced` wired from the observability lesson, you're already positioned to build both.
 
 **Why `unclear` matters:** a battery where verdicts require squinting stops getting run — the friction kills the habit. Tracking `unclear` separately tells you your *spec* needs work, and over time the unclear-rate measures how well-defined your system's contract actually is. Pass/fail measures the system; unclear measures the specification. Both numbers matter, and now you have both.
 
@@ -145,9 +145,9 @@ This session *is* its own your-turn. The deliverables, in your notes and repo:
 
 ## Homework — search your Bible index
 
-In the chunking homework you chunked the KJV with a strategy you chose, stored it in your own `bible-kjv` Pinecone index, and defended the choice on video. Back then, *searching* it wasn't in your toolkit. Now it is.
+In the chunking homework you chunked the KJV with a strategy you chose, stored it in your own `bible-kjv` Pinecone index, and defended the choice on video — and in the reranking deliverable you ran your first searches against it. This time, go hunting.
 
-**Query your own index.** Run a few semantic searches against `bible-kjv` — same pattern as the note search: embed the query, `index.query` with topK. Try at least one query that shares *no keywords* with the passage it should find. Then hunt for one result where your **boundary choice clearly hurt** — a retrieved chunk that's cut mid-thought, or a passage that should have matched but was split across two chunks. That one bad result is your chunking strategy's cost, measured. What would you change?
+**Query your own index with intent.** Run a few more semantic searches against `bible-kjv` — same pattern as the note search: embed the query, `index.query` with topK. Try at least one query that shares *no keywords* with the passage it should find. Then hunt for one result where your **boundary choice clearly hurt** — a retrieved chunk that's cut mid-thought, or a passage that should have matched but was split across two chunks. That one bad result is your chunking strategy's cost, measured. What would you change?
 
 ## Deliverable 🎥
 
@@ -158,7 +158,7 @@ In the chunking homework you chunked the KJV with a strategy you chose, stored i
 
 Bonus: trigger the empty-filter case and explain the leak. The happy path proves nothing; the refusal proves you understand what the system is *for*.
 
-**Submit:** [Typeform — submission](https://form.typeform.com/to/PLACEHOLDER-W2) <!-- PLACEHOLDER: replace with real Typeform URL -->
+**Submit:** [Typeform — submission](https://form.typeform.com/to/PLACEHOLDER-W3) <!-- PLACEHOLDER: replace with real Typeform URL -->
 
 Later in the course the theme shifts: we stop trusting "looks right" and start *measuring* — the selector, the retrieval, and the reranker you couldn't honestly judge today all get put on a scale.
 

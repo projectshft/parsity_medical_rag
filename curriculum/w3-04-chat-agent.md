@@ -12,7 +12,7 @@
 
 Everything until now produced *data*. Today the system starts producing *answers* — and that step is where a RAG system earns trust or destroys it.
 
-Open `app/api/chat/route.ts` and read the `POST` handler top to bottom — the route *is* the orchestrator, and most of it you've already met: the **selector** decides which stores the question needs, the SQL and RAG agents run in parallel (`Promise.all`) and each hands back a block of text, and the **aggregator** (`lib/agents/aggregator.ts`) — the only agent that streams — synthesizes those blocks into one answer, sent to the chat UI via `stream.toTextStreamResponse()`. You'll also see scheduling wiring (`detectSchedulingIntent`, a card riding back in the `X-Scheduling-Action` response header) — that belongs to a later week on human-in-the-loop actions; leave it be and focus on one thing today: the `AGGREGATOR_PROMPT`.
+Open `app/api/chat/route.ts` and read the `POST` handler top to bottom — the route *is* the orchestrator, and most of it you've already met: the **selector** decides which stores the question needs, the SQL and RAG agents run in parallel (`Promise.all`) and each hands back a block of text, and the **aggregator** (`lib/agents/aggregator.ts`) — the only agent that streams — synthesizes those blocks into one answer, sent to the chat UI via `stream.toTextStreamResponse()`. You'll also see scheduling wiring (`detectSchedulingIntent`, a card riding back in the `X-Scheduling-Action` response header) — that belongs to a later lesson on human-in-the-loop actions; leave it be and focus on one thing today: the `AGGREGATOR_PROMPT`.
 
 Notice *how the messages are assembled* in `aggregate`. The retrieved context and the user's question arrive **together, in the user turn**:
 
@@ -28,7 +28,7 @@ And notice the other branch of that ternary. When the selector decides a questio
 
 ### The grounding contract
 
-The single idea to protect all week: **the model decides and writes, but it is never the source of facts.** Retrieval earns it the right to speak; no record means no claim. The system prompt is where that rule gets encoded — call it the **grounding contract**. Read the `AGGREGATOR_PROMPT` in `lib/agents/aggregator.ts` and find each of these four clauses in it (or where it should be sharper):
+The single idea to protect from here on: **the model decides and writes, but it is never the source of facts.** Retrieval earns it the right to speak; no record means no claim. The system prompt is where that rule gets encoded — call it the **grounding contract**. Read the `AGGREGATOR_PROMPT` in `lib/agents/aggregator.ts` and find each of these four clauses in it (or where it should be sharper):
 
 1. **Answer from the retrieved data — only.** The model has read a million medical textbooks. For *these patients*, those textbooks are noise: the only truth is what retrieval returned. The prompt must make "I'll answer from general knowledge" feel like a violation. (The repo's prompt says it plainly: *"Answer ONLY from the retrieved data below. If it isn't there, say so plainly — never invent or infer medical information."*)
 2. **Say when the data doesn't answer.** You already know retrieval *always returns something* — the nearest neighbors of an unanswerable question are still in the context window, looking quotable. *"The retrieved records don't contain this"* must be an approved, encouraged answer shape.
@@ -57,7 +57,7 @@ This is the week's payoff: the whole system is now a thing you can talk to, and 
 
 ### 2. Probe the contract
 
-Now act like you're trying to get the system in trouble (gently — the real adversarial session is next):
+Now act like you're trying to get the system in trouble (gently — a full adversarial session is coming shortly):
 
 - Ask a general-medicine question with no patient anchor: *"what's a normal A1C?"* — the selector should short-circuit this to `GENERAL_PROMPT`. Does the answer read clearly *as* general knowledge, or is it indistinguishable from a records-grounded claim?
 - Ask something the data genuinely can't answer for a real patient — *"what is this patient's blood type?"* (Synthea has no blood-type field) — and watch whether the nearest-neighbor context seduces the model into pretending.
@@ -70,7 +70,7 @@ After each probe, if the behavior is wrong, sharpen the `AGGREGATOR_PROMPT` and 
 - **A personality where a contract should be.** "You are a friendly, helpful medical assistant who loves helping!" specifies nothing testable. Every sentence of a component's system prompt should change behavior in a way you could probe.
 - **Burying the grounding rule mid-paragraph.** Order and emphasis matter. The answer-only-from-retrieved-data rule is load-bearing; it goes early, bluntly, and once (repetition dilutes).
 - **Refusals that over-trigger.** After adding a no-medical-advice rule, re-check the happy paths — an over-broad refusal will start declining to *summarize* medication lists because they sound treatment-adjacent. Every guardrail needs a probe on **both** sides.
-- **Touching the scheduling wiring.** It belongs to the human-in-the-loop week. Leave `detectSchedulingIntent` and the `X-Scheduling-Action` header alone today.
+- **Touching the scheduling wiring.** It belongs to a later human-in-the-loop lesson. Leave `detectSchedulingIntent` and the `X-Scheduling-Action` header alone today.
 
 ## Your turn
 
@@ -78,7 +78,7 @@ Spend **no more than 60 minutes** here.
 
 1. Get five honest conversations working end to end, including one multi-turn exchange.
 2. Run the three probes; if any misbehaves, sharpen the prompt until it behaves — and re-check two happy paths after each change (the both-sides rule).
-3. In your notes, save the final prompt plus a three-line changelog: probe that failed → sentence you added → result. That artifact — *a prompt change justified by observed behavior* — is the unit of work for the failure session next.
+3. In your notes, save the final prompt plus a three-line changelog: probe that failed → sentence you added → result. That artifact — *a prompt change justified by observed behavior* — is the unit of work for the failure session coming up.
 
 ```quiz
 [

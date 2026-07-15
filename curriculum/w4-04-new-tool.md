@@ -13,7 +13,7 @@ This is a **build**. The training wheels from the earlier MCP lessons are off: y
 
 ## Concept
 
-Inventory of what this block assembled: your system is now **infrastructure** — tools other AIs call (MCP), served through a front-office channel that's safe to expose because its tools are non-identifying and every response is obscured, plus one human-gated write path (scheduling). Today's build forces the MCP half to work *for real*, because that's where the design either holds or leaks: a new tool is only as safe as the contract you remember to honor when you write it.
+Inventory of what this block assembled so far: your system is now **infrastructure** — tools other AIs call (MCP), served through a front-office channel that's safe to expose because its tools are non-identifying and every response is obscured. Today's build forces that design to work *for real*, because a new tool is where it either holds or leaks: a new tool is only as safe as the contract you remember to honor when you write it.
 
 The contract from the securing lesson is the whole game here. This channel is safe **because** of two properties, and a new tool has to preserve both or it breaks the door for every tool:
 
@@ -56,7 +56,7 @@ Don't just show the code; show a client *discovering and calling* it. Run this s
 
 ### 4. Close the loop on cost
 
-One question: **what does one call to your new tool cost?** Count the LLM calls it makes — read the handler and everything it calls into; embedding calls count — estimate tokens in/out, and write the per-call figure in your notes. (Next week you'll wire tracing and get these numbers *measured* instead of estimated; the estimate is still worth writing down, because the gap between it and the measurement is its own lesson.) If you built `summarize_patient`, compare its cost to `list_conditions` — they can differ by 100×. A tool server where every tool looks free until the invoice arrives is the norm in this industry; yours now has per-tool price tags, which puts you ahead of most production teams.
+One question: **what does one call to your new tool cost?** Count the LLM calls it makes — read the handler and everything it calls into; embedding calls count — estimate tokens in/out, and write the per-call figure in your notes. (You already have tracing from the observability lesson — wrap your handler in `traced`, call it, and compare the *measured* number to your estimate; the gap between them is its own lesson.) If you built `summarize_patient`, compare its cost to `list_conditions` — they can differ by 100×. A tool server where every tool looks free until the invoice arrives is the norm in this industry; yours now has per-tool price tags, which puts you ahead of most production teams.
 
 ### Common mistakes
 
@@ -129,7 +129,7 @@ Record **2–3 minutes**, phone camera is fine. Pick one:
 
 **Grade against one question:** *does the demo show a client calling the tool and getting back obscured, non-PII text?* Source code that returns the right data proves the function works; it does not prove the tool honors the channel. The obscured client round-trip is the deliverable.
 
-**Submit:** [Typeform — submission](https://form.typeform.com/to/PLACEHOLDER-W3) <!-- PLACEHOLDER: replace with real Typeform URL -->
+**Submit:** [Typeform — submission](https://form.typeform.com/to/PLACEHOLDER-W4) <!-- PLACEHOLDER: replace with real Typeform URL -->
 
 ## Further reading (optional)
 

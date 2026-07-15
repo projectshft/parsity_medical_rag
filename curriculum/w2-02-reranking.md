@@ -152,6 +152,18 @@ Spend **no more than 45 minutes** here.
 
 </details>
 
+## Deliverable 🎥
+
+Record **2–3 minutes**, phone camera is fine. Run the funnel against **your own `bible-kjv` index** from the chunking homework — same pattern as the note search: embed the query, `index.query` with a wide `topK` (set `PINECONE_INDEX=bible-kjv` for the run), then `rerankResults`. Show:
+
+- one **semantic search** and the same query **reranked** (over-fetch ~25, keep 5), side by side;
+- **one query where reranking changed the order** — ideally a chunk promoted from deep in the pool — and say *why* the two models disagreed about it;
+- **why the funnel over-fetches**: in your own words, what happens to a relevant chunk cosine ranked #19 if stage 1 only fetches 5?
+
+**Grade against one question:** *does the video show a promotion the reranker made from below the cut, and can you explain why over-fetching is what made it possible?* Two identical lists with no explanation is a run, not an understanding — and if your lists never differ, check the silent-fallback log line on camera and say so; catching the no-op is worth more than hiding it.
+
+**Submit:** [Typeform — submission](https://form.typeform.com/to/PLACEHOLDER-W2) <!-- PLACEHOLDER: replace with real Typeform URL -->
+
 ## Further reading (optional)
 
 - [Pinecone: rerank results](https://docs.pinecone.io/guides/search/rerank-results) — the hosted reranker behind today's second opinion

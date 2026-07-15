@@ -6,7 +6,7 @@
 
 Coming out of the vector-store block you have two ways to find things. **Postgres** is the system of record — every patient, condition, observation, and the full text of every clinical note lives there. **Pinecone** is a *derived* index: the `vectorize` script read those notes out of Postgres, embedded them, and upserted them so you can search by meaning. Two engines, both loaded, both working.
 
-What you don't have yet is a **driver**. A user doesn't know or care which engine answers their question — they type plain English and expect an answer. This week you build the thing in the middle: a small team of agents that reads the question, decides which engine (or both) to hit, runs them, and answers *only* from what came back.
+What you don't have yet is a **driver**. A user doesn't know or care which engine answers their question — they type plain English and expect an answer. Over the next several lessons you build the thing in the middle: a small team of agents that reads the question, decides which engine (or both) to hit, runs them, and answers *only* from what came back.
 
 That driver is going to make decisions in code — `if (this) hit Postgres, else search notes`. Which means, before anything else, we need the LLM to stop talking in paragraphs and start returning data your code can branch on. That's today.
 
@@ -18,7 +18,7 @@ That driver is going to make decisions in code — `if (this) hit Postgres, else
 
 ## Concept
 
-So far the LLM has played one role: the *answerer* at the end of the pipeline, producing prose for a human to read. This week it takes a second, very different role — **a component in the middle of the pipeline**, whose output is consumed by *code*.
+So far the LLM has played one role: the *answerer* at the end of the pipeline, producing prose for a human to read. Starting today it takes a second, very different role — **a component in the middle of the pipeline**, whose output is consumed by *code*.
 
 Code can't branch on prose. If the model replies:
 

@@ -21,7 +21,7 @@ Everything you built answers that opening problem and then keeps going:
 - **A grounding contract**: answers point at real records, and the system *refuses* rather than guesses.
 - **Exposure to other tools** through an MCP server — the front-office channel, which exposes only non-identifying tools and de-identifies every response — plus tracing so you can debug the past.
 - **A human-gated action** — proposing an appointment a person confirms.
-- **The production gates** you just finished: PII de-identification plus a channel-based access model — the front-office channel (the MCP server) always obscures identifying detail, while the direct clinician channel returns full data.
+- **The production gates**: PII de-identification plus a channel-based access model — the front-office channel (the MCP server) always obscures identifying detail, while the direct clinician channel returns full data.
 - **A regression suite** measuring most of it — so "it feels better" became a number.
 
 That last clause is the through-line. The distance between the keyword-search demo you started with and the system you have now is not features — it's *evidence*. You can prove each claim.

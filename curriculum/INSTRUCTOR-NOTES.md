@@ -34,7 +34,7 @@ Name this connection when you teach the production-gates block — it turns
 |---|---|
 | Minimum-necessary access | The **channel access model** (Week 5): the front-office (MCP) channel exposes only non-identifying tools and never surfaces PII; the direct app is the clinician channel. Enforced by the entry point, not by roles. |
 | De-identification | PII obscuring (`lib/pii.ts`, CHALLENGE-PII): pseudonymized names, redacted dates/locations, scrubbed note text |
-| Don't overshare / leak | Grounding + refusals (w2-06 / w2-07), injection defenses (poisoned-docs homework / the Week 5 session) |
+| Don't overshare / leak | Grounding + refusals (w3-04-chat-agent / w3-06-failure-day), injection defenses (poisoned-docs homework / the Week 5 session) |
 
 > **Not built:** an audit trail and RBAC/login. Earlier drafts had role-based
 > access + audit logging; both were removed. Minimum-necessary is now enforced
@@ -66,7 +66,7 @@ records as-is.
 ### Optional additions not yet made (decided to keep as notes for now)
 - A one-line UI disclaimer ("Demo on synthetic data — not for real patient
   records").
-- An explicit HIPAA sentence inside w5-02 connecting the channel model to
+- An explicit HIPAA sentence inside w4-06-pii connecting the channel model to
   "minimum necessary" and naming the audit-trail requirement as not-built.
 
 ---

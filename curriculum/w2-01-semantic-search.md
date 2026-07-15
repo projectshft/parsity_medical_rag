@@ -1,6 +1,6 @@
 # Semantic Search Over Clinical Notes (and Why Metadata Is the Point)
 
-**Needs: the fully vectorized index from the previous lesson (all 21,090 notes); OpenAI + Pinecone keys**
+**Needs: the fully vectorized index from the vectorize lesson (all 21,090 notes); OpenAI + Pinecone keys**
 
 ## Today you will
 
