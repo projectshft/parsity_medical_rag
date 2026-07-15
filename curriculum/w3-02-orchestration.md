@@ -1,6 +1,6 @@
 # Orchestration: the Route Is the Pipeline
 
-**Needs: the selector and SQL agent from the last lesson; both engines available (Postgres + the note index)**
+**Needs: the selector and SQL agent from the last two lessons; both engines available (Postgres + the note index)**
 
 ## Today you will
 

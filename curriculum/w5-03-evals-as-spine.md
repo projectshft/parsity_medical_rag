@@ -152,7 +152,7 @@ Record **2–3 minutes**, phone camera is fine. Do **one**:
 
 The one question you're graded against: when someone asks *"is your number good?"*, do you answer **"compared to what?"** and point at a second configuration's number? If yes, you own the spine rule — evals create *differences*, not grades. Second-order tell: you can state what one query *costs*. A price tag is part of a system's spec, same as its accuracy.
 
-**Submit:** [Typeform — submission](https://form.typeform.com/to/PLACEHOLDER-W4) <!-- PLACEHOLDER: replace with real Typeform URL -->
+**Submit:** [Typeform — submission](https://form.typeform.com/to/PLACEHOLDER-W5) <!-- PLACEHOLDER: replace with real Typeform URL -->
 
 ## Further reading (optional)
 

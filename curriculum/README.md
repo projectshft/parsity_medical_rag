@@ -88,42 +88,43 @@ The company has all this data — how do we make the *notes* searchable by **mea
 4. [Embeddings: meaning as geometry](w1-04-embeddings.md)
 5. [Similarity by hand: be the vector database](w1-05-similarity-by-hand.md)
 6. [The vectorize script: database → vector store](w1-06-vectorize.md)
-7. [Semantic search + metadata](w1-07-semantic-search.md)
-8. [Chunking, introduced (and why our notes don't need it)](w1-08-chunking-intro.md) 🎥
-- 📝 [Optional side project — Bible chunking (part 1)](homework-bible-chunking.md)
+7. [Chunking, introduced (and why our notes don't need it)](w1-08-chunking-intro.md) 🎥
+- 📝 [**Required** — Bible chunking: chunk + store](homework-bible-chunking.md)
 
-**Week 2 — Agentic / hybrid search**
-An agent that answers by using **both** engines — exact SQL for facts, vector search for meaning.
-1. [Structured outputs: the LLM as a typed function](w2-01-structured-outputs.md)
-2. [The SQL agent: text-to-SQL](w2-02-query-analyzer.md)
-3. [Orchestration: router + parallel agents + aggregator](w2-03-orchestration.md)
-4. [Hybrid queries: facts narrow, meaning ranks](w2-04-hybrid-queries.md)
-5. [When cosine lies: reranking](w2-05-reranking.md)
-6. [The chat agent + the grounding contract](w2-06-chat-agent.md)
-7. [Failure day: bait, and refusing it](w2-07-failure-day.md) 🎥
-- 📝 [Optional side project — Bible chunking (part 2: chunk + upload)](homework-bible-chunking.md)
+**Week 2 — Retrieval, reranking & your first agent**
+Search the notes for real, make the ranking earn its keep — then meet the LLM as a typed component and build the agent that routes.
+1. [Semantic search + metadata](w2-01-semantic-search.md)
+2. [When cosine lies: reranking](w2-02-reranking.md) 🎥
+3. [Structured outputs: the LLM as a typed function](w2-03-structured-outputs.md)
+4. [The selector: your first agent](w2-04-selector.md)
 
-**Week 3 — MCP + human-in-the-loop**
-1. [MCP: your RAG as a tool for AI assistants](w3-01-mcp-intro.md)
-2. [Wiring MCP into Claude Desktop and Cursor](w3-02-wiring-mcp.md)
-3. [Securing MCP: API keys and scopes](w3-03-securing-mcp.md)
-4. [Human-in-the-loop: propose, approve, execute](w3-04-human-in-the-loop.md)
-5. [Build: add a new tool](w3-05-new-tool-audit.md) 🎥
+**Week 3 — The agent layer**
+The full pipeline: specialists that retrieve, an aggregator that answers — then trace it, and attack it.
+1. [The SQL agent: text-to-SQL](w3-01-sql-agent.md)
+2. [Orchestration: router + parallel agents + aggregator](w3-02-orchestration.md)
+3. [Hybrid queries: facts narrow, meaning ranks](w3-03-hybrid-queries.md)
+4. [The chat agent + the grounding contract](w3-04-chat-agent.md)
+5. [Observability: tracing with LangSmith](w3-05-observability.md)
+6. [Failure day: bait, and refusing it](w3-06-failure-day.md) 🎥
 
-**Week 4 — Agents, evals & observability**
-Measure and trace a non-deterministic system so "it feels better" becomes a number.
-1. [Observability: tracing with LangSmith](w4-01-observability.md)
-2. [Retrieval evals: hit@5](w4-02-retrieval-evals.md)
-3. [Selector evals: exact match](w4-03-analyzer-evals.md)
-4. [Evals as the spine: no metric, no decision](w4-04-evals-as-spine.md) 🎥
+**Week 4 — MCP, PII & human-in-the-loop**
+Your RAG becomes infrastructure other AIs call — exposed safely, extended deliberately, gated where it acts, and showing identifying detail only where it belongs (no login — the channel is the permission).
+1. [MCP: your RAG as a tool for AI assistants](w4-01-mcp-intro.md)
+2. [Wiring MCP into Claude Desktop and Cursor](w4-02-wiring-mcp.md)
+3. [Securing MCP: API keys and scopes](w4-03-securing-mcp.md)
+4. [Build: add a new tool](w4-04-new-tool.md) 🎥
+5. [Human-in-the-loop: propose, approve, execute](w4-05-human-in-the-loop.md)
+6. [PII de-identification and the channel access model](w4-06-pii.md)
 
-**Week 5 — Privacy & data**
-Show identifying details only where they belong — no login, just the channel. The front-office (MCP) door always obscures PII; the clinician (direct app) door sees full data.
-1. [PII de-identification and the channel access model](w5-02-rbac-pii.md)
-2. [Wrap-up: what you built, and where to go next](w5-03-wrap-up.md) 🎥
-- 📝 [**Required** — The poisoned document (indirect prompt injection)](homework-poisoned-docs.md) — self-paced: required; live cohort: done in the Week 5 session
+**Week 5 — Evals & adversaries**
+Measure the non-deterministic system so "it feels better" becomes a number — then poison it on purpose, and write up what you built.
+1. [Retrieval evals: hit@5](w5-01-retrieval-evals.md)
+2. [Selector evals: exact match](w5-02-selector-evals.md)
+3. [Evals as the spine: no metric, no decision](w5-03-evals-as-spine.md) 🎥
+- 📝 [**Required** — The poisoned document (indirect prompt injection)](homework-poisoned-docs.md) — done in the Week 5 session
+4. [Wrap-up: what you built, and where to go next](w5-04-wrap-up.md) 🎥
 
-🎥 = weekly video deliverable · 📝 = self-paced project (required or optional as noted per item)
+🎥 = weekly video deliverable · 📝 = required project
 
 ## A note on AI-assisted coding
 

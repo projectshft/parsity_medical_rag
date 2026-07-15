@@ -131,7 +131,7 @@ Notice two things you'll exploit this week:
 Spend **no more than 30 minutes** here. Start a notes file you'll keep all course, and write down:
 
 1. **Five queries** a clinician or front-desk worker might ask this system. Label each `structured`, `semantic`, or `hybrid`.
-2. For one `semantic` query: two phrasings that *mean the same thing but share zero keywords* (like "shortness of breath" vs "dyspnea"). You'll run these against your own system later this week.
+2. For one `semantic` query: two phrasings that *mean the same thing but share zero keywords* (like "shortness of breath" vs "dyspnea"). You'll run these against your own system in a few lessons.
 3. One question this system should **refuse** to answer. Keep it — it becomes a guardrail test later in the course.
 
 ```quiz

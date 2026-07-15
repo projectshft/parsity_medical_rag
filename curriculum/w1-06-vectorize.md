@@ -269,4 +269,4 @@ Spend **no more than 30 minutes** here.
 
 ## Further reading (optional)
 
-- [Pinecone: indexing overview](https://docs.pinecone.io/guides/index-data/indexing-overview#metadata) — how vectors and their metadata are stored, which the next lesson puts to work.
+- [Pinecone: indexing overview](https://docs.pinecone.io/guides/index-data/indexing-overview#metadata) — how vectors and their metadata are stored; you put this to work when you build the search.

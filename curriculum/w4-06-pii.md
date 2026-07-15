@@ -1,6 +1,6 @@
 # PII De-identification and the Channel Access Model
 
-**Needs: the working chat pipeline; `lib/pii.ts`; the MCP server from Week 3**
+**Needs: the working chat pipeline; `lib/pii.ts`; the MCP server you built**
 
 ## Today you will
 
@@ -31,7 +31,7 @@ One nuance to hold onto: **there is no caller-facing switch anywhere.** The fron
 
 ### 1. Read `lib/pii.ts` — the de-identification is real code, not magic
 
-This is the heart of the week. Open it and read every function; each de-identifies a *different shape* of data, and the choices are deliberate:
+This is the heart of the lesson. Open it and read every function; each de-identifies a *different shape* of data, and the choices are deliberate:
 
 - **`obscureName`** — SHA-256 of the lowercased name → `Patient-A7B3`. Two properties that matter: **deterministic** (the same name always yields the same pseudonym, so records stay *linkable* across responses) and **one-way** (you can't run the hash backward to recover the name). That's a *pseudonym*, not anonymization — still tied to a real record on the server, just not readable.
 - **`obscureDate`** — keeps the year, hides month and day: `1985-03-15` → `1985-XX-XX`. Enough for age-based reasoning ("patients over 60"), nothing for identifying a specific person by birthday.

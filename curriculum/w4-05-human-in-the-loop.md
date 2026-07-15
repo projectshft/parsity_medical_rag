@@ -60,7 +60,7 @@ Run the loop in the chat UI: *"schedule Abe for next Tuesday at 2pm"* → a card
 
 - **Letting the model's output reach the API directly.** If the confirm button posts the *model's* extraction rather than the *card's current values*, the human gate is decoration — the user's edits vanish and the model effectively booked. The card state, not the model output, is the source of truth.
 - **Defaulting instead of asking.** No patient name extracted? The wrong move is scheduling for a guessed patient; the right move is `patientName: null` and a card that demands a human fill it. Nullable schema fields are how the model says "I don't know" — honor them end to end.
-- **Leaving the write path off your observability plan.** When you wire tracing next week, the write path goes first: reads get traced for debugging, *writes* get traced for accountability. "Which appointments did the system book last week, triggered by whom?" must be answerable.
+- **Leaving the write path off your observability plan.** Tracing is already wired — put the write path on it first: reads get traced for debugging, *writes* get traced for accountability. "Which appointments did the system book last week, triggered by whom?" must be answerable.
 - **Date math in the model.** If `detectSchedulingIntent` shows flaky dates, resist prompt-tinkering toward calendar arithmetic. Resolve relative dates in code — deterministic work belongs in deterministic layers.
 
 ## Your turn
