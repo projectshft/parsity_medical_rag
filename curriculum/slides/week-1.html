@@ -94,8 +94,8 @@
     <ul>
       <li>The problem: why the database you already have can't answer by <em>meaning</em></li>
       <li>What a vector is, and how similarity works — by hand</li>
-      <li>The vectorize script: turn the notes into a searchable vector store</li>
-      <li>Run real semantic search over the clinical notes</li>
+      <li>The vectorize script: turn <strong>all 21,090 notes</strong> into a vector store — the full run, live</li>
+      <li>Metadata: the design decision that decides which questions the index can ever answer</li>
       <li>Chunking, introduced — and why our notes don't need it (but the Bible does)</li>
     </ul>
     <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video — explain, in your own words, why keyword search isn't enough and what a vector fixes.</p>
@@ -104,7 +104,7 @@
   <!-- 3 — Problem statement -->
   <section class="slide">
     <h2>The setup: the data is already here</h2>
-    <p>You join a clinic's engineering team. Years of records are already in <strong>Postgres</strong> — patients, diagnoses, medications, labs, and ~144,000 free-text clinical <strong>notes</strong>. Nobody needs you to build the database. It exists.</p>
+    <p>You join a clinic's engineering team. Years of records are already in <strong>Postgres</strong> — patients, diagnoses, medications, labs, and ~21,000 free-text clinical <strong>notes</strong>. Nobody needs you to build the database. It exists.</p>
     <p class="lead">What they want: let a doctor ask <em>"which patients are short of breath?"</em> and actually find them — including the note that says <em>"dyspnea on exertion."</em></p>
     <div class="cue"><b>Say it plainly:</b> we're not teaching them to store data — they have that. We're teaching the thing on top: search by meaning. That reframing is the whole course. <b>The hook:</b> the codeable facts got columns (diagnosis, med, lab) — but the <em>story</em> never did. There's no "short of breath" column and there never was one. That half is written in the notes and today it's unreachable; the vector store (then hybrid search) is how we reach it. Never frame it as the data being broken or lossy — it's a normal database that simply never modeled the narrative.</div>
   </section>
@@ -212,7 +212,9 @@ const chunks = notes.map((n) =&gt; ({
 }));
 
 await upsertChunks(chunks);        // embeds + upserts in batches</code></pre>
-    <pre><code>npm run vectorize -- --limit 200   # a cheap slice while you build</code></pre>
+    <pre><code>npm run vectorize                  # the full run: 21,090 notes, ~10–15 min, ~$0.10
+npm run vectorize -- --limit 200   # quick smoke-test slice, if you just want to check wiring</code></pre>
+    <div class="cue"><b>Session beat:</b> everyone kicks off the <em>full</em> run right here — it's cheap ($0.10) and fits the Pinecone free tier with ~8× headroom. While it chews (~10–15 min, 211 batches of 100), we hold the metadata team-decision on the next slide. Both finish together.</div>
   </section>
 
   <!-- 11 — Concept: metadata -->
@@ -227,22 +229,23 @@ await upsertChunks(chunks);        // embeds + upserts in batches</code></pre>
     <div class="cue"><b>Design point to land:</b> one patient has ~113 notes on average (up to 2,162). Without <code>patientId</code> on the vector, "summarize <em>this</em> patient" is impossible. Metadata isn't decoration.</div>
   </section>
 
-  <!-- 12 — Mini-challenge: run search -->
+  <!-- 12 — Mini-challenge: prove the index is real -->
   <section class="slide">
     <span class="mode challenge">🛠 Mini-challenge</span>
-    <h2>Search it — and try to make it miss</h2>
+    <h2>Prove your index is real</h2>
     <ul>
-      <li>Vectorize a slice, then search: <em>"patient struggling to breathe"</em> — did it find the "dyspnea" notes?</li>
-      <li>Now try to <strong>break it</strong>: a query so vague everything matches a little ("patient has a problem"). Watch the scores flatten.</li>
-      <li>Filter by <code>patientId</code> — same query, one patient. Confirm no one else's notes leak in.</li>
+      <li>Open the Pinecone console — does the vector count say <strong>21,090</strong>?</li>
+      <li>Fetch one vector by its note id. Is the metadata all there — the patient, the age, the <code>currentMedications</code> you chose to tag?</li>
+      <li>Re-run <code>npm run vectorize</code> and watch the count <strong>not</strong> change. Why doesn't it double?</li>
     </ul>
-    <div class="cue"><b>The point isn't the search call</b> — it's building the instinct to interrogate results: what did it rank #1, and does that make sense? "Looks right" isn't a measurement; we make it one later.</div>
+    <p class="lead">So the vectors exist. Here's the uncomfortable part: <strong>you have no way to search them.</strong> That's next weekend.</p>
+    <div class="cue"><b>The cliffhanger is deliberate</b> — don't defuse it. If someone asks "can't we just query it now?", the answer is "you'll build exactly that, first thing next session." Idempotency answer: the vector id is the note id, so re-runs overwrite in place.</div>
   </section>
 
   <!-- 13 — Concept: chunking intro -->
   <section class="slide">
     <h2>One more question: what is "one piece"?</h2>
-    <p>You just embedded each note as a single vector. That worked because a clinical note is already the right size — <strong>one encounter, one topic, ~450 characters, self-contained.</strong> One note = one piece. No splitting needed.</p>
+    <p>You just embedded each note as a single vector. That worked because a clinical note is already the right size — <strong>one encounter, one topic, ~940 characters, self-contained.</strong> One note = one piece. No splitting needed.</p>
     <div class="cue"><b>Say it plainly:</b> we got lucky — our data came pre-cut into perfect pieces. That is not normal. Most corpora don't.</div>
   </section>
 
@@ -250,19 +253,20 @@ await upsertChunks(chunks);        // embeds + upserts in batches</code></pre>
   <section class="slide">
     <h2>…but most text isn't so tidy</h2>
     <p>Imagine the opposite: <strong>one enormous document</strong> — a 4-million-character book. Embed the whole thing as one vector and it "means" everything and matches nothing. So you must <strong>split it</strong> — but where? Mid-sentence? Every paragraph? By chapter?</p>
-    <p class="lead">That splitting decision is <strong>chunking</strong>, and it's a craft. You'll learn it on a corpus that truly needs it — the King James Bible — as this week's side project.</p>
+    <p class="lead">That splitting decision is <strong>chunking</strong>, and it's a craft. You'll learn it on a corpus that truly needs it — the King James Bible — as this week's homework.</p>
   </section>
 
   <!-- 15 — Research / homework -->
   <section class="slide">
-    <span class="mode research">🔍 Homework — side project (part 1)</span>
-    <h2>Chunking the Bible: propose a strategy</h2>
+    <span class="mode research">🔍 Homework — required</span>
+    <h2>Chunk the Bible — and store it</h2>
     <ul>
-      <li>Skim the text (<code>scripts/bible/</code> has the tools). What are the natural seams — verses? chapters? fixed-size windows?</li>
-      <li><strong>Propose one chunking strategy</strong> and say why. What would each chunk contain? Where would it break?</li>
-      <li>Record a 2–3 min video explaining, in plain terms, <em>what chunking is</em> and the trade-off your strategy makes.</li>
+      <li><code>npm run bible:fetch</code> gets you the text; <code>npm run bible:fixed</code> shows the naive slicer shredding it — beat that.</li>
+      <li><strong>Choose a strategy</strong> (verse? chapter? packed passages? overlap?) — and have a reason. Who will query this index, and what will they ask?</li>
+      <li>Write one script: chunk it and <strong>store it in your own Pinecone index</strong> (<code>bible-kjv</code>) with metadata like <code>"Genesis 1:1-5"</code>. Verify the count in the console.</li>
+      <li>Record a 2–3 min video: what chunking is, your approach and why, and what <em>sentence overlap</em> is and when you'd use it.</li>
     </ul>
-    <p class="sub">Next week: you'll actually run it and measure whether your strategy was any good.</p>
+    <p class="sub">Full brief: <code>docs/CHALLENGE-CHUNKING.md</code>. You can't search this index yet either — same cliffhanger, same payoff next weekend.</p>
   </section>
 
   <!-- 16 — Recap -->
@@ -270,10 +274,10 @@ await upsertChunks(chunks);        // embeds + upserts in batches</code></pre>
     <h2>Where you are</h2>
     <ul>
       <li>You can explain <strong>why</strong> keyword search fails and what a vector fixes — and measure similarity by hand</li>
-      <li>You built the <strong>vector store</strong> from the company's existing database, and searched it by meaning</li>
+      <li>You built the <strong>vector store</strong> from the company's existing database — 21,090 vectors, metadata you chose as a team</li>
       <li>You know what metadata buys you, and why our notes need no chunking — but most text does</li>
     </ul>
-    <p class="lead">This week's video: keyword vs meaning, in your own words. Next week: an <strong>agent</strong> that decides — exact lookup or meaning search — and answers real questions using both.</p>
+    <p class="lead">This week's video: keyword vs meaning, in your own words. Next weekend: <strong>search both of your indexes</strong> — retrieval, reranking, and your first agent.</p>
   </section>
 
 </div>

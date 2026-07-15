@@ -1,27 +1,39 @@
-# Week 4 — Agents, evals &amp; observability · Facilitator Runbook
+# Week 4 — MCP, PII & human-in-the-loop · Facilitator Runbook
 
-**Block:** Agents, evals &amp; observability · **Days drawn from:** the agent-behavior + evals + observability days (`day-24`, `day-28`, `day-35`; retrieval-eval machinery from `day-18`) · **Session length:** ~110 min · **Deck:** `week-4.html`
+**Block:** MCP, PII & human-in-the-loop · **Week 4 of 5** · **Lessons covered:** w4-01 → w4-06 (MCP intro → PII / channels) · **Session length:** ~110 min · **Deck:** `week-4.html` (17 slides)
 
-**Goal of this session:** the room leaves able to do the two things a non-deterministic system demands — **see** why it answered (open a real trace and read the rendered context) and **prove** whether it's good (run an eval and report the number *compared to what*). They'll have counted the LLM calls in one chat turn, read a LangSmith trace top-down, run `npm run test:evals`, and watched a silent reranker fallback quietly move a number that nothing else in the system reveals.
+**Goal of this session:** the room leaves able to say — in their own words — why the MCP door can stay open with **no login** (narrow tools + always-on obscuring: the emptied room), having *built* the obscuring themselves (`lib/pii.ts`: 31 failing tests → green, then wired at the MCP door), watched a model they don't control discover and call their tools inside Claude Desktop, hunted down a PII format their regex misses **by design**, spec'd a new tool that honors the front-office contract (the deliverable 🎥), and watched the system take its first real *action* — a human-approved Cal.com booking followed by an AI voice call the whole room hears.
 
-> This runbook is backstage. Say anything here — the planted silent-fallback, the exact cost math, the "grade an LLM with an LLM" defense. The slides are what students see, so slide text stays in the student register (household-name meds — aspirin, insulin, diabetes; no metformin/lisinopril). You do **not** need to have built the system to run this — Pre-flight and Code-together assume you're coming in cold.
+> This runbook is backstage — say anything here; the slides are what students see. The single idea to protect all session: **channels and actions.** Which door a request comes through decides what it may see — the MCP door always obscures, the chat door shows the full chart — and when the system finally *acts*, the model **proposes**, a human **approves**, code **executes**. Everything today is one of those two sentences wearing different clothes.
 
 ---
 
 ## Pre-flight (before the room arrives)
 
-- [ ] Repo cloned on the **`instructor`** branch (you want the solved `lib/langsmith.ts`, `lib/evals/`, `lib/reranker.ts`, `lib/query-analyzer.ts`, `lib/agent.ts` to demo against), `npm install` done. Students follow on `student`.
-- [ ] `.env` filled with the full stack this week touches: `OPENAI_API_KEY` (analyzer, answerer, **and the judge**), `DATABASE_URL` (Neon), `PINECONE_API_KEY`, `COHERE_API_KEY` (reranker — free trial tier is enough), plus `LANGSMITH_API_KEY` + `LANGSMITH_PROJECT` for the tracing segment. Missing the Cohere key is the headline break-it — have it set, but know exactly what its absence looks like (below).
-- [ ] Both engines actually populated: Postgres has patients (`npm run db:studio` shows rows) and the vector index has clinical notes. If you're on a fresh machine, a prior block's ingest must have run — **don't reset/re-ingest here**, use whatever's already loaded.
-- [ ] **A LangSmith project with at least one real trace already in it.** Run 3–4 chat queries against the app before class (at least one *hybrid* query, so the trace tree has an analysis → retrieval → answer shape worth reading). Do **not** generate the first trace live and hope it lands.
-- [ ] **Know your eval baseline before class.** Run `npm run test:evals` once yourself and write down the numbers — these evals are **paid** (they call `gpt-4o-mini` as analyzer, answerer, and judge) and **variable** run-to-run, so you want to have seen a representative run, not discover a flaky dip in front of the room.
-- [ ] `lib/langsmith.ts`, `lib/reranker.ts`, `lib/evals/llm-judge.ts`, `lib/evals/retrieval.test.ts`, `lib/query-analyzer.ts`, and `lib/agent.ts` open in the editor — you'll point at all six.
-- [ ] Terminals open: one in the repo root for `npm run test:evals`, a second tab for `npm run dev` (the chat UI, to generate a fresh trace live if you want).
-- [ ] `week-4.html` open full-screen in a browser. Arrow keys / click to navigate. `N` toggles presenter notes.
+Two rigs in one session: the MCP/Claude Desktop wiring and the Retell/Cal.com action path. Do the full dress rehearsal **the morning of** — the closer is a live phone call, and it deserves a tested runway.
 
-**Known runnable-state note — so you're not surprised live:** the LLM evals live behind `npm run test:evals` (which sets `RUN_EVALS=1 vitest run lib/evals`), **not** the default `npm run test:run` — that's deliberate. Deterministic tests gate commits; paid, noisy LLM evals are *run on demand and read as trends*. If you accidentally run `npm test` you'll pull in the whole suite; use `test:evals` for this session. Also: `lib/evals/retrieval.test.ts` ships with two working judge cases plus TODO stubs for faithfulness/completeness — the stubs are intentional (they're student work), don't treat the TODOs as broken.
-
-If a laptop can't reach OpenAI/Cohere/LangSmith, pair up — the trace read-through and the eval run both survive one working setup between two people.
+- [ ] Repo cloned, `npm install` done, Node 18+. `.env` has `DATABASE_URL`, `OPENAI_API_KEY`, `PINECONE_API_KEY` — and remember all three must *also* go into the Claude Desktop config's `env` block (the subprocess inherits nothing).
+- [ ] **Run the lab from the student-branch state** of `lib/pii.ts` (the stub — every function throws `Not implemented`). Verify the starting point:
+      ```bash
+      npx vitest run lib/pii.test.ts
+      ```
+      Expected: **33 tests, 31 failed, 2 passed** — the two `shouldObscurePII` tests pass because that one ships implemented. Keep the instructor solution open in a second window you never screen-share.
+- [ ] Claude Desktop installed and signed in. Smoke-test the server *without* it first — the pipe is your "is it my server or the integration?" tool all day:
+      ```bash
+      echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | npx ts-node mcp-server/index.ts
+      ```
+      Expected: a JSON-RPC listing of the tools with their schemas (plus `Medical RAG MCP server running` on **stderr** — point at that later; it's the stdout-discipline example).
+- [ ] Claude Desktop config staged (macOS): `~/Library/Application Support/Claude/claude_desktop_config.json` — the exact block is in Code-together Part I. Absolute path, real keys in `env`. Fully restart after any edit (Cmd-Q, reopen — config is read at launch).
+- [ ] Log tail ready in its own terminal: `tail -f ~/Library/Logs/Claude/mcp-server-medical-rag.log`
+- [ ] **Cal.com:** `CAL_API_KEY` + `CAL_EVENT_TYPE_ID` in `.env`. Without them, `/api/schedule` returns a clean **503** — the propose→approve flow still demos, but the wow moment needs a real booking.
+- [ ] **Retell pre-flight — the wow moment:**
+      1. `RETELL_API_KEY` in `.env` (Retell dashboard → API keys).
+      2. Deploy the confirmation agent: `npm run retell:deploy` — expected tail: `Agent created: agent_…` then `RETELL_AGENT_ID=agent_…`. Put that line in `.env` (with it set, `lib/retell.ts` calls with `override_agent_id`, so no dashboard agent-binding is needed).
+      3. A phone number bought/imported in the Retell dashboard → `RETELL_FROM_NUMBER`.
+      4. `DEMO_PHONE_NUMBER=<your own phone>` — the call rings *you*, not the (synthetic) patient.
+      5. **Test the entire loop once:** book through the chat card, take the call, hear it say the patient's name and time. Day of: ringer ON, phone next to your mic, silenced-unknown-callers OFF (you may not have called yourself from that number before).
+- [ ] `npm run dev` running; the chat UI loads; `week-4.html` open full-screen (`N` toggles presenter notes).
+- [ ] Data reassurance to say out loud before the leak hunt: the dataset is **fully synthetic (zero PHI)** — hunting leaks on screen is safe. The *discipline* is what transfers.
 
 ---
 
@@ -29,136 +41,194 @@ If a laptop can't reach OpenAI/Cohere/LangSmith, pair up — the trace read-thro
 
 | Time | Arc segment | Slides | What to do |
 |---|---|---|---|
-| 0:00 | **Problem statement** | 1–3 | Cold open: "Your system answers. Now — *why* did it answer that, and *is it any good*? You can't `console.log` an LLM, and 'feels right' isn't a number." Sit in both gaps before naming a fix. |
-| 0:10 | **How it's solved** | 4 | Two instruments, one line each: a **trace** replays the past (debug); an **eval** scores the present (decide). You need both. |
-| 0:16 | **Concept: count the calls** | 5 | Walk one chat turn: analyzer + answerer = **~2 LLM calls**, plus an embedding. Most guess one. That gap is why you must see inside. |
-| 0:24 | **Concept: observability** | 6 | `traced()` = a debugger for the past. Draw the trace tree (analysis → retrieval → answer) with per-step timing. |
-| 0:30 | **Code together (part 1)** | 7–8 | The two rules of `traced()` (re-throw wrapped / never throw its own), then open a **real** LangSmith trace and read the rendered context aloud. Commands below. |
-| 0:48 | **Discussion / breakout** | 9 | "The answer was wrong — where do you look first?" Walk the trace top-down. Breakout if >8 people. Debrief with the key below. |
-| 1:00 | **Concept: evals, the spine** | 10 | "No metric, no decision." An eval is fixed inputs + known answers + a score. Its value is the *next* change. |
-| 1:07 | **Concept: two kinds of eval** | 11–12 | Exact-match (grade the analyzer classifier with `===`) vs LLM-as-judge (a second model grades grounding/relevance). Land why one gates and one trends. |
-| 1:18 | **Code together (part 2)** | 13 | Run `npm run test:evals`; read the retrieval hit@5 and judge scores. Score twice → "is 73% good?" → *compared to what?* Commands below. |
-| 1:30 | **Concept: cost is a metric** | 14 | Price the 2 calls + embedding per turn. A reranker that adds accuracy AND triples cost is a decision made with *both* numbers. |
-| 1:38 | **Break it / extend** | 15 | Run the silent-Cohere-fallback live (the headline), then turn them loose on the bank. Protect this time — it's where the lesson gets proven. |
-| 1:50 | **Research + recap + send-off** | 16 | Two research questions (label legitimacy; why paid evals don't gate). Recap the two instruments; frame the deliverable; point at the final block (production gates + capstone). |
+| 0:00 | **Cold open — the problem** | 1–3 | The agent works — in *your* app. The front desk lives in Claude Desktop and wants your system inside it. Land the sentence: *you're about to hand your patient database to a model you don't prompt, don't control, and can't see.* Park "add a login" on the whiteboard when someone says it — the breakout comes back for it. |
+| 0:08 | **MCP, the concept** | 4 | One server, tools, any client discovers them at connect time. The line to burn in: **your tool descriptions are prompts for a model you don't control.** Mention stdio (subprocess, stdin/stdout) — it explains two of today's live failures. Keep it tight; the wiring teaches it better. |
+| 0:16 | **Code together I — wire Claude Desktop** | 5 | Pipe smoke-test first, then the config JSON (absolute path, `env` block, full restart), then the reveal: plain-language question → Claude announces `search_patients`, shows its arguments, waits for approval. Students wire their own; their tool calls **error until the lab** (the pii stub throws) — name it, don't fix it. Live failures + recoveries below. |
+| 0:34 | **The two doors + breakout** | 6–8 | The channel diagram: MCP door always obscured, chat door full chart — *which door you came through is your permission.* Breakout (answer key below): is no-login defensible? when do channels beat RBAC? where does it collapse? Debrief into the two guarantees (narrow tool set + always-on scrub), then the pivot: guarantee #2 is a stub in their repo. |
+| 0:46 | **Code together II — THE PII LAB** | 9–10 | The week's hands-on spine. `npx vitest run lib/pii.test.ts` → 31 failing. Implement in test-file order: `obscureName` → `obscureDate` → `obscureLocation` → `obscureContent` → `obscurePatient`; each flips its own describe-block green. Then wrap the door: `obscureContent(combined)` in `search_patients`, restart the client, re-ask the question that errored at 0:16 — pseudonyms now, through code they wrote. Run the channel diff. |
+| 1:06 | **Break it — hunt the leak** | 11 | The headliner: feed `obscureContent` PII the regexes don't expect (lowercase name, spaced SSN, non-US phone, DD/MM date) and watch it sail through — with all tests green. Frame: imperfect **by design**; a seed for next week, not a bug. Bank entry 1. |
+| 1:16 | **Build — the new tool 🎥** | 12 | The contract (non-PII shaped + obscured output), candidates, and the proof sequence (`tools/list` → `tools/call` → the obscuring check). Spec + skeleton in the room; finish at home — this is the deliverable. |
+| 1:31 | **HITL + the live call** | 13–15 | Reads vs writes; reversibility × cost. The flow diagram: intent → `findPatientByName` gate → `X-Scheduling-Action` header → card → human confirm → Cal.com → Retell. Then do it live: book, confirm — and the phone rings. Let the room sit in it. Recovery script below if the call doesn't come. |
+| 1:45 | **Homework + recap** | 16–17 | Research homework: score `obscureContent` against HHS Safe Harbor's 18 identifiers; write "my scrubber would still leak ___." Recap the two sentences (channels; propose→approve→execute). Deliverable reminder. One tease, no more: next week a document in the index *lies on purpose*. Ends ~1:50. |
 
-Runs long? Compressible: the cost concept (1:30 — the math is a two-line demo) and the discussion (0:48 — can shrink to a fast whole-room walk of the trace). **Never** compress the trace read-through (0:30) or the eval run (1:18) — those are the hands-on proof points of the whole week.
+Runs long? Compress slide 4 (the wiring teaches MCP anyway) and slide 16 (point at the homework and move). **Never** cut the PII lab, the leak hunt, or the live call — the lab is the spine, the leak is the seed, and the call is the story they'll tell people.
 
 ---
 
-## Breakout prompt + answer key
+## Breakout prompt + answer key (channels vs RBAC)
 
-### Breakout (slide 9) — "The answer was wrong. Where do you look?"
+**Prompt (slide 7):** "The MCP door has no auth at all. (1) Is that a hole or a design — what exactly would a login protect? (2) When do channels beat RBAC — what has to be true of the audiences? (3) Where does the channel model collapse — name one tool or one change that would break it."
 
-**Prompt:** "A user asked about **one** patient's diabetes and got a confident answer about *someone else's* records. You have the trace open. Using only the trace — analysis, retrieval, rendered context, answer — decide which step is at fault and how you'd confirm it. Don't guess from the outside; point at a field."
+- **Is no-login a hole?** No — because there's nothing identifying behind this door to protect. The tool set is deliberately narrow (no `get_patient`, no patient-detail lookup — the most sensitive query shape isn't denied, it's *not offered*) and every response is scrubbed before it leaves. You don't gate a room you already emptied. The sharper framing: a permission system is a **runtime promise** — it holds only while every tool remembers to check and every key stays scoped right. A channel that *cannot emit* PII makes no promise it can break. Security here is structural (what the channel can emit), not procedural (who's allowed to ask).
+- **When do channels beat RBAC?** When the audiences split cleanly onto different entry points *and* one audience needs nothing sensitive. Front office vs clinician is exactly that split. Then "which door you used" encodes the trust level with zero per-request checks — and there's no role field on the request to forge, because there are no roles. RBAC is the right tool when **one door must serve people with genuinely different entitlements to the same data** — which is precisely the clinician channel's real-world future ("is the person at the keyboard actually a clinician?" is an *identity* problem, not a channel problem; out of scope for this course, but name it honestly).
+- **Where does it collapse?** Three ways, all worth hearing from the room: (a) a tool whose *purpose* can't survive pseudonymization — `get_patient` "just for convenience" (read-only is irrelevant; identifying-vs-not is the property); (b) a caller-controlled off-switch — the day a tool accepts `obscure: false`, the boundary is decoration; (c) the quiet one — commenting out the scrub line to debug and forgetting it (bank entry 4). The wall is *tool set + scrub*; break either and it's not a channel anymore, it's an open door.
 
-**What to listen for / answer key:**
-- **Analysis wrong** — the intent or the extracted patient entity is off (e.g., no patient name pulled, or the wrong one). Fault is *upstream*, in the analyzer prompt. Confirm: read the `intent` + `entities` in the first box.
-- **Analysis right, retrieval wrong** — correct patient in the analysis, but the **rendered context** contains a different patient's notes. Fault is retrieval/filtering (the empty-filter privacy bug from the search block is exactly this shape). Confirm: read the rendered-context field — whose notes are actually in there?
-- **Context right, answer wrong** — the right notes are in context but the model answered about someone else / from general knowledge. Fault is the grounding prompt. Confirm: the context has patient A, the answer names patient B.
-- The instinct to correct: *"it hallucinated"* is not a diagnosis — it's the symptom. Without the trace, all three failures look identical from the outside. The trace tells you which door to open, and the **rendered-context field** resolves most of these in thirty seconds.
-
-**Debrief:** the habit is *read the trace top-down, don't guess*. This is the same debugging loop from the agent block ("read the analysis object first"), now with a permanent tool instead of a scratch `console.log`. Bridge to evals: a trace explains *one* wrong answer; it can't tell you *how often* the system is wrong. That's the next instrument.
+**What to listen for:** the "medical data needs RBAC" reflex — push back with *match the control to what's actually behind the door*. Also the opposite over-rotation: "channels are simpler, always use channels" — ask them to design the clinician door with channels alone and watch it fail (you can't make a clinician's tool non-identifying; showing the full chart is its job). The debrief line: *channels when the audiences split onto different doors and one needs nothing sensitive; roles when one door serves different entitlements to the same data.*
 
 ---
 
 ## Code-together
 
-### Part 1 — read a trace (slides 7–8)
+Three hands-on pieces: wire the client (Part I), build the obscuring and bolt it on the door (Part II — the lab), and the first write (Part III — the live call).
 
-First, show the wrapper and its two rules in `lib/langsmith.ts` (don't run anything yet — just point):
+### Part I — wire the MCP server into Claude Desktop (slide 5)
 
-```ts
-// lib/langsmith.ts — traced()
-if (!isLangSmithEnabled()) return fn();     // no key → run untraced, never break
-try {
-  await run.postRun();
-  const result = await fn();
-  await run.end({ outputs: { result } });
-  return result;
-} catch (error) {
-  await run.end({ error: String(error) });
-  throw error;                              // RULE 1: re-throw the wrapped error
-}
-```
-- **Narrate the two rules.** (1) It **re-throws** the function's error — record the crime, then let it reach the caller; swallow it and you've hidden the bug you built this to see. (2) It **never throws its own** — the no-key early-return and the fact that a trace-post failure won't take the request down mean observability degrades to nothing rather than crashing the pipeline. One idea from both sides: *a trace is a witness, not a participant.*
-- **Point at `lib/agent.ts`:** the one `traced("execute_query", …)` wrap is why a run shows up in LangSmith at all. (Extend later: wrap `analyzeQuery` and `searchClinicalNotes` too, and the tree grows boxes.)
-
-Then open **one real trace** in LangSmith (seeded in Pre-flight) and walk it top to bottom:
-- **Narrate in order:** the *analysis* box (intent + entities — the first stack frame), the *retrieval* box (patient/note counts), **the rendered context** (read it aloud — this is the field that pays for the whole setup), and which step *dominates the duration* (usually an LLM call, not the DB).
-- **Count the LLM boxes:** it's **2** — analyzer + answerer. Ask the room to guess first; most say one.
-- **Most likely live failure:** no traces appear → `LANGSMITH_API_KEY` / `LANGSMITH_PROJECT` unset, or the project name in `.env` doesn't match the project you're viewing in the UI. This is exactly why Pre-flight says seed a trace before class. Don't debug it live — switch to the trace you already seeded.
-
-### Part 2 — run and read an eval (slide 13)
+**Pipe first, client second.** Always establish the server works before involving the desktop app:
 
 ```bash
-# paid + variable — runs the LLM evals under lib/evals only
-npm run test:evals
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | npx ts-node mcp-server/index.ts
 ```
-- **Narrate the two kinds as they scroll by.** The **retrieval** eval is hit@5 over `(query, expected-note)` pairs read from your own corpus — pure `===`-style bookkeeping once you have the pairs. The **judge** cases (`lib/evals/retrieval.test.ts` → `evaluateRetrievalRelevance`) are a *second model* scoring relevance 0–10 with a 7+ threshold — noisier, and it costs a call.
-- **Land "compared to what?"** Show hit@5 for **vector alone vs vector + reranker** side by side (illustrative: 73% → 89%). "Is 73% good?" has no answer alone — the eval hands you a *difference*, not a grade. Two configs, two numbers, and the reranker's value is now a fact.
-- **Point at the honest gaps:** `retrieval.test.ts` has TODO stubs for faithfulness/completeness — name them as student work, not breakage. A system whose blind spots are *documented* beats one assumed complete.
-- **Most likely live failure:** a judge case dips below threshold on this particular run and "fails." That's the *nature* of a paid, statistical metric — one case at n=15 is ~7 points of swing. Don't panic-debug it; that flakiness is precisely why these live behind `test:evals` and are read as trends, not commit gates. (If everything errors: `OPENAI_API_KEY` unset, or you ran `test:run` instead of `test:evals`.)
+
+Expected: a JSON-RPC listing of the tools with their zod-derived schemas — this is literally what Claude Desktop sees at connect time. (The friendlier UI for the same thing: `npx @modelcontextprotocol/inspector mcp-server/index.ts`.) Point at `Medical RAG MCP server running` appearing on **stderr** — the one channel the protocol doesn't own.
+
+**The config** — `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS):
+
+```json
+{
+  "mcpServers": {
+    "medical-rag": {
+      "command": "npx",
+      "args": ["ts-node", "/ABSOLUTE/path/to/repo/mcp-server/index.ts"],
+      "env": {
+        "DATABASE_URL": "your-neon-url",
+        "OPENAI_API_KEY": "your-openai-key",
+        "PINECONE_API_KEY": "your-pinecone-key"
+      }
+    }
+  }
+}
+```
+
+Narrate the three details that carry the day: the client **launches your server as a subprocess** (a command, not a URL — server crash = tools vanish); the **path must be absolute** (the subprocess inherits the *client's* working directory); the **`env` block exists because `.env` doesn't travel** (the subprocess inherits nothing from your dev shell). Then Cmd-Q, reopen — config is read at launch.
+
+**The reveal:** fresh conversation, plain language, no tool names — *"How many patients in the medical-rag system have high blood pressure?"* Expected: Claude announces a `search_patients` call, shows the arguments it chose, waits for approval (the client's built-in human-in-the-loop — say that phrase now; it returns at 1:31). Approve → your code runs → the answer reads *your* formatted text, names obscured. Say the beat out loud: **a model you've never prompted just chose your tool from your description alone.**
+
+**Branch reality:** on the student branch, `lib/pii.ts` throws — so a student's tool call comes back with `Error… Not implemented — your turn! (lib/pii.ts → obscureName)`. That's not a wiring failure; **that's the door demanding the lab.** `tools/list` still works (discovery doesn't run handlers) — wiring success = the server appears and tools are discoverable. Full round-trips come alive after the lab, and the re-ask at 0:46 is the payoff.
+
+**Most likely live failures (+ recovery):**
+- **Server never appears in the client** → invalid config JSON or a relative path. `tail` the log; the first lines say which.
+- **Server appears, every tool errors** → missing `env` keys — the code throws on `process.env.X` being undefined. The log shows your stderr.
+- **Tool call hangs forever (works in the pipe)** → stdout pollution — bank entry 2; you'll run it on purpose later.
+- **"I changed the config and nothing happened"** → config is read at launch. Cmd-Q, reopen. Almost always this.
+- **`npx` can't resolve `ts-node`** → give the config the absolute binary: `/path/to/repo/node_modules/.bin/ts-node`.
+
+### Part II — the PII lab (slides 9–10, ~20 min)
+
+**Start from failure:**
+
+```bash
+npx vitest run lib/pii.test.ts
+```
+
+Expected: `Tests  31 failed | 2 passed (33)`. The stub's JSDoc + the test file are the spec — read a few cases on screen before anyone types.
+
+**Build order = the test file's describe blocks** (each function flips its own block green; the room feels the progress):
+
+1. **`obscureName`** (7 tests) — `createHash('sha256').update(name.toLowerCase().trim()).digest('hex')`, first 4 hex chars uppercased → `` `Patient-${id}` ``; null/undefined/empty → `Patient-XXXX`. Narrate the two properties the tests pin: **deterministic** (same name → same pseudonym, case-insensitive — records stay *linkable* across responses) and **one-way** (no running a hash backward). A pseudonym, not anonymization.
+2. **`obscureDate`** (5 tests) — parse; `isNaN(dateObj.getTime())` guard → `XXXX-XX-XX`; else `` `${year}-XX-XX` ``. Why keep the year: "patients over 60" still works; a full birthday identifies.
+3. **`obscureLocation`** (3 tests) — any field present → `[LOCATION REDACTED]`; all empty → `Unknown`. Location narrows a person fast, so it all goes.
+4. **`obscureContent`** (14 tests) — the regex pass: SSNs (dashed + `SSN:` prefixed), phones (parens/dashes/dots), emails, `Mr./Mrs./Dr.` names, a full-name pattern, dates (keep the year), MRNs, addresses. Narrate the trap the tests pin from *both* sides: the "preserves non-PII" block demands `hypertension`, `diabetes mellitus`, and `Blood pressure 120/80` survive — a de-identifier that over-redacts the medicine is its own kind of broken. That's what the `NON_NAME_WORDS` guard is for (the name pattern must not eat "Chief Complaint").
+5. **`obscurePatient`** (2 tests) — field-by-field orchestration over a patient object; ids and gender survive, names/dates/location don't.
+
+Expected finish: `Tests  33 passed (33)`.
+
+**Then the door (slide 10).** In `mcp-server/index.ts`, follow the in-file idea comment and build `search_patients`: the selector → `runSql` ‖ `runRag` fan-out, join the texts, then the one load-bearing line:
+
+```typescript
+const combined = [sqlText, ragText].filter(Boolean).join('\n\n');
+const formatted = obscureContent(combined);   // front-office channel — always
+```
+
+Say **why the scrub is shape-agnostic**: the SQL side is text-to-SQL — the LLM writes the query and picks whatever columns it likes, so there's no fixed "name field" to pseudonymize. You scrub the *entire rendered text* at the emission point. (The `query_notes` formatter already models the same idea per-label with `obscureName`.)
+
+**The payoff sequence:** restart Claude Desktop (the subprocess is old code until relaunch) → re-ask the 0:16 question that errored → it answers, in pseudonyms, through code they wrote. Then the **channel diff**: the same conceptual question through the chat UI (`/api/chat` — full names, real dates, no scrub anywhere on that path, *on purpose*) vs the MCP tool (`Patient-A7B3 · 1985-XX-XX`). The diff *is* the lesson.
+
+**Most likely live failures (+ recovery):**
+- **Format test fails** (`/^Patient-[A-Z0-9]{4}$/`) → they sliced digest *bytes* not hex chars, or forgot `.toUpperCase()`.
+- **Case-consistency test fails** → forgot `.toLowerCase().trim()` before hashing.
+- **"preserves measurements" fails** → a greedy phone/zip pattern ate `120/80` or a lab value. Recovery: require separators in the pattern, or make the loose ones contextual — over-redaction is a bug the tests refuse.
+- **Tests green but Claude Desktop still errors** → old subprocess. Full client restart relaunches the server.
+
+### Part III — the first write: book it and take the call (slides 14–15)
+
+1. **Trigger the proposal.** In the chat UI: *"schedule Abe for tomorrow at 2pm"*. Expected: the streamed answer plus a **confirmation card** with the extracted values. Open the network tab and show the `X-Scheduling-Action` header on the `/api/chat` response — the proposal in transit. Narrate the two gates that already fired: `detectSchedulingIntent` said yes, **and** `findPatientByName` found a real patient. No match → no header → no card.
+2. **Edit before confirming.** Change the time on the card, then confirm. Say why: the confirm posts the **card's current values, not the model's extraction** — if it posted the model's raw output, the human gate would be decoration.
+3. **The booking.** Expected response from `POST /api/schedule`:
+   ```json
+   { "success": true, "message": "Appointment scheduled for Abe …", "bookingId": "…", "confirmationCall": { "called": true, "callId": "…" } }
+   ```
+4. **The call.** Seconds later your phone rings. Speaker on, near the mic. The agent greets the patient by name, states the time, asks if they can make it. Answer "yes." Let the silence in the room do the teaching, then say the boundary sentence: *the model proposed; a human approved; code executed; and the model never held the trigger.*
+5. **If the call never comes — recovery, not apology:** the booking still succeeded. Show `bookingId` plus `confirmationCall: { called: false, reason: … }` in the response, and show the `try/catch` in `app/api/schedule/route.ts`: the call is **best-effort by design** — a notification failure must never undo a successful booking. Say the line: *reads fail cheap, writes get gates, notifications get retries-or-shrugs.* Then debug offline: `RETELL_AGENT_ID` missing (re-run `npm run retell:deploy`), `RETELL_FROM_NUMBER` wrong, `DEMO_PHONE_NUMBER` typo'd, or carrier spam-screening (call your phone from the Retell number once beforehand).
+6. **If Cal.com isn't configured:** confirm returns a clean **503** (`isCalConfigured()` guards the route). The propose→approve flow already demonstrated the pattern; name what's missing and move on.
 
 ---
 
 ## Break it / extend bank
 
-Run at least one live (the silent Cohere fallback is the headline), then turn the room loose.
+Run entries 1 and 2 live (the headliners — a silent PII leak and a hung protocol), 3 with the room, 4 if time remains.
 
-**1. The silent reranker fallback (the headline one).**
-- **Sabotage:** unset / comment out `COHERE_API_KEY`, then re-run the retrieval path (`searchChunks(query, 25)` → `rerankResults(query, candidates, 5)`) and the eval.
-- **Expected failure:** the caller gets a list **identical to the plain vector order** — and *nothing the user or caller sees says so*. `rerankResults` in `lib/reranker.ts` catches the failed Cohere call, logs `console.error("Reranking failed, using original order", …)`, and returns `results.slice(0, topN)` — the original order. Degraded search beats no search, so it fails *soft*. The only signal is one red line in the server log (easy to miss) — and **your hit@5 quietly drops back to the vector-alone number.** The eval is the only thing in the whole system that catches this.
-- **Fix:** restore the key. Reranked order differs from cosine order on at least some queries again, and hit@5 climbs back.
-- **Extend:** this is the argument *for* evals in one experiment — a real regression that is invisible to a human clicking around, caught only because a number you were watching moved. Add "silent-degradation" to the list of things only an eval sees.
+**1. The leak the regex can't see (the headliner — a seed, not a bug).**
+- **Sabotage:** with all 33 tests green, feed `obscureContent` PII the patterns don't expect: `maria gonzalez called about her results` (all-lowercase name), `SSN 123 45 6789` (spaces, no dashes), `+44 20 7946 0958` (non-US phone grouping), `seen on 15/03/1985` (DD/MM date — the pattern requires a 1–12 month first).
+- **Expected failure:** each sails through untouched. Green tests, leaking scrubber — both true at once.
+- **Fix:** there isn't a durable one. You can add a regex per miss forever; the world writes identity in more formats than a list can enumerate. The tests passing means the scrubber handles the formats *we thought of*.
+- **Extend:** this is next week seeded — the honest engineering answer is *measuring* the leak rate on realistic inputs, not patching one regex per embarrassment. Don't teach evals now; leave "our tests ≠ the world's inputs" ringing. The research homework (HHS Safe Harbor's 18 identifiers vs what `obscureContent` catches) turns the hunt into an audit.
 
-**2. Reranking with no over-fetch.**
-- **Sabotage:** fetch 5 and rerank 5 (`searchChunks(query, 5)` → `rerankResults(query, candidates, 5)`).
-- **Expected failure:** the list comes back **identical** — and Cohere is *never even called*. `rerankResults` early-returns unchanged when `results.length <= topN` (the `if (results.length <= topN) return results;` guard at the top of `lib/reranker.ts`). There's no depth to reorder: you handed it exactly the 5 you wanted back.
-- **Fix:** over-fetch on purpose — fetch 25, keep 5. A relevant note buried at #19 by cosine is invisible unless the funnel mouth is wide enough to include it before the reranker gets a look.
-- **Extend:** run the eval at over-fetch depths 10, 25, 50 and watch hit@5 vs latency/cost. Wider mouth = more candidates = more to promote *and* more to pay for. That's a cost/accuracy curve — a decision made with both numbers, exactly like slide 14.
+**2. Stdout pollution — the hanging tool (the transport headliner).**
+- **Sabotage:** add `console.log('debug: handler start')` inside a tool handler. Restart Claude Desktop, call the tool.
+- **Expected failure:** the call hangs or the client disconnects with a cryptic error — the signature is *hangs in the client, works in the inspector*. The client's MCP log shows the malformed line.
+- **Fix:** `console.error` — stderr is yours, stdout is the protocol's. The server's own startup line already models the discipline.
+- **Extend:** generalize — stdio transport means protocol and process share one pipe; channels have contracts. Then have them audit every `console.log` reachable from a handler, *including imported `lib/` code* — a stray log in a shared module only fires under the client's call pattern, which is why it survives local testing.
 
-**3. Blind the trace (failure isolation, the *good* kind).**
-- **Sabotage:** unset or corrupt `LANGSMITH_API_KEY` (or point `traced()` at a dead endpoint).
-- **Expected failure (the good one):** the app keeps working — answers still stream — but the trace project goes silent. You've gone **blind without going down**. That's `traced()`'s "never throw its own error" rule working as designed (`if (!isLangSmithEnabled()) return fn();`).
-- **Fix:** restore the key; traces resume. Then deliberately make `traced()` *re-throw* on a trace-post failure and re-run — now observability takes the pipeline down with it. Compare the two. That contrast *is* the lesson: the witness must never become the crash.
-- **Extend:** wrap one more step (`searchClinicalNotes` as `runType: 'retriever'`, `analyzeQuery` as `'llm'`) and watch the trace tree grow a box. Count the LLM calls from the finished tree and confirm it's 2 per turn.
+**3. Schedule a ghost — the gate refuses.**
+- **Sabotage:** *"schedule Slartibartfast for tomorrow at 2pm."*
+- **Expected failure:** none visible — that's the point. `detectSchedulingIntent` fires (`isSchedulingRequest: true`, a name extracted), but `findPatientByName` returns nothing → no `X-Scheduling-Action` header, no card. The model proposed; the system declined to even ask the human.
+- **Fix:** nothing to fix — two gates before a card: intent **and** existence. Also probe *"schedule an appointment"* with no name at all → `patientName: null` (nullable schema fields are how the model says "I don't know") → no card. Never a guessed patient.
+- **Extend:** the history-contamination probe — discuss patient A for several turns, then say *"yes, schedule him."* `detectSchedulingIntent` reads the last 4 messages: does it grab the right name, or a contextually-present-but-wrong one with full confidence? That's the scariest failure shape in a system that acts; whatever they find goes in their failure notes.
 
-**4. (If time) Grade the classifier, then move one thing.**
-- **Sabotage:** run the analyzer exact-match eval, then change a *single* few-shot example in `lib/query-analyzer.ts` to fix one boundary case (e.g., a hybrid that misroutes to SQL-only).
-- **Expected failure:** the boundary case flips right — *but* re-run and check `requiresSQL` / `requiresVector` didn't regress elsewhere. Tuning one number often dents another.
-- **Fix / point:** the discipline is *change one variable, re-run, confirm the other numbers held*. If they can point at the boundary-that-improved **and** the booleans-that-held, they own measurement; if they only report the number that went up, that's theater.
-- **Extend:** keep a handful of cases you never tune on. Grading against labels you memorized is the eval version of testing on your training set.
+**4. Comment out one line "just to test."**
+- **Sabotage:** in `search_patients`, comment out the `obscureContent(combined)` line and return the raw text. Restart the client; ask about a patient.
+- **Expected failure:** real names and dates flow out the front-office door. No error, no warning, nothing red — the leak is perfectly silent.
+- **Fix:** restore the line. Then say the uncomfortable part out loud: the entire front-office guarantee is **one line per tool at the emission point**. That's why it lives at the door, not scattered through the query path.
+- **Extend:** what *would* catch this? A channel-contract test — call the tool handler itself and assert no real patient name appears in the output text. If time remains, write it; it's the strongest artifact of the day and a preview of next week's posture: guarantees you can run.
 
 ---
 
 ## Misconceptions to preempt
 
-- **"One chat turn is one LLM call."** It's ~2 — an analyzer *and* an answerer — plus an embedding on the search path. Students consistently under-count, which means they under-count cost and under-instrument. The trace makes the real number undeniable.
-- **"Tracing is just logging."** Logging is lines; a trace is a *tree* — each step's inputs, outputs, duration, error — and it stores the **exact context the model received**. That last field turns "the AI hallucinated" into "retrieval handed it the wrong context" in thirty seconds. Logging can't do that.
-- **"The order changed, so the reranker helped."** "Changed" ≠ "got better." Better needs ground truth — hit@5 with and without. This is the spine rule; resisting the conclusion until the eval exists *is* the discipline.
-- **"Using an LLM to grade an LLM is circular."** Grading is easier than generating, the judge is handed an explicit rubric it doesn't have to invent, and you spot-check it against your own eyes. It's a thermometer, not a supreme court — which is why judge scores are read as *trends*, not hard gates.
-- **"Grading the analyzer against my own labels is cheating."** It isn't — as long as you **label first, by hand, then run**, and keep some pairs you never tune on. Saving the analyzer's own output as the "expected" answer *would* be cheating; hypothesis-before-experiment is not.
-- **"'It works' is a complete answer."** Not without a cost number. A system with no cost metric is one that surprises you with an invoice. "No metric, no decision" applies to dollars too.
+- **"Medical data needs RBAC, so no-login is a hole."** Match the control to what's behind the door. This door only emits pseudonyms; a per-tool permission matrix would guard an emptied room. RBAC belongs where one door serves different entitlements to the *same* data — the clinician channel's real-world future, not this one.
+- **"Read-only = safe."** Read-only says nothing about what it reads *out*. `get_patient` is read-only and would hand a foreign model a fully identified chart. The load-bearing property is identifying-vs-not, not read-vs-write.
+- **"Patient-A7B3 is anonymous."** It's a pseudonym: deterministic (linkable across responses — a feature) and one-way, but still a stable tag pointing at a real row. De-identification reduces exposure; it doesn't license publishing.
+- **"The regex misses are bugs — add more regexes."** They're the design's honest edge. A pattern list can't enumerate every format identity takes; the durable answer is measurement (next week), not one more pattern per embarrassment.
+- **"The confirmation card is our auth."** The card is a UX gate; `/api/schedule` is an HTTP endpoint anything can POST to. The card gates the *model*, not the network — which is also why confirm must post the card's current values, or the human gate is decoration.
+- **"The model books the appointment."** The model produces a *proposal* — structured, nullable-where-unknown. A human approves the actual parameters; deterministic code calls Cal.com. The model never holds the trigger.
 
 ---
 
 ## Deliverable 🎥 (end of week)
 
-A strong 2–3 min video (phone camera fine) does **one** of:
+From the build lesson (w4-04): a **2–3 min video** (phone is fine), pick one:
 
-- **Defend with the number:** run one eval on the student's own system — retrieval hit@5 (vector alone vs vector+reranker) *or* the analyzer exact-match eval. Show the two numbers side by side, say what changed their mind (or didn't), and **state what one query costs** (calls counted from the trace × model price). The demo shows the trace open, not just the terminal.
-- **Teach back:** open a real trace and explain to a non-engineer how you found *why* a wrong answer was wrong — which box, which field — and then how an eval tells you whether that wrongness is rare or routine.
+- **Defend the design:** their new MCP tool — why this tool, what it returns, how it stays non-identifying (which names get obscured and where), and what one call costs. The demo must show a client **discovering and calling it** (`tools/list`, then a `tools/call` or a plain-language ask in Claude Desktop) with the returned text carrying **pseudonyms, never a real name** — not just the source code.
+- **Teach back:** explain to a non-engineer why the MCP server can safely answer "how many patients have diabetes?" for any assistant that connects, while the clinician's chat app can't be left open the same way — and how the channel design makes that difference structural.
 
-**Grade against one question:** when asked *"is your number good?"*, do they answer **"compared to what?"** and point at a second configuration's number? If yes, they own the spine rule — evals create *differences*, not grades. If they recite a percentage as a grade, they don't yet. Second-order tell of mastery: they can state what one query *costs* — a price tag is part of a system's spec, same as its accuracy.
+**Grade against one question:** *does the demo show a client discovering and calling the tool, and getting back obscured, non-PII text?* Source code that returns the right data proves the function works; it does not prove the tool honors the channel. The obscured client round-trip is the deliverable.
+
+(The research homework, slide 16, feeds the final week: audit `obscureContent` against HHS Safe Harbor's 18 identifiers and write the honest sentence — *"my scrubber would still leak ___"* — with a concrete example input.)
 
 ---
 
 ## Materials
 
-- Student day files this anchors: the agent-behavior + evals + observability days — `day-24.md` (analyzer eval), `day-28.md` (observability / LangSmith), `day-35.md` (evals as the spine); retrieval-eval machinery seeded in `day-18.md`.
-- Deck: `week-4.html`
-- Repo files the session points at (on `instructor`): `lib/langsmith.ts` (`traced()`), `lib/reranker.ts` (`rerankResults` — silent Cohere fallback + no-over-fetch early return), `lib/evals/llm-judge.ts` (`evaluateRetrievalRelevance` / `evaluateAnswerFaithfulness` / `evaluateAnswerCompleteness`), `lib/evals/retrieval.test.ts` (working judge cases + TODO stubs), `lib/query-analyzer.ts` (the classifier under exact-match eval), `lib/agent.ts` (where `traced()` wraps the pipeline).
-- Commands: `npm run test:evals` (paid LLM evals — `RUN_EVALS=1 vitest run lib/evals`); `npm run test:run` (the deterministic gate, for contrast); `npm run dev` (generate a fresh trace live).
-- The repo's `CLAUDE.md` structured-output rules (`responses.parse` + `zodTextFormat` + `output_parsed`; `.parse()` not `safeParse`) — any code shown live must model these, since the room reads the repo over the training data.
-- Further reading the keen students will have hit: [Hamel Husain — "Your AI product needs evals"](https://hamel.dev/blog/posts/evals/), [LangSmith observability docs](https://docs.langchain.com/langsmith/observability), Cohere rerank docs.
+- Deck: `curriculum/slides/week-4.html` (17 slides)
+- Lessons this session draws from: `curriculum/w4-01-mcp-intro.md` → `w4-06-pii.md`
+- Real code the demos are grounded in (read live if asked):
+  - `mcp-server/index.ts` — the front-office door (instructor branch: `search_patients` + `query_notes`, both obscured; student branch: `query_notes` as the worked example plus the in-file idea comment the lab fills in)
+  - `lib/pii.ts` — the lab (student = stub) · `lib/pii.test.ts` — the spec (33 tests)
+  - `app/api/chat/route.ts` — clinician channel (no scrub, on purpose); intent detection + `findPatientByName` gate; the `X-Scheduling-Action` header
+  - `lib/scheduling.ts` — `detectSchedulingIntent` (structured output, nullable fields, today's-date injection) · `lib/patients.ts` — `findPatientByName`
+  - `app/api/schedule/route.ts` — the write; `isCalConfigured()` 503 guard; best-effort Retell call in `try/catch`
+  - `lib/calendar.ts` — the Cal.com booking · `lib/retell.ts` — the voice call (`DEMO_PHONE_NUMBER` override) · `scripts/retell/deploy-agent.ts` (`npm run retell:deploy`)
+- Commands to have on a card: the `tools/list` pipe; `npx @modelcontextprotocol/inspector mcp-server/index.ts`; `npx vitest run lib/pii.test.ts`; `tail -f ~/Library/Logs/Claude/mcp-server-medical-rag.log`
+- Config paths: Claude Desktop `~/Library/Application Support/Claude/claude_desktop_config.json` (edit → Cmd-Q → reopen); Cursor `.cursor/mcp.json` at the repo root (launched from the repo, so `.env` loads and the `env` block can go)
+- Env this session needs: `DATABASE_URL`, `OPENAI_API_KEY`, `PINECONE_API_KEY` (in `.env` *and* the client config's `env` block); `CAL_API_KEY`, `CAL_EVENT_TYPE_ID`; `RETELL_API_KEY`, `RETELL_FROM_NUMBER`, `RETELL_AGENT_ID`, `DEMO_PHONE_NUMBER`. (`OBSCURE_PII` is the operator's dial — the channels don't consult the caller.)
+- Facts to have on hand: **200 patients**, ~21k notes, fully synthetic (zero PHI) — the leak hunt is safe to do on screen; `lib/pii.test.ts` = 33 tests, 31 failing on the student stub; the MCP transport is stdio (stdout = protocol, stderr = yours).

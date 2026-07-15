@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Week 2 — Agentic / hybrid search · RAG &amp; AI Agents</title>
+<title>Week 2 — Retrieval, reranking &amp; your first agent · RAG &amp; AI Agents</title>
 <style>
   :root {
     --ink: #1b2330;
@@ -83,214 +83,252 @@
 
   <!-- 1 — Title -->
   <section class="slide active title-wrap">
-    <div class="kicker">Week 2 of 5 — Agentic / hybrid search</div>
-    <h1>An agent that <em>decides</em> — then answers from the records</h1>
-    <p class="lead">Last week you built the vector store. Now the real question: when a doctor types something in plain English, who should answer — the database, the notes, or both? This week you build the thing that decides, and answers grounded in what's actually there.</p>
+    <div class="kicker">Week 2 of 5 — Retrieval, reranking &amp; your first agent</div>
+    <h1>Two indexes full of vectors — and not one search yet</h1>
+    <p class="lead">Last weekend you embedded all 21,090 clinical notes together, and chunked the entire Bible into an index of your own design. Both stores are loaded. Neither has ever answered a question. Today you write the search — then put a second opinion on top of it — then build your first agent.</p>
   </section>
 
   <!-- 2 — The week -->
   <section class="slide">
     <h2>This week</h2>
     <ul>
-      <li>Recap: you have two engines — the database (exact facts) and the vector store (meaning)</li>
-      <li>Structured outputs: turn the model into a <em>typed function</em> — this week it writes the query itself</li>
-      <li>The SQL agent: hand the model the schema, run the read-only <code>SELECT</code> it writes</li>
-      <li>Router → two agents in parallel → aggregator; and <em>hybrid</em> — facts narrow, meaning ranks</li>
-      <li>The grounding contract: answer only from the records — and refuse what isn't there</li>
+      <li>Implement <code>searchClinicalNotes</code> — the first production search code you write in this course</li>
+      <li>The metadata filter: why <code>patientId</code> is a privacy boundary, not decoration</li>
+      <li>The Bible debrief: same query, your index — what your chunking strategy decided for you</li>
+      <li>Reranking: the funnel — over-fetch broadly, re-judge carefully — and the fallback that fails silently</li>
+      <li>Structured outputs: making the LLM return data your code can <code>if</code> on</li>
+      <li>The <strong>selector</strong> — your first agent: it routes questions, and deliberately nothing more</li>
     </ul>
-    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video — show your agent answer one real question per path, and show it <em>refuse</em> a question the data can't answer.</p>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video — search + rerank your own Bible index, show one ordering the reranker changed, and explain why the funnel over-fetches.</p>
   </section>
 
   <!-- 3 — Problem statement -->
   <section class="slide">
-    <h2>The setup: two engines, no driver</h2>
-    <p>After Week 1 you have two ways to find things. The database answers <strong>exact facts</strong> — "how many patients have diabetes?" is a <code>COUNT</code>. The vector store answers by <strong>meaning</strong> — "notes that describe shortness of breath" finds the one that says "dyspnea."</p>
-    <p class="lead">But a user doesn't know which engine they're hitting. They just type. Something has to <em>read the question and choose</em> — and choosing wrong means a right-sounding, wrong answer.</p>
-    <div class="cue"><b>Say it plainly:</b> Week 1 built the engines. This week builds the driver. The whole session is: how does software decide which tool a plain-English question needs?</div>
+    <h2>Where we left off</h2>
+    <pre><code>  medical-notes   21,090 note vectors        built live, together      never queried
+  bible-kjv       your chunks, your rules    your chunking strategy    never queried</code></pre>
+    <p>You can put text <em>into</em> a vector store. You cannot get anything back out. Open <code>lib/vector-search.ts</code>: <code>searchClinicalNotes</code> is still a skeleton — it throws <code>Not implemented - your turn!</code></p>
+    <p class="lead">One function stands between you and <em>"which patients are struggling to breathe?"</em> Let's write it.</p>
+    <div class="cue"><b>Sit in the cliffhanger:</b> ask "who has actually run a query against either index?" Nobody — that's by design. Last week ended with two loaded stores and no search. Today's whole arc: search → judge the results → route to the right engine. If anyone's <code>medical-notes</code> index looks empty, they missed the live vectorize — pair them with a neighbor; do not re-run 21k embeds now.</div>
   </section>
 
-  <!-- 4 — How it's solved -->
+  <!-- 4 — Concept: metadata + in-query filter -->
   <section class="slide">
-    <h2>The move: hand the model the schema, run what it writes</h2>
-    <p>The naive way is to hand-code a query builder for every shape of question — one for counts, one for filters, one for "the youngest." You write those forever. Instead, we describe the database <strong>schema</strong> to the model and let it write <strong>one read-only <code>SELECT</code></strong>. Plain code runs it and answers only from the rows.</p>
+    <h2>Metadata: the jobs the text can't do</h2>
+    <p>The note's <em>text</em> is what gets matched by meaning. The metadata riding on each vector is everything else a real system must do with a match:</p>
     <div class="two">
       <div class="card">
-        <h3>The model's job</h3>
-        <p>Read the question + the schema → write one <code>SELECT</code>. Superlatives, combined filters, "average age" — it writes the <code>WHERE</code>/<code>ORDER BY</code> itself.</p>
+        <h3>Filter</h3>
+        <p>"Search only <strong>this patient's</strong> notes." One patient averages ~105 notes (the heaviest chart has 1,632) — without the filter you always search all 21,090.</p>
       </div>
       <div class="card">
-        <h3>Your code's job</h3>
-        <p>Check it's a read-only <code>SELECT</code>, run it, answer <em>only</em> from the rows — never the model's own memory.</p>
+        <h3>Cite &amp; debug</h3>
+        <p>"Whose note is this, and why did it match?" Without metadata a hit is an anonymous fragment you can't trace back.</p>
       </div>
     </div>
-    <div class="cue"><b>Design point to land:</b> this is "text-to-SQL." It kills the query-builder treadmill — but it moves the hard part to two places: keeping it safe, and grounding it in the real vocabulary. Those are the next two slides.</div>
+    <p class="sub" style="margin-top:1rem">The filter runs <strong>inside</strong> <code>index.query</code> — the index finds the top-K among <em>only</em> the matching vectors. Filtering afterward gives you "the global top 10 minus strangers" — often <em>zero</em> of the right patient's notes.</p>
+    <div class="cue"><b>Design point to land:</b> in-query vs post-filter is both a quality bug and a safety bug. Quality: post-filtering can return nothing relevant. Safety: post-filtering means strangers' note content leaves the database on every query. Foreshadow slide 7 — we'll make the leak visible. Filters are exact-match (<code>$in</code> compares whole strings); meaning lives in the text, facts in the metadata.</div>
   </section>
 
-  <!-- 5 — Concept: structured outputs -->
+  <!-- 5 — Code together I: implement search -->
   <section class="slide">
-    <h2>Guardrail #1 — a typed function, and only a <code>SELECT</code></h2>
-    <p>Same structured-output trick as yesterday — but now the payload is the query itself. We hand the model a schema and it fills in the blanks:</p>
-    <pre><code>const SqlQuery = z.object({
-  sql:         z.string(),   // one read-only SELECT — no INSERT/UPDATE/DELETE
-  explanation: z.string(),   // one line: what this returns
-});</code></pre>
-    <p>An LLM writing SQL is an <strong>injection surface</strong>. Two layers stop it: a validator that accepts <em>only</em> a single <code>SELECT</code> (<code>assertReadOnly</code>), and — in production — a database role that is physically read-only, so a bad query can't write even if the validator is fooled.</p>
-    <p class="sub">Belt and suspenders: the validator makes the common case cheap; the read-only role makes the worst case impossible.</p>
+    <span class="mode code">💻 Code together</span>
+    <h2>Implement <code>searchClinicalNotes</code></h2>
+    <p>You know every ingredient already. The recipe:</p>
+    <pre><code>1. Embed the query            — createEmbedding(query)  (already imported)
+2. Build the filter, only if patientIds was given:
+     one id   → { patientId: id }
+     several  → { patientId: { $in: ids } }
+     none     → no filter at all  (not an empty object!)
+3. Query the index            — index.query({ vector, topK,
+                                  includeMetadata: true, filter })
+4. Map each match             → { id, score, patientId,
+                                  patientName (firstName + lastName metadata),
+                                  contentPreview (truncated content) }</code></pre>
+    <p class="sub">Write it before peeking at any solution. <code>filter: {}</code> and <code>filter: undefined</code> are different things; forget <code>includeMetadata: true</code> and every field comes back <code>undefined</code>.</p>
+    <div class="cue"><b>Pace:</b> ~15 min heads-down, you live-code it last on screen. The two planted potholes are on the slide (empty filter object, missing includeMetadata) — let someone hit them before naming them. Project <code>visuals/vector-search.html</code> while people finish.</div>
   </section>
 
-  <!-- 6 — Code walkthrough: the analyzer -->
+  <!-- 6 — The payoff -->
   <section class="slide">
-    <span class="mode code">💻 Code walkthrough</span>
-    <h2>The SQL agent: <code>textToSqlQuery()</code> — and guardrail #2</h2>
-    <p>The system prompt is the <strong>schema</strong> (tables + columns) plus a sample of real values. The model returns <code>{ sql }</code>; we validate it, then run it read-only.</p>
-    <pre><code>const { sql } = await client.responses.parse({ /* SqlQuery, temp 0 */ });
-assertReadOnly(sql);                       // SELECT-only, no ';'
-const rows = await prisma.$queryRawUnsafe(sql);   // read-only role</code></pre>
-    <p><strong>Guardrail #2 — grounding.</strong> The schema tells the model a <code>display</code> column <em>exists</em>, not what's <em>in</em> it. Ask for "smokers" and it writes <code>ILIKE '%smoker%'</code> → <strong>zero rows</strong>, because the value is literally <code>"Smokes tobacco daily"</code>. You fix it by feeding the model the real vocabulary.</p>
-    <p class="sub"><code>lib/text-to-sql.ts</code>. The schema is <em>structure</em>; grounding is <em>meaning</em> — text-to-SQL needs both.</p>
-    <div class="cue"><b>Facilitate:</b> run it live (next section). Read the SQL it wrote aloud — that's the agent thinking on paper. Then run the "heart attack" question and watch it return 0 rows for the wrong reason.</div>
+    <h2>The payoff: meaning, from your own code</h2>
+    <pre><code>$ scripts/search.ts "patient struggling to breathe"
+
+0.57 · patient A   "…reports dyspnea on exertion, denies chest pain…"
+0.55 · patient B   "…shortness of breath when climbing stairs…"
+0.53 · patient C   "…respiratory distress noted on examination…"</code></pre>
+    <p>The query never says "dyspnea." The notes never say "struggling to breathe." <strong>Zero shared keywords — and the right notes came back.</strong> The promise from the very first lesson is now your code.</p>
+    <p class="sub">That <code>score</code> column is the cosine you computed by hand last week — now over the real corpus.</p>
+    <div class="cue"><b>Let it land.</b> This is the emotional peak of the block — the thing keyword search could not do, done by code they just wrote. Then run the synonym pair: <code>"shortness of breath"</code> and <code>"trouble breathing"</code> surface overlapping notes. Exact scores vary; the ranking and the gap are the point.</div>
   </section>
 
-  <!-- 7 — Concept: three paths -->
+  <!-- 7 — Break it: the leak -->
   <section class="slide">
-    <h2>The router + two agents + an aggregator</h2>
-    <p>The SQL agent is one of two specialists. A tiny <strong>router</strong> (<code>analyzeQuery</code>) reads the question and sets two booleans — which agents to run — and they run <em>in parallel</em>:</p>
-    <pre><code>              analyzeQuery(question)   ← the router
-                        │
-        ┌───────────────┴───────────────┐
-        ▼ requiresSQL          requiresVector ▼
-   SQL AGENT (text-to-SQL)      VECTOR AGENT (searchClinicalNotes)
-        └───────────────┬───────────────┘
-                        ▼
-                 AGGREGATOR (an LLM merges both, streams the answer)</code></pre>
-    <p class="sub">The router is dumb on purpose — two booleans, no query-building. All the judgment lives in the SQL agent's schema + the aggregator's grounding rule.</p>
-  </section>
-
-  <!-- 8 — Discussion -->
-  <section class="slide">
-    <span class="mode discuss">💬 Discussion</span>
-    <h2>Which engine — and what could the SQL agent get wrong?</h2>
+    <span class="mode challenge">🛠 Break it</span>
+    <h2>Drop the filter — and read whose charts came back</h2>
+    <p>Ask a question that should be about <em>one</em> chart — without the patient filter:</p>
+    <pre><code>search "chest pain"              →  hits from many different patients
+search "chest pain" &lt;patientId&gt;  →  every hit is the same person</code></pre>
     <ul>
-      <li>"How many patients have high blood pressure?"</li>
-      <li>"Which notes mention trouble sleeping?"</li>
-      <li>"What do the notes say about coping for patients with depression?"</li>
-      <li>"Who is the youngest patient with diabetes?"</li>
-      <li>"Any patients who had a heart attack?"</li>
+      <li>Run the unfiltered version and read the <code>patientName</code> column out loud.</li>
+      <li>In a clinical product that's not a bad search result — it's a <strong>patient-privacy boundary violation</strong>.</li>
+      <li>The fix is one <code>filter</code> field — enforced <em>inside</em> <code>index.query</code>, so other patients' note content never even transits your app code.</li>
     </ul>
-    <div class="cue"><b>Facilitate:</b> the last one is the trap — the SQL agent writes a clean <code>ILIKE '%heart attack%'</code> and returns <em>0 rows</em>, but the records DO have them, stored as "Myocardial Infarction." A confident, wrong "none." That's the semantic-grounding gap — name it, don't fix it live; it's the lead-in to Week 4's evals. ("Youngest with diabetes" works — a superlative the old query builders never gave for free.)</div>
+    <div class="cue"><b>The headliner.</b> Say the sentence: "you asked about one chart and got fragments of strangers' charts." This is why <code>patientId</code> had to be on the vector at vectorize time — metadata isn't decoration, it's the boundary. Foreshadow: the same filter, forgotten, reappears in a later week's hybrid path.</div>
   </section>
 
-  <!-- 9 — Concept: hybrid -->
+  <!-- 8 — Bible debrief breakout -->
   <section class="slide">
-    <h2>Hybrid: facts narrow the world, meaning ranks what's left</h2>
-    <p>Some questions need both. "What do the notes say about sleep for patients with <strong>depression</strong>?" The word "depression" is an exact fact — the database knows exactly who has it. "About sleep" is meaning — only the notes know that.</p>
-    <pre><code>1.  SQL:    get the patient IDs who have the condition   → [id, id, …]
-2.  Vector: search "sleep quality insomnia rest" — but ONLY
-            within those patients' notes
-            └─ the fact is a filter on the meaning search</code></pre>
-    <p class="sub">Order matters: narrow first, then rank. Searching all 144k notes and hoping the depression ones float up is slower <em>and</em> leaks everyone else in.</p>
-    <div class="cue"><b>Say it plainly:</b> the SQL result isn't the answer — it's the <em>filter</em> the vector search runs inside. Hold this; the privacy bug on slide 14 is exactly this filter going empty.</div>
-  </section>
-
-  <!-- 10 — Code walkthrough: orchestration -->
-  <section class="slide">
-    <span class="mode code">💻 Code walkthrough</span>
-    <h2>Hybrid, built by hand</h2>
-    <p>Narrow first, then rank. The SQL agent returns the matching patients' ids; the vector search runs <em>inside</em> that set:</p>
-    <pre><code>// 1. exact — ask the SQL agent for the ids
-const { rows } = await textToSqlQuery(`the patient ids of ${condition}`);
-const patientIds = rows.map(r =&gt; String(r.id));
-
-if (patientIds.length === 0) return [];   // ← watch this guard
-
-// 2. fuzzy — rank their notes, filtered to those ids
-const notes = await searchClinicalNotes(semanticQuery, { topK: 10, patientIds });</code></pre>
-    <p class="sub">The <code>patientIds</code> filter is a real feature of <code>searchClinicalNotes</code>. That empty-list guard is doing something load-bearing — we'll break it on purpose later.</p>
-  </section>
-
-  <!-- 11 — Concept: the grounding contract -->
-  <section class="slide">
-    <h2>The grounding contract</h2>
-    <p>Once the records come back, the model writes the answer — under a strict rule baked into its system prompt:</p>
+    <span class="mode discuss">💬 Breakout — the Bible debrief</span>
+    <h2>Same query, <em>your</em> index: what did your chunking decide?</h2>
+    <p>Everyone searches their <strong>own</strong> <code>bible-kjv</code> index with the <em>same</em> query:</p>
+    <pre><code>PINECONE_INDEX=bible-kjv …  "the world drowns and one family builds a boat to survive"</code></pre>
     <ul>
-      <li>Answer <strong>only</strong> from the retrieved records</li>
-      <li>If the information isn't there, <strong>say so</strong> — don't infer, don't fill the gap</li>
-      <li>Never invent a diagnosis, a med, or a number</li>
+      <li>What came back — pinpoint verses? whole chapters? windows cut mid-story?</li>
+      <li>Would a reader get the flood story from your top 3 — or a fragment of it?</li>
+      <li>Compare with a neighbor who chunked differently: same query, same embedding model — different results. What made the difference?</li>
     </ul>
-    <p class="lead">A confidently wrong medical assistant is worse than none. "I don't have that in the records" is a <em>correct</em> answer.</p>
-    <div class="cue"><b>Design point to land:</b> retrieval is what earns the model the right to speak. No record → no claim. This is the line between a demo and something you'd let near a chart.</div>
+    <div class="cue"><b>The trick in the query:</b> the KJV never says <em>drown</em>, <em>boat</em>, or <em>world</em> here — it says <em>flood</em>, <em>ark</em>, <em>earth</em>. Zero-keyword again, on their own corpus. The room IS the experiment: N students, N chunking strategies, one query. Drive to "neither of us is wrong — we made different bets on who queries this index." Answer key in the runbook.</div>
   </section>
 
-  <!-- 12 — Concept: the failure beat -->
+  <!-- 9 — Concept: when cosine lies -->
   <section class="slide">
-    <h2>The tell: what happens when the answer isn't there</h2>
-    <p>Ask the agent something plausible that the data simply doesn't contain — a detail no note or record holds. Two possible behaviors:</p>
+    <h2>When cosine lies</h2>
+    <pre><code>query:  "the patient reports shortness of breath"
+
+0.61   "the patient reports knee pain"      ← template match wins
+0.58   "dyspnea on exertion"               ← the actual meaning, buried</code></pre>
+    <p>An embedding summarizes each text <strong>separately, before any query exists</strong>. At query time all you can do is compare two pre-made summaries — anything lost in compression is lost forever. Sentences that share a <em>template</em> can out-score sentences that share a <em>meaning</em>.</p>
+    <p class="lead">A <strong>reranker</strong> has the one luxury embeddings can't: it reads the query and the document <em>together, at query time</em>, and scores how well <em>this</em> document answers <em>this</em> query.</p>
+    <div class="cue"><b>Ask first:</b> "has anyone already seen a wrong note ranked #1?" Someone has — use their example. Then the precise version: pre-compression vs reading-the-pair. Project <code>visuals/reranking.html</code> here or on the next slide.</div>
+  </section>
+
+  <!-- 10 — Concept: the funnel -->
+  <section class="slide">
+    <h2>The funnel: cheap-and-broad, then expensive-and-careful</h2>
+    <pre><code>query ──▶  vector search   ── top 25 ──▶   reranker    ── top 5 ──▶  results
+           fast, broad                     slow, careful
+           scans ~21k vectors              full pass per query+doc pair</code></pre>
+    <ul>
+      <li>Why not rerank all 21,090? A reranker reads <em>every candidate against the query</em> — you can't afford that corpus-wide, per query.</li>
+      <li><strong>The over-fetch is the point:</strong> a great note ranked #19 by cosine is invisible unless the funnel mouth is wide enough to include it.</li>
+      <li>No new vendor: Pinecone hosts the reranker (<code>bge-reranker-v2-m3</code>) on the <strong>same <code>PINECONE_API_KEY</code></strong> you already have.</li>
+    </ul>
+    <p class="sub">Same logic as a recruiter skimming 200 résumés and carefully interviewing 6. You'll meet this funnel shape again and again.</p>
+    <div class="cue"><b>One more warning to plant now:</b> rerank scores are normalized 0–1 but they are <em>not</em> cosines — comparing a 0.91 rerank score to a 0.58 cosine is meaningless. Order within one list is all that transfers.</div>
+  </section>
+
+  <!-- 11 — Code: run the funnel + silent fallback -->
+  <section class="slide">
+    <span class="mode code">💻 Code together</span>
+    <h2>Run the funnel — then break it <em>quietly</em></h2>
+    <pre><code>const notes = await searchClinicalNotes(query, { topK: 25 });   // over-fetch
+const reranked = await rerankResults(query, candidates, 5);      // keep the best 5
+// print both top-5s side by side</code></pre>
+    <ul>
+      <li>On some queries the top 5 barely moves. On others, a <strong>#14 jumps to #1</strong>. Find one of each.</li>
+      <li><strong>Break it:</strong> typo the model name in <code>lib/reranker.ts</code> and re-run. Same order back. No error. One log line.</li>
+      <li>Degraded search beats no search — <em>if</em> you notice it degraded. If your two lists are always identical, suspect the fallback before concluding "reranking does nothing."</li>
+    </ul>
+    <div class="cue"><b>Second headliner.</b> After the sabotage, ask "did anything look wrong?" — nothing did, that's the lesson. The only witness is <code>Reranking failed, using original order</code> in the log. Also resist the victory lap: "the order changed" ≠ "the results got better" — that claim needs ground truth we don't have yet. No metric, no decision; evals are a later week.</div>
+  </section>
+
+  <!-- 12 — Concept: structured outputs -->
+  <section class="slide">
+    <h2>Code can't branch on prose</h2>
+    <p>Everything so far ends in text for a <em>human</em>. The next component's output is consumed by <em>code</em> — and if the model replies "this looks like a question about a specific patient…", what does your <code>if</code> statement test? You need:</p>
+    <pre><code>{ "requiresSQL": true, "requiresVector": false, "semanticQuery": null }
+
+1. Define a Zod schema        — .describe() on every field (descriptions ARE prompting)
+2. Infer the type             — z.infer&lt;typeof Schema&gt;
+3. openai.responses.parse()   — with zodTextFormat(Schema, 'name'), temperature 0
+4. Schema.parse(output_parsed) — trust, but parse</code></pre>
+    <p class="sub">"Please respond in JSON" is a request — fences, preambles, and invented enum values all show up eventually. A schema is a <strong>constraint</strong>: the model can't produce anything else.</p>
+    <div class="cue"><b>Keep this brisk (~7 min)</b> — it's a pattern, not a project, and it powers everything from here. Two beats to land: a required field on absent information doesn't error, it <em>fabricates</em> (make schemas match reality with <code>nullable()</code>); and step 4 isn't redundant — it turns SDK drift/refusals/truncation into one loud error at the call site.</div>
+  </section>
+
+  <!-- 13 — Code together II: the selector -->
+  <section class="slide">
+    <span class="mode code">💻 Code together</span>
+    <h2>The selector — your first agent</h2>
+    <p>It answers exactly one question: <strong>which store(s) does this question need?</strong> The whole schema:</p>
+    <pre><code>const PlanSchema = z.object({
+  requiresSQL:    z.boolean().describe('Structured data — counts, filters, a specific patient.'),
+  requiresVector: z.boolean().describe('The notes — what they say / describe / mention.'),
+  semanticQuery:  z.string().nullable()
+                   .describe('If requiresVector, an expanded clinical phrasing to embed.'),
+});
+// mapped to the Plan: useSql, useRag, needsSearch = useSql || useRag, semanticQuery</code></pre>
+    <ul>
+      <li>Four legal routes: <strong>SQL only</strong> · <strong>vector only</strong> · <strong>both</strong> · <strong>neither</strong></li>
+      <li>"Neither" is a real route, not an error — <em>"what's a normal A1C range?"</em> has no tie to these records, so retrieval is skipped on purpose.</li>
+    </ul>
+    <div class="cue"><b>Frame it:</b> yesterday's pattern pointed at a new target — instead of extracting urgency from an email, extract <em>retrieval strategy</em> from a question. The stub is in <code>lib/agents/selector.ts</code>; they write the system prompt + the <code>select</code> function (same four steps, <code>history.slice(-5)</code> so follow-ups like "what about her medications?" have a <em>her</em>).</div>
+  </section>
+
+  <!-- 14 — Concept: route, don't extract -->
+  <section class="slide">
+    <h2>Route, don't extract</h2>
+    <p>Tempting: have the selector pull out <code>"hypertension"</code> and <code>"under 50"</code> while it's reading the question anyway. Resist.</p>
     <div class="two">
       <div class="card">
-        <h3>✅ Grounded</h3>
-        <p>"I don't see that in the records." It retrieved nothing relevant and refused to guess.</p>
+        <h3>A selector that only routes</h3>
+        <p>Can only <em>misroute</em>. One failure mode — easy to inspect, easy to fix with a sentence in the prompt.</p>
       </div>
       <div class="card">
-        <h3>❌ Confabulated</h3>
-        <p>A smooth, specific, invented answer. Reads great. Is fiction. This is the failure that gets someone hurt.</p>
+        <h3>A selector that also extracts</h3>
+        <p>A routing bug <em>and</em> an extraction bug per question. And the SQL specialist re-derives the entities <em>better</em> anyway — it holds the database schema; the selector extracts blind.</p>
       </div>
     </div>
-    <p class="sub">You can't tell which you built by reading the happy path. You find out by <strong>feeding it bait</strong>.</p>
+    <p class="sub" style="margin-top:1rem">The one artifact it does write: <code>semanticQuery</code> — an expanded clinical rephrasing ("trouble sleeping" → "insomnia, poor sleep, waking at night"). Nothing downstream re-derives that, and the selector is the last LLM to see the question before it becomes a vector.</p>
+    <div class="cue"><b>The test that separates the two:</b> does any downstream component re-derive it better? Entities — yes (the SQL agent, schema in hand, next weekend). The semantic expansion — no; it's the selector's only real product besides the booleans.</div>
   </section>
 
-  <!-- 13 — Mini-challenge -->
+  <!-- 15 — Mini-challenge: routing battery -->
   <section class="slide">
     <span class="mode challenge">🛠 Mini-challenge</span>
-    <h2>Run it — then try to make it lie</h2>
+    <h2>The routing battery</h2>
+    <pre><code>'How many patients have diabetes?'                                 → SQL only
+'notes mentioning chest pain at night'                             → vector only
+'what do the notes say about sleep for patients with depression?'  → both
+"what's a normal A1C range?"                                       → neither</code></pre>
     <ul>
-      <li>Run one question per path: a count (diabetes), a note search (shortness of breath), a hybrid (sleep + depression). Read the routing JSON each time.</li>
-      <li><strong>Bait it:</strong> ask something the records can't hold. Did it refuse — or did it write fiction?</li>
-      <li><strong>Break the filter:</strong> send a hybrid query whose condition matches <em>no one</em>. Watch whose notes come back.</li>
+      <li>Run your selector over all four. Do all four routes land?</li>
+      <li>Add five queries of your own — including one follow-up that only works with history.</li>
+      <li>Misroute? <strong>The fix is a sentence in the system prompt, not code.</strong></li>
     </ul>
-    <div class="cue"><b>The point isn't that it works</b> — it's building the reflex to attack your own system. A grounded refusal and an empty-filter leak both hide until you go looking. We measure this properly in Week 4.</div>
+    <div class="cue"><b>Watch for:</b> everything routing to vector (prompt doesn't say counts/filters are SQL's job), and "neither" being treated as a bug. Both-false short-circuiting the pipeline is the system <em>working</em> — forcing every greeting into a store drags irrelevant patient records into answers that never needed them.</div>
   </section>
 
-  <!-- 14 — Concept: the empty-filter bug -->
+  <!-- 16 — Deliverable -->
   <section class="slide">
-    <h2>When the filter narrows to nobody</h2>
-    <p>Back to that guard. If the condition matches <strong>zero</strong> patients, <code>patientIds</code> is an empty list — and <code>searchClinicalNotes</code> treats "empty" as "no filter given":</p>
-    <pre><code>const patientIds = [];     // nobody matched the condition
-
-// inside searchClinicalNotes:
-if (patientIds &amp;&amp; patientIds.length &gt; 0) { /* filter to them */ }
-// else → NO filter → search every patient's notes</code></pre>
-    <p class="lead">"Zero patients" should mean <strong>zero notes</strong>. Instead it means <em>everyone's</em> notes. Drop the empty-list guard and the search silently widens to the whole corpus — a privacy leak, not a ranking bug.</p>
-    <div class="cue"><b>Say it plainly:</b> an empty filter that means "match everything" is one of the most common real RAG security bugs. The fix is the guard on the last slide: empty-narrowing returns nothing, never falls through. We break it and fix it live in the break-it bank.</div>
-  </section>
-
-  <!-- 15 — Research / homework -->
-  <section class="slide">
-    <span class="mode research">🔍 Homework — side project (part 2)</span>
-    <h2>Chunk the Bible — actually upload it this time</h2>
+    <span class="mode research">🔍 Deliverable — record it 🎥</span>
+    <h2>Search + rerank your own Bible index</h2>
     <ul>
-      <li>Last week you <em>proposed</em> a chunking strategy. Now run it: the tools in <code>scripts/bible/</code> chunk the text and upsert the chunks into a vector store.</li>
-      <li>Search your chunks. Do the boundaries help or hurt? Find one query where a bad cut splits the answer across two chunks.</li>
-      <li>Record 2–3 min: show one search that worked, one that got tripped by a chunk boundary, and what you'd change.</li>
+      <li>Run the funnel against <strong>your <code>bible-kjv</code> index</strong>: one query searched, then reranked (over-fetch ~25, keep 5) — side by side.</li>
+      <li>Show <strong>one query where the reranker changed the order</strong> — ideally a chunk promoted from deep in the pool — and say <em>why</em> the two models disagreed about it.</li>
+      <li>Explain <strong>why the funnel over-fetches</strong>: what happens to a relevant chunk cosine ranked #19 if stage 1 only fetched 5?</li>
     </ul>
-    <p class="sub">This closes the loop from Week 1's proposal — strategy on paper vs. what the retrieval actually does.</p>
+    <p class="sub">2–3 minutes, phone camera is fine. If your two lists never differ: check the silent-fallback log line <em>on camera</em> and say so — catching the no-op is worth more than hiding it.</p>
   </section>
 
-  <!-- 16 — Recap -->
+  <!-- 17 — Recap -->
   <section class="slide">
     <h2>Where you are</h2>
     <ul>
-      <li>You built the <strong>SQL agent</strong>: hand the model the schema, it writes the read-only <code>SELECT</code> — with both guardrails (safety, grounding)</li>
-      <li>You wired the <strong>pipeline</strong>: router → SQL + vector agents in parallel → aggregator, answering only from the records</li>
-      <li>You know the <strong>grounding contract</strong> and proved it by baiting a refusal — and you've seen the empty-filter leak</li>
+      <li>You wrote the search — <code>searchClinicalNotes</code>, with the filter that is also a <strong>privacy boundary</strong></li>
+      <li>You watched your own chunking decisions play out: same query, different indexes, different answers</li>
+      <li>You put a <strong>second opinion</strong> on top of cosine — and you know its silent failure mode</li>
+      <li>You built your <strong>first agent</strong>: a selector that routes, and refuses to do more</li>
     </ul>
-    <p class="lead">This week's video: one question per path, plus a clean refusal. Next week: how do we stop trusting "looks right" — and start <em>measuring</em> whether retrieval is any good?</p>
+    <p class="lead">Next weekend: the <strong>SQL agent</strong> — an LLM that writes real queries against the schema — and the full pipeline: selector → SQL ‖ vector → one synthesized answer.</p>
   </section>
 
 </div>
 
 <div class="bar">
-  <span class="name">RAG &amp; AI Agents · Week 2 — Agentic / hybrid search</span>
-  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 16</span></span>
+  <span class="name">RAG &amp; AI Agents · Week 2 — Retrieval, reranking &amp; your first agent</span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 17</span></span>
 </div>
 
 <script>

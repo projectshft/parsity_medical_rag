@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Week 4 — Agents, evals &amp; observability · RAG &amp; AI Agents</title>
+<title>Week 4 — MCP, PII &amp; human-in-the-loop · RAG &amp; AI Agents</title>
 <style>
   :root {
     --ink: #1b2330;
@@ -83,224 +83,248 @@
 
   <!-- 1 — Title -->
   <section class="slide active title-wrap">
-    <div class="kicker">Week 4 of 5 — Agents, evals &amp; observability</div>
-    <h1>You built a system that answers. Now prove it works — and see why it did.</h1>
-    <p class="lead">This week you stop trusting the answers and start <em>measuring</em> them. Two instruments: a <strong>trace</strong> that replays what the system did, and an <strong>eval</strong> that puts a number on whether it's any good.</p>
+    <div class="kicker">Week 4 of 5 — MCP, PII &amp; human-in-the-loop</div>
+    <h1>Channels and actions: who calls your system, what they may see, what it may <em>do</em></h1>
+    <p class="lead">Your agent answers questions — inside your app, to you. This week the front desk wants it inside Claude Desktop, the responses have to stop leaking names, and the system takes its first real action on the world: booking an appointment, then picking up the phone.</p>
   </section>
 
   <!-- 2 — The week -->
   <section class="slide">
     <h2>This week</h2>
     <ul>
-      <li>The agent, one turn deeper: how many LLM calls answer a single question?</li>
-      <li>Observability: <code>traced()</code> — a debugger for the <em>past</em>, and the trace tree</li>
-      <li>Evals, the course's spine: <strong>no metric, no decision</strong></li>
-      <li>Two kinds of eval — exact-match (grade a classifier) and LLM-as-judge (grade an answer)</li>
-      <li>Cost is a metric too — count the calls, price the query</li>
+      <li><strong>MCP</strong>: your pipeline becomes tools any AI assistant can discover and call — wired live into Claude Desktop</li>
+      <li><strong>Channels</strong>: why the front-office door has no login and is still safe — and where that idea beats RBAC</li>
+      <li><strong>The PII lab</strong>: implement <code>lib/pii.ts</code> yourself — 31 failing tests to green — then bolt it onto the MCP door</li>
+      <li><strong>Break it</strong>: hunt for the PII your regex de-identifier misses. It will miss. That's the design.</li>
+      <li><strong>A new tool</strong> of your own, proven with a real client round-trip — this week's deliverable 🎥</li>
+      <li><strong>Human-in-the-loop</strong>: the first <em>write</em> — the AI proposes, a human approves, code books a real appointment, a voice agent calls to confirm</li>
     </ul>
-    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video — run one eval on your own system, report the number <em>compared to what</em>, and state what one query costs.</p>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video — your new MCP tool, shown working through a real client, returning obscured text.</p>
   </section>
 
   <!-- 3 — Problem statement -->
   <section class="slide">
-    <h2>Two questions you can't answer yet</h2>
-    <p>Your system works — mostly. A doctor asks <em>"which patients are short of breath?"</em> and it answers. But two questions have no answer you can defend:</p>
-    <div class="two">
-      <div class="card">
-        <h3>"Why did it answer <em>that</em>?"</h3>
-        <p>The reply streamed out and you have no idea which notes it read, or which step went wrong. You can't <code>console.log</code> your way through an LLM.</p>
-      </div>
-      <div class="card">
-        <h3>"Is it any <em>good</em>?"</h3>
-        <p>It feels right. But "feels right" isn't a number, and next week's change might quietly make it worse. You have no baseline.</p>
-      </div>
-    </div>
-    <div class="cue"><b>Say it plainly:</b> a non-deterministic system fails <em>statistically and silently</em>. Same input, different output, no stack trace. The rest of the week is the two instruments that fix that.</div>
+    <h2>The setup: it works — in <em>your</em> app</h2>
+    <p>Three weeks in, the agent answers real questions: selector → SQL agent ‖ vector agent → one streamed answer. But it only lives in <strong>your</strong> chat UI. The front-desk staff don't want your app — they already live in Claude Desktop, and they want your system <em>inside it</em>.</p>
+    <p class="lead">Read that again: you're about to hand your patient database to a model you don't prompt, don't control, and can't see. Two questions decide everything this week: <strong>what may each caller see</strong>, and <strong>what happens when the AI acts on the world?</strong></p>
+    <div class="cue"><b>Sit in the discomfort:</b> don't solve it yet. Someone will say "add a login" — park it visibly; the breakout returns to exactly that instinct and dismantles it. The hook for the session: one system, two callers with different rights, and by the end it doesn't just answer — it <em>acts</em>.</div>
   </section>
 
-  <!-- 4 — How it's solved -->
+  <!-- 4 — Concept: MCP -->
   <section class="slide">
-    <h2>The move: two instruments</h2>
-    <div class="two">
-      <div class="card">
-        <h3>Observability — see the past</h3>
-        <p>Wrap each step so a finished run is <strong>replayable</strong>. Open one answer and read exactly what happened: which step, how long, what text the model actually saw.</p>
-      </div>
-      <div class="card">
-        <h3>Evals — measure the present</h3>
-        <p>A repeatable test with a <strong>number</strong> at the end. Change a prompt, re-run, see if the number moved. Judgment becomes measurement.</p>
-      </div>
-    </div>
-    <p class="sub" style="margin-top:1rem">A trace tells you <em>what happened on one run</em>. An eval tells you <em>whether it's good across many</em>. You need both — one debugs, one decides.</p>
+    <h2>MCP: USB-C for AI</h2>
+    <p>The <strong>Model Context Protocol</strong>: you implement one <strong>MCP server</strong> that exposes your system as <strong>tools</strong>; any MCP client — Claude Desktop, Cursor, a growing list — discovers and calls them at connect time. No per-client integration code, ever.</p>
+    <pre><code>Claude Desktop ┐
+Cursor         ├──▶  mcp-server/index.ts  ──▶  selector → SQL agent ‖ vector agent
+any MCP client ┘     two tools: search_patients · query_notes</code></pre>
+    <p class="sub">The client's LLM reads your tool names, descriptions, and schemas — and <em>decides</em> when to call what. <strong>Your tool descriptions are prompts for a model you don't control.</strong> The description <em>is</em> the interface.</p>
+    <div class="cue"><b>Why not REST?</b> They have API routes already — Cursor can't use them. REST serves programmers (a human reads docs, writes glue per client); MCP's contract is machine-readable at connect time. Honest cost: young protocol, and the transport is stdio — the client literally launches your server as a subprocess and talks over stdin/stdout. That one fact powers two of today's live failures. Keep this slide short; the wiring teaches it better.</div>
   </section>
 
-  <!-- 5 — Concept: count the LLM calls -->
+  <!-- 5 — Code together: wiring -->
   <section class="slide">
-    <h2>First, how many LLM calls is "one answer"?</h2>
-    <p>A single chat turn isn't one call to the model. Watch the agent handle one question:</p>
-    <pre><code>  "which patients are short of breath?"
-        │
-   1 ─► analyzeQuery      → intent + which engines to use   (LLM call)
-        │
-        ▼  run SQL / vector search  (retrieval — no LLM)
-        │
-   2 ─► stream the answer → grounded prose for the user     (LLM call)</code></pre>
-    <p class="sub">So <strong>~2 LLM calls per turn</strong> — an analyzer and an answerer — plus an embedding call on the search path. Most people guess one. That gap is exactly why you need to <em>see</em> inside.</p>
-    <div class="cue"><b>Land it:</b> every one of those calls costs money and can fail on its own. If you can't see them, you can't debug them and you can't price them — the two threads of the whole week.</div>
-  </section>
-
-  <!-- 6 — Concept: observability / traced -->
-  <section class="slide">
-    <h2>Observability: a debugger for the past</h2>
-    <p>You can't set a breakpoint on a request that already finished and streamed to a user. So instead you <strong>record</strong> each step as it runs, and read the recording afterward.</p>
-    <p>Wrap a step in <code>traced()</code> and it reports the step's name, inputs, outputs, duration, and any error to <strong>LangSmith</strong> — where the run shows up as a <em>tree</em>:</p>
-    <pre><code>execute_query                         820 ms
- ├─ analyzeQuery        (llm)         310 ms
- ├─ retrieval           (retriever)   120 ms
- └─ answer              (llm)         390 ms</code></pre>
-    <p class="sub">Each box stores what went in and what came out. A trace is a <strong>witness</strong> to a run you can no longer watch live.</p>
-  </section>
-
-  <!-- 7 — Code walkthrough: the two rules of traced -->
-  <section class="slide">
-    <span class="mode code">💻 Code walkthrough</span>
-    <h2>The wrapper, and its two non-negotiable rules</h2>
-    <pre><code>export async function traced(name, fn, options) {
-  if (!isLangSmithEnabled()) return fn();   // no key → run untraced
-
-  const run = new RunTree({ name, ... });
-  try {
-    await run.postRun();
-    const result = await fn();
-    await run.end({ outputs: { result } });
-    return result;
-  } catch (error) {
-    await run.end({ error: String(error) });
-    throw error;               // ← re-throw the wrapped error
+    <span class="mode code">💻 Code together</span>
+    <h2>Wire it into Claude Desktop</h2>
+    <p>One config file. The client launches your server as a subprocess and holds the stdio pipe open:</p>
+    <pre><code>// ~/Library/Application Support/Claude/claude_desktop_config.json
+{
+  "mcpServers": {
+    "medical-rag": {
+      "command": "npx",
+      "args": ["ts-node", "/ABSOLUTE/path/to/repo/mcp-server/index.ts"],
+      "env": { "DATABASE_URL": "…", "OPENAI_API_KEY": "…", "PINECONE_API_KEY": "…" }
+    }
   }
 }</code></pre>
     <ul>
-      <li><strong>Re-throw what you wrapped</strong> — record the crime, then let it hit the caller. Swallow it and you've hidden the bug you were trying to see.</li>
-      <li><strong>Never throw your <em>own</em> error</strong> — no key, dead endpoint: the pipeline still answers. Observability watches; it never takes the request down with it.</li>
+      <li><strong>Absolute path</strong> — the subprocess inherits the <em>client's</em> working directory, not your repo</li>
+      <li><strong>The <code>env</code> block</strong> — the subprocess inherits nothing; your <code>.env</code> doesn't travel</li>
+      <li><strong>Full restart</strong> — the config is read at launch. Edit → Cmd-Q → reopen</li>
     </ul>
-    <div class="cue"><b>Both from one idea:</b> a trace is a witness, not a participant. It reports the crash; it is never the crash.</div>
+    <div class="cue"><b>The reveal:</b> ask Claude, in plain language, "how many patients have high blood pressure?" — it announces a <code>search_patients</code> call, shows the arguments it chose, and waits for approval. A foreign model just picked your tool from your description alone. <b>Live-failure notes:</b> one stray <code>console.log</code> hangs the client (stdout IS the protocol channel); "I changed the config and nothing happened" = no full restart; tools erroring = missing <code>env</code> keys. All three are in the bank — and on the student branch, tool calls error with "Not implemented… lib/pii.ts" until the lab lands. That's the door demanding the lab; name it, don't fix it.</div>
   </section>
 
-  <!-- 8 — Code walkthrough: read a real trace -->
+  <!-- 6 — Concept: the two doors -->
   <section class="slide">
-    <span class="mode code">💻 Code walkthrough</span>
-    <h2>Open one real run and read it</h2>
-    <p>In LangSmith, click a hybrid query and walk the tree top to bottom:</p>
-    <ul>
-      <li><strong>analysis</strong> — intent + which engines fired. The first stack frame of every answer.</li>
-      <li><strong>retrieval</strong> — how many patients and notes came back.</li>
-      <li><strong>the rendered context</strong> — the <em>exact</em> text handed to the model. Read it aloud; this one field pays for the whole setup.</li>
-      <li><strong>timing</strong> — which step ate the wall-clock (usually an LLM call, not the database).</li>
-    </ul>
-    <div class="cue"><b>The 30-second fix:</b> "the AI hallucinated" almost always becomes "retrieval handed it the wrong context" — and the rendered-context field shows that instantly. Count the LLM boxes: it's 2.</div>
+    <h2>Two doors, one system</h2>
+    <pre><code> front office        ┌────────────────────────────────┐
+ (any assistant) ──▶ │ MCP door — no login            │──▶  Patient-A7B3 · 1985-XX-XX
+                     │ narrow tools · always-on scrub │     pseudonyms, no exceptions
+                     └────────────────────────────────┘
+ clinician           ┌────────────────────────────────┐
+ (the chat app)  ──▶ │ /api/chat — the full pipeline  │──▶  Maria Gonzalez · 1975-04-12
+                     │ no scrub anywhere on this path │     the full chart is the job
+                     └────────────────────────────────┘</code></pre>
+    <p class="sub"><strong>Which door you came through <em>is</em> your permission.</strong> No login, no roles, no per-request check — the server decides from the channel, and there's no role field on the request to forge.</p>
+    <div class="cue"><b>Land the vocabulary:</b> channel-based access vs role-based access. Same specialists behind both doors — the difference is one scrubbing line at the MCP door. Don't argue for it yet; the breakout does that work next.</div>
   </section>
 
-  <!-- 9 — Discussion -->
+  <!-- 7 — Discussion: channels vs RBAC -->
   <section class="slide">
     <span class="mode discuss">💬 Discussion</span>
-    <h2>The answer was wrong. Where do you look first?</h2>
-    <p>A user asked about one patient's diabetes and got a confident answer about <em>someone else's</em>. You have the trace open. Walk it:</p>
+    <h2>No login on a patient database. Defensible?</h2>
     <ul>
-      <li>Wrong <strong>intent or entities</strong> in the analysis step? → the fault is upstream, in the analyzer prompt.</li>
-      <li>Analysis right, but the <strong>rendered context</strong> holds the wrong patient's notes? → retrieval / filtering.</li>
-      <li>Context right, but the <strong>answer</strong> ignores it? → the grounding prompt.</li>
+      <li>The MCP door has no auth at all. Is that a hole — or a design? What exactly would a login protect?</li>
+      <li>When do <strong>channels</strong> beat <strong>RBAC</strong> — and what has to be true of the audiences for that to work?</li>
+      <li>Where does the channel model <strong>collapse</strong>? Name one tool, or one change, that would break it.</li>
     </ul>
-    <div class="cue"><b>Facilitate:</b> drive to the habit — <em>read the trace top-down, don't guess</em>. Without the trace, every one of these looks identical from the outside: "it lied." The trace tells you which door to open.</div>
+    <div class="cue"><b>Facilitate toward the emptied room:</b> you don't gate a room with nothing sensitive in it — you make sure nothing sensitive is in it. A permission system is a runtime promise (every tool must remember to check); a channel that <em>cannot emit</em> PII makes no promise it can break. Channels win when audiences split cleanly onto different entry points and one needs nothing sensitive; RBAC when one door must serve different entitlements to the <em>same</em> data. Collapse: <code>get_patient</code> "for convenience," or an <code>obscure: false</code> parameter. Full answer key in the runbook.</div>
   </section>
 
-  <!-- 10 — Concept: evals, the spine -->
+  <!-- 8 — Concept: the two guarantees -->
   <section class="slide">
-    <h2>Evals: the spine of the whole course</h2>
-    <p>A trace explains <em>one</em> run. It can't tell you whether the system is <strong>good</strong>. For that you need the rule this course keeps coming back to:</p>
-    <p class="lead"><strong>No metric, no decision.</strong> You don't <em>argue</em> about whether a change helped — you measure it, and let the number decide.</p>
-    <p class="sub">An eval is embarrassingly simple machinery: a fixed set of inputs, a known-right answer for each, and a score at the end. Its value isn't today's number — it's the <em>next</em> time you tweak a prompt and a number you weren't watching moves.</p>
-    <div class="cue"><b>Say it plainly:</b> this is the difference between an engineer who <em>built</em> a system and one who finished a tutorial. You can show the number that made you keep a change — or drop it.</div>
+    <h2>What makes the open door safe: two guarantees</h2>
+    <div class="two">
+      <div class="card">
+        <h3>1. A deliberately narrow tool set</h3>
+        <p>Exactly two tools — <code>search_patients</code>, <code>query_notes</code>. No <code>get_patient</code>, no patient-detail lookup. The most sensitive query shape isn't <em>denied</em> — it's <strong>not offered</strong>.</p>
+      </div>
+      <div class="card">
+        <h3>2. Always-on obscuring</h3>
+        <p>Every response is scrubbed before it leaves — names become <code>Patient-A7B3</code>, no flag to turn it off, no exceptions. Front-office channel, front-office data.</p>
+      </div>
+    </div>
+    <p class="sub">Break either guarantee and the whole design collapses. And guarantee #2 doesn't exist in your repo yet — <code>lib/pii.ts</code> is a stub. Time to build it.</p>
+    <div class="cue"><b>The pivot line:</b> "on my branch this works; on yours, 31 tests are failing and the scrub is a TODO. The tests are the spec — let's make them green."</div>
   </section>
 
-  <!-- 11 — Concept: exact-match eval (the classifier) -->
+  <!-- 9 — Code together: the PII lab, part 1 -->
   <section class="slide">
-    <h2>Kind 1: exact match — grade the classifier</h2>
-    <p>The analyzer is a <strong>classifier</strong>: it returns an intent and two booleans. Classifiers get the most satisfying eval there is — the answer either came back right or it didn't. Compare to labels <em>you wrote first, by hand</em>:</p>
-    <pre><code>const a = await analyzeQuery(c.query);
-intentOk += a.intent          === c.expectIntent  ? 1 : 0;
-sqlOk    += a.requiresSQL      === c.expectSQL     ? 1 : 0;
-vectorOk += a.requiresVector   === c.expectVector  ? 1 : 0;
-// example run → intent 84%   SQL 96%   vector 92%   (n=25)
-// (illustrative — your cases, your numbers; the point is you HAVE numbers)</code></pre>
-    <p class="sub">Score the booleans <em>separately</em> from intent — they're what the router actually branches on. No second model, no judgment call: just <code>===</code>.</p>
-  </section>
-
-  <!-- 12 — Concept: LLM-as-judge -->
-  <section class="slide">
-    <h2>Kind 2: LLM-as-judge — grade an answer</h2>
-    <p>Exact match works when there's one right answer. But "is this answer <em>grounded</em> in the notes?" has no string to compare against. So you ask a <strong>second model</strong> to grade the first:</p>
-    <pre><code>evaluateAnswerFaithfulness(context, answer)
-  → { score: 9, pass: true, reasoning: "every claim traces to the notes" }
-
-evaluateRetrievalRelevance(query, retrievedNotes)
-  → { score: 3, pass: false, reasoning: "notes are about a different visit" }</code></pre>
-    <p class="sub">A judge prompt with a 0–10 rubric, <code>temperature: 0</code>, threshold at 7. It's noisier than <code>===</code> and it <em>costs a call</em> — so you read it as a <strong>trend over runs</strong>, not a hard pass/fail gate.</p>
-    <div class="cue"><b>Pre-empt the smirk:</b> "using an LLM to grade an LLM?" Yes — grading is easier than generating, the judge sees the rubric, and you spot-check it against your own eyes. It's a thermometer, not a supreme court.</div>
-  </section>
-
-  <!-- 13 — Concept: retrieval eval / compared to what -->
-  <section class="slide">
-    <h2>Retrieval eval: hit@5, scored twice</h2>
-    <p>Back to the search itself. Build 15+ <strong>(query, expected-note)</strong> pairs from your own corpus — the query in a <em>user's</em> words, the note you know should surface. Then:</p>
-    <pre><code>hit@5 = (queries where the expected note lands in the top 5) / total
-
-   vector alone      → 73%
-   vector + reranker → 89%      (illustrative numbers)</code></pre>
-    <p class="lead">"Is 73% good?" The only honest answer is: <strong>compared to what?</strong></p>
-    <p class="sub">An eval doesn't hand you a grade — it hands you a <em>difference</em>. Two configurations, two numbers, and now the reranker's value is a fact, not a vibe.</p>
-    <div class="cue"><b>Land it:</b> plenty of real teams measure and <em>drop</em> the reranker; plenty keep it. The eval is what tells you which kind your system is. Keep a few pairs you never tune on.</div>
-  </section>
-
-  <!-- 14 — Concept: cost is a metric too -->
-  <section class="slide">
-    <h2>Cost is a metric too</h2>
-    <p>You now measure quality. You've never put a number on <strong>cost</strong> — and an LLM system with no cost number is one that surprises you with an invoice.</p>
-    <p>The trace already counts the calls. Price them:</p>
-    <pre><code>per chat turn:  2 LLM calls (analyzer + answerer) + 1 embedding
-                × tokens in/out × model price  →  a per-query $ figure</code></pre>
-    <p class="sub">Now a real decision lands with <em>both</em> numbers. A reranker that adds 16 points of hit@5 <strong>and triples the per-query cost</strong> isn't a default you flip on — it's a trade you make with the accuracy gain and the price tag side by side.</p>
-    <div class="cue"><b>Say it plainly:</b> "no metric, no decision" applies to cost too. The teams that get cost-surprised in production are the ones who never made it a metric.</div>
-  </section>
-
-  <!-- 15 — Mini-challenge -->
-  <section class="slide">
-    <span class="mode challenge">🛠 Mini-challenge</span>
-    <h2>Run the evals — then break them</h2>
+    <span class="mode code">💻 Code together — the PII lab</span>
+    <h2>Implement <code>lib/pii.ts</code>: the tests are the spec</h2>
+    <pre><code>npx vitest run lib/pii.test.ts     # 31 failing — your job is zero</code></pre>
     <ul>
-      <li>Run <code>npm run test:evals</code>. Read the retrieval + judge numbers — that's your baseline. Write them down.</li>
-      <li><strong>Break the reranker silently:</strong> unset <code>COHERE_API_KEY</code> and re-run. Search still "works" — but reranked order now equals plain vector order, no error shown. Did your hit@5 quietly drop?</li>
-      <li><strong>Blind the trace:</strong> unset the LangSmith key. The app keeps answering; the trace project goes silent. You went blind without going down — on purpose.</li>
+      <li><code>obscureName</code> — SHA-256 of the lowercased name → <code>Patient-A7B3</code>. <strong>Deterministic</strong> (same name, same pseudonym — records stay linkable) and <strong>one-way</strong> (no running it backward)</li>
+      <li><code>obscureDate</code> — keep the year, hide the rest: <code>1985-03-15 → 1985-XX-XX</code>. "Patients over 60" still works; birthdays stop identifying</li>
+      <li><code>obscureContent</code> — regex de-identification over free text: SSNs, phones, emails, addresses, <code>Mr./Mrs./Dr.</code> names, full-name patterns</li>
     </ul>
-    <div class="cue"><b>The discipline:</b> a failure you can measure is a failure you can defend against. The silent-fallback one is the crowd favorite — nothing the user sees says reranking stopped. Only the eval catches it.</div>
+    <p class="sub">Watch the over-redaction trap: a de-identifier that turns "Blood Pressure" into <code>[NAME]</code> is its own kind of broken — the tests pin that medical terms and vitals survive.</p>
+    <div class="cue"><b>Build order = the test file's describe blocks:</b> name → date → location → content → patient object. Each function flips its own block green; the room feels the progress. Full walkthrough and the likely failure modes are in the runbook.</div>
   </section>
 
-  <!-- 16 — Research + recap combined? No — Research -->
+  <!-- 10 — Code together: the PII lab, part 2 -->
   <section class="slide">
-    <span class="mode research">🔍 Research</span>
-    <h2>Go find out — and where you are</h2>
+    <span class="mode code">💻 Code together — the PII lab, part 2</span>
+    <h2>Wrap it at the door — and why the scrub is shape-agnostic</h2>
+    <p>The SQL side is <strong>text-to-SQL</strong>: the LLM writes the query and picks whatever columns it likes. There is no fixed "name field" to pseudonymize — so the channel scrubs the <strong>entire rendered text</strong>, whatever shape it took:</p>
+    <pre><code>// mcp-server/index.ts — search_patients, the last line before text leaves
+const combined = [sqlText, ragText].filter(Boolean).join('\n\n');
+const formatted = obscureContent(combined);   // ← the front-office guarantee
+
+// app/api/chat/route.ts — same specialists, NO scrub.
+// The channel is the difference: one line per door.</code></pre>
+    <p class="sub">Comment that line out "just to test" and the front-office door quietly becomes a PII leak — no error, no warning, nothing red.</p>
+    <div class="cue"><b>Do the diff live:</b> the same question through both doors — <code>Patient-A7B3 · 1985-XX-XX</code> vs the real name and birth date. The diff <em>is</em> the lesson. Then restart Claude Desktop and re-ask the question that errored earlier — now it answers, in pseudonyms, through code they wrote. Then hand them the hammer: next slide.</div>
+  </section>
+
+  <!-- 11 — Break it: hunt the leak -->
+  <section class="slide">
+    <span class="mode challenge">🛠 Break it</span>
+    <h2>Your scrubber misses. Find where.</h2>
     <ul>
-      <li>Your labels <em>are</em> the ground truth — you invented them. So how is grading against your own labels legitimate, and not circular? Where's the line between this and cheating?</li>
-      <li>Deterministic tests gate every commit; LLM evals don't. Why is a <em>paid, noisy</em> metric a bad commit gate but a good thing to <em>watch over time</em>?</li>
+      <li>Feed <code>obscureContent</code> PII in a format the regexes don't expect — and watch it sail straight through</li>
+      <li>Try: an all-lowercase name · an SSN written with spaces · a non-US phone number · a <code>DD/MM/YYYY</code> date</li>
+      <li>For each leak: <em>which pattern should have caught it, and why didn't it?</em></li>
     </ul>
-    <p class="lead">Where you are: you can <strong>see</strong> why the system answered (the trace) and <strong>prove</strong> whether it's good (the eval) — including what it costs. Judgment is now measured, not felt.</p>
-    <p class="sub">This week's deliverable: the 2–3 min eval video. Next: production gates and the capstone — the system with its blind spots documented, not assumed away.</p>
+    <p class="lead">Regex de-identification is imperfect <strong>by design</strong> — a pattern list can't enumerate every way identity gets written. 31 green tests means the scrubber handles the formats we <em>thought of</em>. Knowing where it leaks is the skill.</p>
+    <div class="cue"><b>Frame it precisely — a seed, not a bug:</b> nobody "fixes" this by adding one more regex forever. The durable answer is <em>measuring</em> the leak rate — which is next week's whole subject. Don't teach evals now; just leave "the tests we thought of ≠ the inputs the world sends" ringing in the room.</div>
+  </section>
+
+  <!-- 12 — Build: the new tool (deliverable) -->
+  <section class="slide">
+    <span class="mode challenge">🛠 Build — this week's deliverable 🎥</span>
+    <h2>Add a tool of your own — and honor the contract</h2>
+    <p>Every new tool on the front-office door inherits two obligations, or it breaks the channel for all of them:</p>
+    <ul>
+      <li><strong>Non-PII shaped</strong> — answers a front-office question (search, count, aggregate), never "hand me one named person's chart"</li>
+      <li><strong>Obscured output</strong> — every name or identifier through <code>obscureName</code> / <code>obscureContent</code> before the text leaves</li>
+    </ul>
+    <pre><code>candidates:  list_conditions · compare_lab_across_patients · summarize_patient
+prove it:    tools/list shows it  →  tools/call returns well-shaped text
+             →  the text carries pseudonyms, never a real name</code></pre>
+    <p class="sub">The proof is the deliverable: a client <em>discovering and calling</em> your tool, and obscured text coming back. Source code alone proves nothing about the channel.</p>
+    <div class="cue"><b>Timebox:</b> spec + skeleton in the room, finish at home. Shape: <code>registerTool(name, { description, inputSchema }, handler)</code> — copy the existing tools, return <code>{ content: [{ type: 'text', text }] }</code>. The description is a prompt for a foreign model — the colleague test applies: can a fresh model route correctly from your descriptions alone?</div>
+  </section>
+
+  <!-- 13 — Concept: the system acts -->
+  <section class="slide">
+    <h2>Everything so far <em>reads</em>. Now the system acts.</h2>
+    <p>Booking an appointment is the first <strong>write</strong> — and the moment an AI can act, one question outranks all others: <strong>does the AI act, or does the AI propose?</strong></p>
+    <div class="two">
+      <div class="card">
+        <h3>Weigh every action on two axes</h3>
+        <p><strong>Reversibility × cost of being wrong.</strong> A bad search costs a shrug and a rephrase. A hallucinated booking takes a real slot and corrupts a clinic's day.</p>
+      </div>
+      <div class="card">
+        <h3>The pattern: human-in-the-loop</h3>
+        <p>The model <strong>proposes</strong> structured parameters. A human reviews and confirms. Deterministic code executes. <strong>The model never holds the trigger.</strong></p>
+      </div>
+    </div>
+    <p class="sub">You've already stood on the other side of this gate: Claude Desktop asked your approval before every MCP tool call today. Now you build the gate yourself.</p>
+  </section>
+
+  <!-- 14 — Concept: the scheduling flow -->
+  <section class="slide">
+    <h2>The scheduling flow: propose → approve → execute</h2>
+    <pre><code>"schedule Abe for Tuesday at 2"
+        │
+        ▼
+detectSchedulingIntent        LLM extracts {patient, date, time} — structured output
+        │
+        ▼
+findPatientByName             gate #1: the patient must EXIST — no match, no card
+        │
+        ▼
+X-Scheduling-Action header ─▶ confirmation card — gate #2: a HUMAN reviews and edits
+        │  confirm (posts the CARD's values, not the model's)
+        ▼
+POST /api/schedule ─▶ Cal.com books ─▶ Retell voice call confirms (best-effort)</code></pre>
+    <div class="cue"><b>Two beats to land:</b> (1) two gates before a card even appears — intent must fire AND the patient must be real; a made-up name dies at <code>findPatientByName</code>, silently. (2) Confirm posts the card's <em>current</em> state — if it posted the model's raw extraction, the human gate would be decoration and the user's edits would vanish.</div>
+  </section>
+
+  <!-- 15 — Live demo: book it -->
+  <section class="slide">
+    <span class="mode code">💻 Live demo</span>
+    <h2>Book it for real — and listen</h2>
+    <ul>
+      <li>In the chat: <em>"schedule Abe for tomorrow at 2pm"</em> → the card appears with the extracted values</li>
+      <li>Adjust the time on the card. Confirm. <code>/api/schedule</code> books a real Cal.com slot</li>
+      <li>Then the room goes quiet: with <code>DEMO_PHONE_NUMBER</code> set, a phone rings — <strong>the AI is calling to confirm the appointment it just booked</strong></li>
+    </ul>
+    <p class="sub">The call is <strong>best-effort by design</strong>: wrapped so a failed call never undoes a successful booking. Reads fail cheap; writes get gates; notifications get retries-or-shrugs. Match the guarantee to the consequence.</p>
+    <div class="cue"><b>The wow moment — protect it with pre-flight</b> (Retell keys, agent deployed, <code>DEMO_PHONE_NUMBER</code> = your phone, whole loop tested this morning, ringer on, phone near the mic). If the call doesn't come: the booking still succeeded — show <code>confirmationCall: { called: false }</code> in the response and teach best-effort as the design, not a failure. Recovery script in the runbook.</div>
+  </section>
+
+  <!-- 16 — Research / homework -->
+  <section class="slide">
+    <span class="mode research">🔍 Homework — research</span>
+    <h2>Score your scrubber against the real standard</h2>
+    <ul>
+      <li>Read the HHS <strong>Safe Harbor</strong> list — the 18 identifiers that must go for data to count as de-identified</li>
+      <li>Audit <code>obscureContent</code> against all 18: which does it catch, which does it miss entirely?</li>
+      <li>Write the honest sentence: <em>"my scrubber would still leak ___"</em> — with a concrete example input</li>
+      <li>Skim MCP's security best practices — notice how much of "secure a server" reduces to <em>be deliberate about what your tools can return</em></li>
+    </ul>
+    <p class="sub">That honest sentence belongs in your final-week video. De-identification reduces exposure; it doesn't make data anonymous — and pretending otherwise is the real failure.</p>
+  </section>
+
+  <!-- 17 — Recap -->
+  <section class="slide">
+    <h2>Where you are</h2>
+    <ul>
+      <li>Your system is <strong>infrastructure</strong> now — tools a model you don't control discovers and calls</li>
+      <li>You can defend <strong>channel-based access</strong>: the front-office door stays safely open because the room was emptied — narrow tools plus a scrub <em>you wrote and tested</em></li>
+      <li>You know exactly where your de-identifier leaks — and why that's a measurement problem, not a regex problem</li>
+      <li>The system <strong>acts</strong> — but only through propose → approve → execute. The model never holds the trigger</li>
+    </ul>
+    <p class="lead">This week's video 🎥: your new tool — a client calling it, obscured text coming back. Next week, the finale: <strong>evals</strong> — turning "looks right" into numbers — and what happens when a document in your index is <em>lying to you on purpose</em>.</p>
   </section>
 
 </div>
 
 <div class="bar">
-  <span class="name">RAG &amp; AI Agents · Week 4 — Agents, evals &amp; observability</span>
-  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 16</span></span>
+  <span class="name">RAG &amp; AI Agents · Week 4 — MCP, PII &amp; human-in-the-loop</span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 17</span></span>
 </div>
 
 <script>
