@@ -40,14 +40,14 @@ Pay attention to the distinction it draws between **workflows** (LLM calls orche
 
 You have been building one of these without knowing its name.
 
+**Bring a position to class:** is our pipeline (selector → SQL ‖ RAG in parallel → aggregator) a *workflow* or an *agent* by the paper's definitions? Which named pattern(s) is it, exactly? Should it stay a fixed workflow or become a true agent (the LLM choosing tools in a loop) — and what happens to the `patientId` privacy boundary if the model decides when to search? We'll argue it live next session. There's no correct side — there is correct *reasoning*.
+
 ## The video 🎥 (2–3 min)
 
-**Take a position: is our pipeline a workflow or an agent — and should it stay that way?**
+This week's video is the one from the reranking lesson: **search + rerank your own `bible-kjv` index.**
 
-1. Map our chat pipeline (selector → SQL ‖ RAG in parallel → aggregator) onto the paper's patterns by name. Which pattern(s) is it, exactly?
-2. Argue your position: should it stay a fixed workflow, or become a true agent (the LLM choosing tools in a loop)? Use the paper's own tradeoffs — predictability, cost, latency, debuggability — and **one concrete example from your own system** (e.g., what happens to the patientId privacy boundary if the model decides when to search?).
-3. Quick demo of your endpoint: POST a note, search it back with the filter.
-
-There's no correct side — there is correct *reasoning*. A strong video names the patterns precisely and defends the position with a tradeoff, not a vibe. A weak one says "agents are the future" and moves on.
+1. Run at least one query that shares zero keywords with the passage it finds.
+2. Show one query where reranking **changed the ordering** (cosine order vs reranked order, side by side).
+3. Explain **why you over-fetch** before reranking — in your own words.
 
 Submit via the link pinned in Slack.
