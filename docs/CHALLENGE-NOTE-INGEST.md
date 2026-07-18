@@ -32,22 +32,34 @@ If all three hold, your metadata works — the filter boundary you learned this 
 
 You just created a note that exists **only in Pinecone**. Your database connection is read-only — Postgres, the system of record, has never heard of this note. You've made the derived index *ahead of* its source of truth. What did you just break? How would a production system order these writes? Bring an answer to class — there is a right one, and it's two sentences.
 
+## Dig into reranking — on your own index
+
+Reranking was hard to *see* in class. Fix that yourself: run the funnel against your own `bible-kjv` index until you catch it working.
+
+- Search your index (plain cosine), then rerank the same candidates. Try several queries — at least one that shares **zero keywords** with the passage it finds.
+- Keep going until you find **one query where reranking visibly changed the ordering** — a passage promoted from deep in the candidate pool. That moment is the whole concept; hunt for it.
+- While you're at it, read up on *why*: what does a reranker do differently from embedding search (hint: it reads the query and the document **together**, at query time — embeddings compressed each side **separately**, before any query existed), and why must you **over-fetch** (fetch 25 to keep 5) for reranking to do anything at all?
+
+Nothing to submit from this section — it feeds your video.
+
 ## Research: agents and patterns
 
 Read Anthropic's **"Building Effective Agents"**: https://www.anthropic.com/research/building-effective-agents
 
-Pay attention to the distinction it draws between **workflows** (LLM calls orchestrated through fixed code paths) and **agents** (the LLM directs its own tool use in a loop), and to the five workflow patterns: prompt chaining, **routing**, **parallelization**, orchestrator-workers, evaluator-optimizer.
+Pay attention to the distinction between **workflows** (LLM calls orchestrated through fixed code paths) and **agents** (the LLM directs its own tool use in a loop), the five workflow patterns — prompt chaining, **routing**, **parallelization**, orchestrator-workers, evaluator-optimizer — and where **tool calling** fits in each. You have been building one of these without knowing its name.
 
-You have been building one of these without knowing its name.
+## The video 🎥 (3–4 min)
 
-**Bring a position to class:** is our pipeline (selector → SQL ‖ RAG in parallel → aggregator) a *workflow* or an *agent* by the paper's definitions? Which named pattern(s) is it, exactly? Should it stay a fixed workflow or become a true agent (the LLM choosing tools in a loop) — and what happens to the `patientId` privacy boundary if the model decides when to search? We'll argue it live next session. There's no correct side — there is correct *reasoning*.
+Two parts:
 
-## The video 🎥 (2–3 min)
+**Part 1 — Reranking, explained by you.** What is reranking, how is it different from embedding search, and why do you over-fetch before it? Use what you saw on your own bible index as the example — show or describe the query where the ordering changed.
 
-This week's video is the one from the reranking lesson: **search + rerank your own `bible-kjv` index.**
+**Part 2 — Your opinion: what pattern should THIS project use?** Using the paper's vocabulary:
 
-1. Run at least one query that shares zero keywords with the passage it finds.
-2. Show one query where reranking **changed the ordering** (cosine order vs reranked order, side by side).
-3. Explain **why you over-fetch** before reranking — in your own words.
+- Which named pattern(s) is our pipeline (selector → SQL ‖ RAG in parallel → aggregator) using **today**?
+- What should it use **going forward** — stay a fixed workflow, or hand the LLM tools and let it decide (tool calling / a true agent)? When is tool calling the right call over a hard-coded pipeline — and when is it not?
+- Which pattern from the paper do you think would genuinely improve *this* project, and **why**? Defend it with a tradeoff (predictability, cost, latency, debuggability — e.g., what happens to the `patientId` privacy boundary if the model decides when to search?), not a vibe.
+
+There's no correct side — there is correct *reasoning*. A strong video names patterns precisely and argues from a tradeoff. A weak one says "agents are the future" and moves on.
 
 Submit via the link pinned in Slack.
