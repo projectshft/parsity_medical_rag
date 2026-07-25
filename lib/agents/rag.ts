@@ -5,11 +5,14 @@
  * for the aggregator.
  */
 
+import { searchClinicalNotes } from '../vector-search';
+
 export async function runRag(semanticQuery: string): Promise<string> {
-  // TODO:
-  // 1. Call searchClinicalNotes(semanticQuery, { topK: 10 }) (lib/vector-search.ts).
-  // 2. Render the returned notes into a readable text block for the aggregator
-  //    (patient, date, and a snippet of each note's content).
-  // 3. Return that string.
-  throw new Error('Not implemented — your turn! (lib/agents/rag.ts)');
+	// TODO: add metadata
+	const notes = await searchClinicalNotes(semanticQuery, { topK: 20 });
+
+	console.log('notes', notes);
+	return notes.rerankedDocuments
+		.map((note) => `${JSON.stringify(note.document)}`)
+		.join(`\n\n`);
 }

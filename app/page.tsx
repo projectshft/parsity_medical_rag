@@ -108,9 +108,13 @@ export default function Home() {
         });
       }
 
-      // Check for scheduling action after stream completes
-      const { action } = parseSchedulingAction(assistantMessage);
-      if (action) {
+      // Scheduling action rides in a response header (set by the route on the
+      // needsAppt short-circuit). Present => pop the confirm card.
+      const schedHeader = response.headers.get("X-Scheduling-Action");
+      if (schedHeader) {
+        const action = JSON.parse(
+          decodeURIComponent(schedHeader),
+        ) as SchedulingAction;
         setScheduling({
           action,
           date: action.suggestedDate,

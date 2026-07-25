@@ -5,6 +5,12 @@ import { select } from '@/lib/agents/selector';
 import { runSql } from '@/lib/agents/sql';
 import { runRag } from '@/lib/agents/rag';
 import { aggregate } from '@/lib/agents/aggregator';
+import {
+	buildSchedulingAction,
+	detectSchedulingIntent,
+} from '@/lib/scheduling';
+import { streamText } from 'ai';
+import { openaiProvider } from '@/lib/openai';
 
 const ChatRequestSchema = z.object({
 	query: z.string().min(1),
@@ -35,17 +41,57 @@ export async function POST(request: Request) {
 			await request.json(),
 		);
 
-		const plan = await select(query, messages);
+		const plan = await select(query, messages); // selector agent
+		let sqlResult = '';
+		let ragResult = '';
 
-		// TODO — build the pipeline:
-		//  1. Ask the selector what to run:  const plan = await select(query, messages)
-		//  2. Run the specialists the plan calls for, in parallel (runSql / runRag).
-		//     Skip retrieval when plan.needsSearch is false (a general question).
-		//  3. Hand the text to the aggregator and stream it back:
-		//       const stream = aggregate({ query, history: messages, sqlText, ragText })
-		//       return stream.toTextStreamResponse()
+		if (plan.useSql) {
+			sqlResult = await runSql(query, messages);
+		}
 
-		return NextResponse.json({ plan });
+		if (plan.useRag) {
+			ragResult = await runRag(plan.semanticQuery);
+		}
+
+		// if scheduleing then short circuit
+		if (plan.useScheduler) {
+			const schedulingResult = await detectSchedulingIntent(
+				query,
+				messages,
+			);
+
+			return streamText({
+				model: openaiProvider('gpt-4o-mini'),
+				messages: [
+					{
+						role: 'user',
+						content: `
+            You are providing a calendar compoent with the patient to schedule for a visit
+            The patient name is ${schedulingResult?.patientName}
+            The suggested date is ${schedulingResult?.suggestedDate}
+            The suggested time is ${schedulingResult?.suggestedTime}
+            The reason is ${schedulingResult?.reason}
+
+            The front end that is consuming this will compose the caledar with that info.
+            `,
+					},
+				],
+				temperature: 0.7,
+			}).toTextStreamResponse({
+				headers: {
+					'X-Scheduling-Action': encodeURIComponent(
+						JSON.stringify(buildSchedulingAction(schedulingResult)),
+					),
+				},
+			});
+		}
+
+		// summarize and stream that result to the frontend
+		return aggregate(
+			query,
+			messages,
+			`${sqlResult}\n\n${ragResult}`,
+		).toTextStreamResponse();
 	} catch (error) {
 		if (error instanceof z.ZodError) {
 			return NextResponse.json({ error: error.message }, { status: 400 });
