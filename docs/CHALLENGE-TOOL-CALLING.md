@@ -53,7 +53,7 @@ Keep this list. We build on it in a couple weeks.
 
 ## 3. The video 🎥 — tool-calling (this is the only required deliverable)
 
-Keep it **short and light** — a few minutes, phone or screen recording is fine.
+Keep it **short and light** — a few minutes
 
 - **What is tool-calling?** In plain terms.
 - **Why does it matter?**
@@ -65,11 +65,11 @@ Keep it **short and light** — a few minutes, phone or screen recording is fine
   a whiteboard, or a piece of paper you hold up to the camera all work. Walk
   through it briefly.
 
-There's no right answer — we want your reasoning.
+There's no right answer. Just want your reasoning.
 
 ## Bonus (optional)
 
 - Add **metadata to your LangSmith traces** so you can filter/inspect runs.
 - **UI polish** — make the chat / scheduling card nicer.
 
-Submit the video via the link pinned in Slack. Bring your query log — we'll use it.
+Submit the video via the link pinned in Slack. Bring your query log — we'll use it in the next couple weeks.

@@ -11,15 +11,17 @@
  * yours. The JSDoc + the test are the contract; make the test pass.
  */
 
+import { createHash } from 'crypto';
+
 /**
  * Check if PII should be obscured, from an explicit flag or the OBSCURE_PII env.
  * (Provided — this is the plumbing the query path calls on every request.)
  */
 export function shouldObscurePII(explicitFlag?: boolean): boolean {
-  if (explicitFlag !== undefined) {
-    return explicitFlag;
-  }
-  return process.env.OBSCURE_PII === 'true';
+	if (explicitFlag !== undefined) {
+		return explicitFlag;
+	}
+	return process.env.OBSCURE_PII === 'true';
 }
 
 /**
@@ -32,7 +34,12 @@ export function shouldObscurePII(explicitFlag?: boolean): boolean {
  * take the first 4 hex chars, uppercased.
  */
 export function obscureName(name: string | null | undefined): string {
-  throw new Error('Not implemented — your turn! (lib/pii.ts → obscureName)');
+	if (!name) {
+		return 'Patient-XXXX';
+	}
+	const normalizedName = name.toLowerCase().trim();
+	const hash = createHash('sha256').update(normalizedName).digest('hex');
+	return `Patient-${hash.slice(0, 4).toUpperCase()}`;
 }
 
 /**
@@ -42,7 +49,7 @@ export function obscureName(name: string | null | undefined): string {
  * Example: "1985-03-15" → "1985-XX-XX"
  */
 export function obscureDate(date: Date | string | null | undefined): string {
-  throw new Error('Not implemented — your turn! (lib/pii.ts → obscureDate)');
+	throw new Error('Not implemented — your turn! (lib/pii.ts → obscureDate)');
 }
 
 /**
@@ -50,11 +57,13 @@ export function obscureDate(date: Date | string | null | undefined): string {
  * All fields empty/absent → "Unknown".
  */
 export function obscureLocation(
-  city?: string | null,
-  state?: string | null,
-  postalCode?: string | null
+	city?: string | null,
+	state?: string | null,
+	postalCode?: string | null,
 ): string {
-  throw new Error('Not implemented — your turn! (lib/pii.ts → obscureLocation)');
+	throw new Error(
+		'Not implemented — your turn! (lib/pii.ts → obscureLocation)',
+	);
 }
 
 /**
@@ -68,7 +77,9 @@ export function obscureLocation(
  * The test pins down the exact expectations — build to it.
  */
 export function obscureContent(text: string | null | undefined): string {
-  throw new Error('Not implemented — your turn! (lib/pii.ts → obscureContent)');
+	throw new Error(
+		'Not implemented — your turn! (lib/pii.ts → obscureContent)',
+	);
 }
 
 /**
@@ -81,8 +92,10 @@ export function obscureContent(text: string | null | undefined): string {
  * output instead of this (columns are arbitrary), but the test still checks it.
  */
 export function obscurePatient<T extends Record<string, unknown>>(
-  patient: T,
-  obscure: boolean = true
+	patient: T,
+	obscure: boolean = true,
 ): T {
-  throw new Error('Not implemented — your turn! (lib/pii.ts → obscurePatient)');
+	throw new Error(
+		'Not implemented — your turn! (lib/pii.ts → obscurePatient)',
+	);
 }

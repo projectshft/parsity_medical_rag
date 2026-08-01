@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { select } from '@/lib/agents/selector';
 import { runSql } from '@/lib/agents/sql';
-import { runRag } from '@/lib/agents/rag';
+import { runRag, extractRagFilters } from '@/lib/agents/rag';
 import { aggregate } from '@/lib/agents/aggregator';
 import {
 	buildSchedulingAction,
@@ -46,14 +46,20 @@ export async function POST(request: Request) {
 		let ragResult = '';
 
 		if (plan.useSql) {
-			sqlResult = await runSql(query, messages);
+			// Pass the selector's RESOLVED query (pronouns/typos fixed, "her" ->
+			// "Carmen Escobar"), same as the RAG path — not the raw user text.
+			sqlResult = await runSql(plan.semanticQuery, messages);
 		}
 
 		if (plan.useRag) {
-			ragResult = await runRag(plan.semanticQuery);
+			// Pull metadata filters (patient name, gender) from the query with mini,
+			// then scope the vector search to them.
+			const ragFilters = await extractRagFilters(plan.semanticQuery);
+			ragResult = await runRag(plan.semanticQuery, ragFilters);
 		}
 
-		// if scheduleing then short circuit
+		// Scheduling short-circuits: it streams its own confirmation (with the
+		// action in a header) and never reaches the SQL/RAG/aggregator path.
 		if (plan.useScheduler) {
 			const schedulingResult = await detectSchedulingIntent(
 				query,
@@ -66,13 +72,21 @@ export async function POST(request: Request) {
 					{
 						role: 'user',
 						content: `
-            You are providing a calendar compoent with the patient to schedule for a visit
-            The patient name is ${schedulingResult?.patientName}
-            The suggested date is ${schedulingResult?.suggestedDate}
-            The suggested time is ${schedulingResult?.suggestedTime}
-            The reason is ${schedulingResult?.reason}
+            You are talking to a CLINICIAN/scheduler, NOT the patient. Write ONE short
+            sentence that PROPOSES this appointment slot for them to book. Do not greet
+            or address the patient, and do not say "your appointment" — refer to the
+            patient in the third person.
+            Use only these details — do not invent any:
+            - Patient: ${schedulingResult?.patientName}
+            - Date: ${schedulingResult?.suggestedDate}
+            - Time: ${schedulingResult?.suggestedTime}
+            - Reason: ${schedulingResult?.reason ?? 'not specified'}
 
-            The front end that is consuming this will compose the caledar with that info.
+            Example tone: "I can book ${schedulingResult?.patientName} for ${schedulingResult?.suggestedDate} at ${schedulingResult?.suggestedTime} — confirm below to schedule."
+
+            You are ONLY writing the message. The app renders the scheduling card from
+            structured data sent separately (the X-Scheduling-Action header) — do not
+            describe a form or UI.
             `,
 					},
 				],

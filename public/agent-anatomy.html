@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Anatomy of an Agent</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg:#0f1115; --card:#181b22; --card2:#1f232c; --border:#2b303b;
+    --text:#e6e8ec; --muted:#9099a6; --accent:#3b82f6; --accent2:#22c55e;
+    --warn:#f59e0b; --bad:#ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 17px/1.6 system-ui, -apple-system, sans-serif; padding: 3rem 2rem 6rem; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 2.1rem; letter-spacing: -.02em; }
+  h2 { font-size: 1.5rem; margin: 3.5rem 0 1rem; letter-spacing: -.01em; }
+  .kicker { color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .08em; font-size: .8rem; }
+  .lead { color: var(--muted); font-size: 1.15rem; margin-top: .4rem; }
+  section { border-top: 1px solid var(--border); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.4rem; margin: .8rem 0; }
+  .muted { color: var(--muted); }
+  code { font-family: ui-monospace, SFMono-Regular, monospace; background: var(--card2); padding: .1rem .4rem; border-radius: 5px; font-size: .9em; }
+  pre { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; overflow-x: auto; font-family: ui-monospace, monospace; font-size: .88rem; line-height: 1.5; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .pill { display:inline-block; font-size:.75rem; font-weight:600; padding:.15rem .6rem; border-radius:999px; }
+  .ok { background: rgba(34,197,94,.15); color: var(--accent2); }
+  .no { background: rgba(239,68,68,.15); color: var(--bad); }
+  .warnpill { background: rgba(245,158,11,.15); color: var(--warn); }
+  /* the anatomy diagram */
+  .anatomy { display:grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items:center; margin: 1.5rem 0; }
+  .inputs { display:flex; flex-direction:column; gap:.6rem; }
+  .chip { background: var(--card); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:8px; padding:.6rem .8rem; }
+  .chip b { display:block; font-size:.95rem; }
+  .chip span { color: var(--muted); font-size:.85rem; }
+  .core { background: var(--accent); color:#fff; border-radius:14px; padding:1.4rem 1.1rem; text-align:center; font-weight:700; font-size:1.15rem; box-shadow:0 0 40px rgba(59,130,246,.35); }
+  .arrow { color: var(--muted); font-size:1.6rem; text-align:center; }
+  .out { background: var(--card); border:1px solid var(--border); border-left:3px solid var(--accent2); border-radius:8px; padding:.8rem 1rem; }
+  .banner { background: linear-gradient(90deg, rgba(59,130,246,.15), rgba(34,197,94,.12)); border:1px solid var(--border); border-radius:12px; padding:1.2rem 1.4rem; margin:1rem 0 2rem; }
+  .flow { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin:1rem 0; }
+  .flow .step { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:.7rem 1rem; font-weight:600; }
+  .flow .sep { color:var(--accent); font-size:1.3rem; }
+  .flow .human { border-color: var(--warn); }
+  ul { padding-left: 1.2rem; } li { margin:.3rem 0; }
+  @media (max-width:820px){ .grid2,.anatomy{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+  <span class="kicker">Week 3</span>
+  <h1>Anatomy of an Agent</h1>
+  <p class="lead">An "agent" isn't magic. It's a function that hands a model the right five things — and gets back something your code can use.</p>
+
+  <div class="banner">
+    <b>Today we're <span style="color:var(--accent)">building</span>, not perfecting.</b>
+    <span class="muted">You'll tweak this all week to make it behave. The concepts matter more than the exact code — get the shape right, then tune.</span>
+  </div>
+
+  <!-- 1. ANATOMY -->
+  <section>
+    <h2>① The five inputs</h2>
+    <div class="anatomy">
+      <div class="inputs">
+        <div class="chip"><b>System prompt</b><span>who it is + the rules</span></div>
+        <div class="chip"><b>Context</b><span>the grounding — schema, real vocab, retrieved docs</span></div>
+        <div class="chip"><b>Model + settings</b><span>which model, temperature, max tokens</span></div>
+        <div class="chip"><b>Structured output</b><span>the exact shape it must return</span></div>
+        <div class="chip"><b>Query + history</b><span>the ask + the last few messages</span></div>
+      </div>
+      <div class="arrow">→</div>
+      <div>
+        <div class="core">THE AGENT<br><span style="font-weight:400;font-size:.85rem;opacity:.85">one model call</span></div>
+        <div class="arrow" style="margin:.6rem 0">↓</div>
+        <div class="out"><b>a typed result</b><br><span class="muted">not a blob of text — a shape your code can branch on</span></div>
+      </div>
+    </div>
+    <p class="muted">Change any one of the five and the behavior changes. That's the whole job: pick the five well.</p>
+  </section>
+
+  <!-- 2. MODEL SETTINGS -->
+  <section>
+    <h2>② Model &amp; settings — pick the tool for the job</h2>
+    <div class="grid2">
+      <div class="card"><b>temperature</b><br><span class="muted"><code>0</code> = deterministic, same answer every time. Use it for routing, SQL, extraction — anything where you want <em>the</em> answer, not a creative one. Crank it up only for brainstorming/writing.</span></div>
+      <div class="card"><b>model</b><br><span class="muted">A small/cheap model (<code>gpt-4o-mini</code>) is plenty for routing and SQL. Save the big model for synthesis. Don't pay for a Ferrari to fetch the mail.</span></div>
+      <div class="card"><b>max tokens</b><br><span class="muted">The ceiling on the reply. Too low = truncated answers; too high = wasted money on runaway output. Match it to the job.</span></div>
+      <div class="card"><b>structured output</b><br><span class="muted">Force a schema (<code>zodTextFormat</code>) so you get <code>{ useSql, useRag }</code>, not prose you have to parse. Code can't <code>if</code> on a paragraph.</span></div>
+    </div>
+  </section>
+
+  <!-- 3. CACHING -->
+  <section>
+    <h2>③ System prompts are cacheable — put the static part first</h2>
+    <p class="muted">Providers cache the <b>prefix</b> of your prompt. Same opening tokens = cache hit = cheaper &amp; faster. So keep anything that changes at the <b>end</b>.</p>
+    <div class="grid2">
+      <div class="card">
+        <span class="pill no">breaks the cache</span>
+        <pre>Today is 2026-07-24 14:07.   ← changes every call
+You write PostgreSQL for a
+medical database...</pre>
+        <span class="muted">A dynamic value up top means the prefix is never the same twice — nothing caches.</span>
+      </div>
+      <div class="card">
+        <span class="pill ok">cache-friendly</span>
+        <pre>You write PostgreSQL for a
+medical database...          ← static, cacheable
+[schema + vocab]
+---
+Today is 2026-07-24.         ← dynamic, at the end</pre>
+        <span class="muted">Static rules first, the changing bits last.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. GOOD VS BAD PROMPTS -->
+  <section>
+    <h2>④ Good vs bad system prompts</h2>
+    <div class="grid2">
+      <div class="card">
+        <span class="pill no">vague</span>
+        <pre>You are a helpful medical
+assistant. Answer questions
+about patients.</pre>
+        <ul class="muted">
+          <li>No role boundary</li>
+          <li>No grounding — invents column names</li>
+          <li>No output contract — returns prose</li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="pill ok">specific</span>
+        <pre>You write ONE read-only SELECT.
+Columns are camelCase, quoted.
+Use ILIKE on display.
+Real condition names: "Myocardial
+Infarction"; "Hypertension"; ...</pre>
+        <ul class="muted">
+          <li>Clear job + hard rules</li>
+          <li>Grounded in real values (heart attack → the stored name)</li>
+          <li>Schema says what <em>exists</em>; grounding says what's <em>in</em> it</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. MESSAGE HISTORY -->
+  <section>
+    <h2>⑤ Why we send the last few messages</h2>
+    <div class="card">
+      <p>The model has no memory between calls. Each request is a blank slate — so we resend recent turns.</p>
+      <pre>User:  "Tell me about Avery Mueller"
+User:  "schedule <b>him</b> for Tuesday"   ← who is "him"?</pre>
+      <p class="muted">Without the previous message, "him" is meaningless. History carries the referent. But history costs tokens — so we send the <b>last ~5</b>, not the whole conversation. Enough for context, not so much you pay for ancient history.</p>
+    </div>
+  </section>
+
+  <!-- 6. HUMAN IN THE LOOP -->
+  <section>
+    <h2>⑥ Human in the loop</h2>
+    <p class="muted">When an agent is about to <b>act on the world</b> — book, send, charge, delete — a human approves first. The agent <em>proposes</em>; it doesn't <em>execute</em>.</p>
+    <div class="flow">
+      <div class="step">User asks</div><span class="sep">→</span>
+      <div class="step">Agent proposes<br><span class="muted" style="font-weight:400">"Book Avery, Tue 2pm?"</span></div><span class="sep">→</span>
+      <div class="step human">✋ Human approves</div><span class="sep">→</span>
+      <div class="step">Execute<br><span class="muted" style="font-weight:400">book it for real</span></div>
+    </div>
+    <div class="card">
+      <b>Discuss:</b> <span class="muted">what agent patterns have you seen in the wild? Where should a human gate the action — and where would that just be annoying? (Reading a chart = no gate. Booking an appointment = gate. Why?)</span>
+    </div>
+  </section>
+
+  <!-- 7. FEW-SHOT (HOMEWORK) -->
+  <section>
+    <h2>⑦ Few-shot prompting <span class="pill warnpill">this week's homework</span></h2>
+    <div class="grid2">
+      <div class="card">
+        <b>Zero-shot</b> — just ask
+        <pre>System: You write SQL.
+User:   How many diabetics?</pre>
+        <span class="muted">Works, but the model guesses your style.</span>
+      </div>
+      <div class="card">
+        <b>Few-shot</b> — show 2–3 examples first
+        <pre>Q: patients with asthma
+A: SELECT ... ILIKE '%Asthma%'
+
+Q: oldest patient
+A: SELECT ... ORDER BY "birthDate" ASC
+
+Q: How many diabetics?   ← now it matches the pattern</pre>
+        <span class="muted">Examples teach format &amp; edge cases better than instructions.</span>
+      </div>
+    </div>
+    <p class="muted">Homework: add few-shot examples to your prompts, run a battery of ~10 questions before &amp; after, and show what got better (or worse).</p>
+  </section>
+
+  <!-- 8. WHAT WE BUILD -->
+  <section>
+    <h2>Then: we build it</h2>
+    <div class="flow">
+      <div class="step">selector<br><span class="muted" style="font-weight:400">route</span></div><span class="sep">→</span>
+      <div class="step">SQL ‖ search<br><span class="muted" style="font-weight:400">specialists</span></div><span class="sep">→</span>
+      <div class="step">aggregator<br><span class="muted" style="font-weight:400">one answer, streamed</span></div>
+    </div>
+    <p class="muted">Every box is just the five inputs again. Then LangSmith at the end, to watch the whole thing think.</p>
+    <div class="card" style="border-left:3px solid var(--accent2)">
+      <b>📎 The SQL agent (today's build)</b><br>
+      <a href="https://gist.github.com/BrianJenney/557150859f571b61020508d4f5f94d68" target="_blank" style="color:var(--accent);font-size:1.05rem">gist.github.com/BrianJenney/557150859f571b61020508d4f5f94d68</a>
+      <br><span class="muted">Feed the schema + real vocab → the LLM writes one <code>SELECT</code>. Tested demo queries are in the comments (heart attack → Myocardial Infarction → 25, statin → 93, …).</span>
+    </div>
+  </section>
+
+</body>
+</html>

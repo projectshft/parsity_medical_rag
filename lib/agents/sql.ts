@@ -12,157 +12,55 @@ const SqlSchema = z.object({
 	sql: z
 		.string()
 		.describe(
-			'One read-only Postgres SELECT. No semicolons. No LIMIT. NO DELETE',
+			'One read-only Postgres SELECT statement. No semicolons, no DML (INSERT/UPDATE/DELETE).',
 		),
 });
 
-const SCHEMA = `You write PostgreSQL for a medical-records database.
+// Hand-written RULES — the guidance and the one relationship fact that schema
+// introspection can't convey. The table/column list itself is pulled from the
+// live database (introspectSchema) so the prompt never drifts from the real DB.
+const RULES = `You write PostgreSQL for a medical-records database (read-only).
 Columns are camelCase and MUST be double-quoted: p."firstName". Tables are lowercase.
-patients(id, "firstName", "lastName", gender, "birthDate", "deathDate", city, state)
-conditions(id, "patientId", display)      -- diagnoses, SNOMED names e.g. "Hypertension"
-medications(id, "patientId", display, status)  -- status: 'active' | 'stopped'
-observations(id, "patientId", display, "valueNumber", unit, "effectiveDate")
-notes(id, "patientId", date, content)
 Every table joins to patients via "patientId" -> patients.id.
-Rules: SELECT only. Use ILIKE '%term%' on display. Always add a LIMIT.
+Rules: SELECT only. Use ILIKE '%term%' on display columns. Always add a LIMIT.
+Apply EVERY filter the user states. If they name a condition or medication, you
+MUST filter on it (JOIN conditions/medications with ILIKE), even alongside
+ORDER BY / LIMIT — never silently drop a stated constraint. "oldest patient WITH
+hypertension" must filter on hypertension, not just order by "birthDate".
+For "tell me about <patient>" / "what should I know about <patient>", return a
+rich picture — the patient row plus their conditions and active medications — not
+just name and birthDate.`;
 
-generator client {
-  provider = "prisma-client-js"
+// Read the real table + column list straight from Postgres, so the schema in the
+// prompt always matches the database instead of a hand-maintained text dump.
+async function introspectSchema(): Promise<string> {
+	const cols = await prisma.$queryRawUnsafe<
+		{ table_name: string; column_name: string }[]
+	>(
+		`SELECT table_name, column_name
+		 FROM information_schema.columns
+		 WHERE table_schema = 'public'
+		   AND table_name NOT IN ('_prisma_migrations', 'users')
+		 ORDER BY table_name, ordinal_position`,
+	);
+
+	const byTable = new Map<string, string[]>();
+	for (const { table_name, column_name } of cols) {
+		const list = byTable.get(table_name) ?? [];
+		// Quote camelCase identifiers the way any query against them must.
+		list.push(/[A-Z]/.test(column_name) ? `"${column_name}"` : column_name);
+		byTable.set(table_name, list);
+	}
+
+	return [...byTable]
+		.map(([table, columns]) => `${table}(${columns.join(', ')})`)
+		.join('\n');
 }
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-enum Role {
-  DOCTOR
-  STAFF
-}
-
-model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  role         Role
-  createdAt    DateTime @default(now())
-
-  @@map("users")
-}
-
-model Patient {
-  id            String    @id
-  firstName     String?
-  lastName      String?
-  gender        String?
-  birthDate     DateTime? @db.Date
-  deathDate     DateTime? // null = alive (823/1280 Coherent patients have a death date)
-  phone         String?
-  maritalStatus String?
-  race          String?
-  ethnicity     String?
-  city          String?
-  state         String?
-
-  conditions   Condition[]
-  observations Observation[]
-  medications  Medication[]
-  encounters   Encounter[]
-  notes        Note[]
-
-  @@index([lastName, firstName])
-  @@map("patients")
-}
-
-model Condition {
-  id             String    @id
-  patientId      String
-  code           String? // SNOMED code
-  display        String // e.g. "Type 2 Diabetes Mellitus"
-  clinicalStatus String? // active | resolved | inactive
-  onsetDate      DateTime?
-  abatementDate  DateTime?
-
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  @@index([patientId])
-  @@index([display])
-  @@map("conditions")
-}
-
-model Observation {
-  id            String    @id
-  patientId     String
-  code          String? // LOINC code
-  display       String // e.g. "Hemoglobin A1c"
-  category      String? // laboratory | vital-signs | survey | ...
-  valueNumber   Float?
-  valueString   String?
-  unit          String?
-  effectiveDate DateTime?
-
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  @@index([patientId])
-  @@index([code])
-  @@index([display])
-  @@map("observations")
-}
-
-model Medication {
-  id         String    @id
-  patientId  String
-  code       String? // RxNorm code
-  display    String // e.g. "Simvastatin 10 MG Oral Tablet"
-  status     String? // active | stopped | completed
-  authoredOn DateTime?
-  dosage     String?
-
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  @@index([patientId])
-  @@index([display])
-  @@map("medications")
-}
-
-// Clinical notes live here too: Postgres is the system of record for ALL data.
-// Pinecone is a DERIVED index (note text + metadata) kept in sync from this table.
-model Note {
-  id        String    @id // DocumentReference id — also the vector id in Pinecone
-  patientId String
-  type      String? // e.g. "History and physical note"
-  date      DateTime?
-  content   String // the full note text (~450 chars avg); the source of truth
-
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  @@index([patientId])
-  @@map("notes")
-}
-
-model Encounter {
-  id              String    @id
-  patientId       String
-  classCode       String? // HL7 v3 ActCode: AMB (ambulatory) | EMER (emergency) | IMP (inpatient)
-  type            String? // e.g. "Encounter for problem", "General examination of patient"
-  status          String? // finished | in-progress | planned | cancelled
-  startDate       DateTime?
-  endDate         DateTime?
-  serviceProvider String? // organization display, if present
-
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  @@index([patientId])
-  @@index([classCode])
-  @@map("encounters")
-}
-
-`;
 
 // Demo queries — all verified end-to-end against the data:
 //   "how many patients have had a stroke?"                  -> ILIKE '%Stroke%'                     -> 113
 //   "which patients have both hypertension and hyperlipidemia?" -> two EXISTS subqueries           -> 19 names
-//   "who is the oldest patient with hypertension?"          -> ORDER BY "birthDate" ASC LIMIT 1     -> Avery Mueller (1911)
+//   "who is the oldest patient with hypertension?"          -> JOIN conditions ILIKE '%Hypertension%' + ORDER BY "birthDate" ASC LIMIT 1 -> Avery Mueller (1911)
 //   "how many patients had a heart attack?"                 -> ILIKE '%Myocardial Infarction%'      -> 25  (lay term -> SNOMED, from grounding)
 //   "count patients on a statin"                            -> ILIKE '%statin%' AND status='active' -> 93  (lay term -> drug, + active filter)
 // Skip lab-threshold queries (e.g. "glucose over 150") — the data is almost all normal readings, so they return ~1 row.
@@ -170,9 +68,11 @@ export async function runSql(
 	query: string,
 	history: Message[] = [],
 ): Promise<string> {
-	// Ground the prompt with REAL values from the data. The schema says what
-	// columns exist — this says what's IN them ("Myocardial Infarction", not
-	// "heart attack"). Without it, lay terms return a confident 0 rows.
+	// Schema comes from the live DB; the grounding below says what's IN the
+	// columns ("Myocardial Infarction", not "heart attack"). Without the grounding,
+	// lay terms return a confident 0 rows.
+	const schema = await introspectSchema();
+
 	const conditions = await prisma.$queryRawUnsafe<{ display: string }[]>(
 		`SELECT DISTINCT display FROM conditions`,
 	);
@@ -181,23 +81,28 @@ export async function runSql(
 	);
 	const vocab = `Real condition names (match the user's words to these, use ILIKE):\n${conditions
 		.map((c) => c.display)
-		.join(
-			'; ',
-		)}\n\nReal medication names:\n${meds.map((m) => m.display).join('; ')}`;
+		.join('; ')}\n\nReal medication names:\n${meds
+		.map((m) => m.display)
+		.join('; ')}`;
 
 	const response = await openai.responses.parse({
-		model: 'gpt-4o-mini',
+		// gpt-4o (not mini): text-to-SQL is the hardest step — joins, filters, and
+		// not dropping a stated constraint. Worth the upgrade; still faster than gpt-4.
+		model: 'gpt-4o',
 		input: [
-			{ role: 'system', content: ` ${SCHEMA}\n\n${vocab}` },
+			{
+				role: 'system',
+				content: `${RULES}\n\nTables (from the live database):\n${schema}\n\n${vocab}`,
+			},
 			{
 				role: 'user',
-				content: `User Query: ${query} \n\n Convo history: ${
+				content: `User query: ${query}\n\nConversation history:\n${
 					history.length > 0
 						? history
 								.slice(-5)
 								.map((h) => `${h.role}: ${h.content}`)
 								.join('\n')
-						: ''
+						: '(none)'
 				}`,
 			},
 		],

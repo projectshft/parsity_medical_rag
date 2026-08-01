@@ -35,12 +35,17 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "solutions"
   ],
   // ts-node (the scripts/ runner) needs CommonJS; Next keeps esnext above.
   // Lives here so npm scripts need no inline JSON — which cmd.exe on Windows
   // mangles (single quotes aren't quoting there).
   "ts-node": {
+    // transpileOnly: scripts (and the MCP server) run under ts-node to *execute*,
+    // not to type-check — Next's build / editor / vitest own type-checking.
+    // Without it, the MCP SDK's zod generics trip TS2589 and the server won't boot.
+    "transpileOnly": true,
     "compilerOptions": {
       "module": "CommonJS",
       "moduleResolution": "node"

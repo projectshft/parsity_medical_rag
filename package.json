@@ -20,7 +20,8 @@
 		"bible:fixed": "npx ts-node scripts/bible/chunk-fixed.ts",
 		"bible:smart": "npx ts-node scripts/bible/chunk-smart.ts",
 		"bible:audit": "npx ts-node scripts/bible/audit.ts",
-		"security:poisoned": "npx ts-node scripts/security/demo-poisoned-docs.ts"
+		"security:poisoned": "npx ts-node scripts/security/demo-poisoned-docs.ts",
+		"bible:rerank": "npx ts-node scripts/bible/rerank-demo.ts"
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "^1.2.0",

@@ -1,100 +1,148 @@
 /**
- * Cal.com Integration
+ * Cal.com API Client
  *
- * Provides appointment scheduling via Cal.com API.
- * This is the "action" part of the human-in-the-loop pattern.
+ * Integrates with Cal.com for patient appointment scheduling.
  *
  * Setup:
  * 1. Create account at https://cal.com
- * 2. Create an event type (e.g., "Patient Appointment")
- * 3. Get API key from Settings -> Developer -> API Keys
- * 4. Get event type ID from the URL when editing the event type
- * 5. Add to .env: CAL_API_KEY and CAL_EVENT_TYPE_ID
+ * 2. Go to Settings → Developer → API Keys
+ * 3. Create new API key
+ * 4. Add to .env: CAL_API_KEY=your-key
+ * 5. Get your event type ID from Cal.com dashboard
  */
 
-const CAL_API_BASE = 'https://api.cal.com/v1';
+// Cal.com API v2. v1 was decommissioned. v2 differs from v1 in three ways:
+//   - auth is an `Authorization: Bearer <key>` header (not a `?apiKey=` query param)
+//   - every request must send a dated `cal-api-version` header
+//   - responses are wrapped in `{ status, data }`
+const CAL_API_BASE = 'https://api.cal.com/v2';
+// Pin the API version per endpoint (Cal.com versions them by date).
+const CAL_API_VERSION_BOOKINGS = '2024-08-13';
 
 export interface ScheduleRequest {
-  patientName: string;
-  dateTime: string; // ISO 8601 format
-  patientEmail?: string;
-  notes?: string | null;
+	patientName: string;
+	patientEmail?: string;
+	patientPhone?: string; // E.164; falls back to DEMO_PHONE_NUMBER
+	dateTime: string; // ISO 8601 format
+	notes?: string;
+}
+
+/** Cal.com wants E.164 (+15551234567). Add the leading + if missing. */
+function toE164(phone: string): string {
+	const trimmed = phone.trim();
+	return trimmed.startsWith('+')
+		? trimmed
+		: `+${trimmed.replace(/[^\d]/g, '')}`;
 }
 
 export interface ScheduleResult {
-  success: boolean;
-  bookingId?: string;
-  bookingUrl?: string;
-  error?: string;
+	success: boolean;
+	bookingId?: string;
+	bookingUrl?: string;
+	error?: string;
+}
+
+/**
+ * Get Cal.com API key from environment
+ */
+function getApiKey(): string {
+	const key = process.env.CAL_API_KEY;
+	if (!key) {
+		throw new Error('CAL_API_KEY not configured');
+	}
+	return key;
+}
+
+/**
+ * Get default event type ID
+ */
+function getEventTypeId(): number {
+	const id = process.env.CAL_EVENT_TYPE_ID;
+	if (!id) {
+		throw new Error('CAL_EVENT_TYPE_ID not configured');
+	}
+	return parseInt(id, 10);
 }
 
 /**
  * Check if Cal.com is configured
  */
 export function isCalConfigured(): boolean {
-  return Boolean(process.env.CAL_API_KEY && process.env.CAL_EVENT_TYPE_ID);
+	return Boolean(process.env.CAL_API_KEY && process.env.CAL_EVENT_TYPE_ID);
 }
 
 /**
- * Schedule an appointment via Cal.com API
- *
- * TODO: Implement this function
- * 1. Check if Cal.com is configured
- * 2. Make POST request to Cal.com bookings API
- *    - Endpoint: ${CAL_API_BASE}/bookings?apiKey=${apiKey}
- *    - Body: { eventTypeId, start, responses: { name, email }, metadata }
- * 3. Handle response and errors appropriately
- * 4. Return ScheduleResult with booking details
- *
- * Cal.com API docs: https://cal.com/docs/api-reference/v1/bookings
+ * Schedule an appointment via Cal.com
  */
 export async function scheduleAppointment(
-  request: ScheduleRequest
+	request: ScheduleRequest,
 ): Promise<ScheduleResult> {
-  // TODO: Implement Cal.com booking API call
+	try {
+		const apiKey = getApiKey();
+		const eventTypeId = getEventTypeId();
+		const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  if (!isCalConfigured()) {
-    return {
-      success: false,
-      error: 'Cal.com is not configured. Set CAL_API_KEY and CAL_EVENT_TYPE_ID.',
-    };
-  }
+		// v2 requires `start` in UTC (ISO 8601). Normalize whatever we were given.
+		const start = new Date(request.dateTime).toISOString();
 
-  // TODO: Make the API call to Cal.com
-  // const apiKey = process.env.CAL_API_KEY;
-  // const eventTypeId = parseInt(process.env.CAL_EVENT_TYPE_ID || '0', 10);
+		// phoneNumber is required when the event type has SMS reminders enabled.
+		const rawPhone = request.patientPhone || process.env.DEMO_PHONE_NUMBER;
 
-  return {
-    success: false,
-    error: 'Not implemented - your turn!',
-  };
-}
+		const response = await fetch(`${CAL_API_BASE}/bookings`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${apiKey}`,
+				'cal-api-version': CAL_API_VERSION_BOOKINGS,
+			},
+			body: JSON.stringify({
+				eventTypeId,
+				start,
+				attendee: {
+					name: request.patientName,
+					email: request.patientEmail || 'patient@example.com',
+					timeZone,
+					language: 'en',
+					...(rawPhone ? { phoneNumber: toE164(rawPhone) } : {}),
+				},
+				bookingFieldsResponses: {
+					notes:
+						request.notes ||
+						`Appointment for ${request.patientName}`,
+				},
+				metadata: {
+					source: 'medical-rag',
+					patientName: request.patientName,
+				},
+			}),
+		});
 
-/**
- * Cancel an appointment
- *
- * TODO (Extension): Implement appointment cancellation
- */
-export async function cancelAppointment(bookingId: string): Promise<ScheduleResult> {
-  // TODO: Implement cancellation via Cal.com API
-  return {
-    success: false,
-    error: 'Not implemented',
-  };
-}
+		if (!response.ok) {
+			// v2 errors: { status: "error", error: { message } }
+			const err = await response.json().catch(() => ({}));
+			return {
+				success: false,
+				error:
+					err?.error?.message ||
+					err?.message ||
+					`Cal.com API error: ${response.status}`,
+			};
+		}
 
-/**
- * Reschedule an appointment
- *
- * TODO (Extension): Implement appointment rescheduling
- */
-export async function rescheduleAppointment(
-  bookingId: string,
-  newDateTime: string
-): Promise<ScheduleResult> {
-  // TODO: Implement rescheduling via Cal.com API
-  return {
-    success: false,
-    error: 'Not implemented',
-  };
+		// v2 wraps the payload: { status: "success", data: { id, uid, ... } }
+		const { data } = await response.json();
+
+		return {
+			success: true,
+			bookingId: (data?.id ?? data?.uid)?.toString(),
+			bookingUrl: data?.uid
+				? `https://app.cal.com/booking/${data.uid}`
+				: undefined,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : 'Unknown error',
+		};
+	}
 }

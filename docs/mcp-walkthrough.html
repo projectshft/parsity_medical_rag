@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MCP Walkthrough — Medical RAG · Week 4</title>
+<style>
+  :root {
+    --ink: #1b2330;
+    --muted: #5b6675;
+    --line: #e3e7ec;
+    --bg: #ffffff;
+    --panel: #f6f8fa;
+    --accent: #2563eb;
+    --good: #15803d;
+    --warn: #b45309;
+    --code-bg: #f4f6f8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 6vh 6vw 12vh; }
+  header { border-bottom: 2px solid var(--line); padding-bottom: 1.4rem; margin-bottom: 2.4rem; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; font-size: .8rem; }
+  h1 { font-size: 2.4rem; line-height: 1.12; letter-spacing: -0.02em; margin: .4rem 0 .6rem; }
+  .lede { color: var(--muted); font-size: 1.12rem; }
+  h2 { font-size: 1.5rem; margin: 2.6rem 0 .8rem; letter-spacing: -0.01em; }
+  h2 .num { color: var(--accent); font-variant-numeric: tabular-nums; margin-right: .5rem; }
+  h3 { font-size: 1.05rem; margin: 1.6rem 0 .5rem; }
+  p { margin: .6rem 0; }
+  ul, ol { margin: .6rem 0 .6rem 1.3rem; }
+  li { margin: .3rem 0; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .9em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem; overflow-x: auto; margin: .9rem 0; }
+  pre code { background: none; padding: 0; font-size: .86rem; line-height: 1.5; }
+  .callout { border-left: 3px solid var(--accent); background: var(--panel); padding: .9rem 1.1rem; border-radius: 0 8px 8px 0; margin: 1.1rem 0; }
+  .callout.big-idea { border-color: var(--warn); }
+  .callout.danger { border-color: #b91c1c; }
+  .callout.danger .tag { color: #b91c1c; }
+  .callout .tag { font-weight: 700; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--warn); display: block; margin-bottom: .2rem; }
+  .callout.note .tag { color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .92rem; }
+  th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: .82rem; text-transform: uppercase; letter-spacing: .03em; }
+  .anatomy { display: grid; gap: .55rem; margin: 1rem 0; }
+  .anatomy div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: .7rem .9rem; }
+  .anatomy b { color: var(--accent); }
+  hr { border: none; border-top: 1px solid var(--line); margin: 2.4rem 0; }
+  .foot { color: var(--muted); font-size: .9rem; margin-top: 3rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Week 4 · Walkthrough</div>
+    <h1>MCP: exposing your RAG as a tool</h1>
+    <p class="lede">Let a model you don't control — Claude Desktop — discover and call your one medical-RAG tool, through a door that always obscures PII.</p>
+  </header>
+
+  <div class="callout big-idea">
+    <span class="tag">The one idea</span>
+    <strong>Channels.</strong> Which <em>door</em> a request comes through decides what it may see. The MCP door is the front-office channel — it always obscures. The chat door is clinician-facing — it shows the full chart. No login, no roles. The channel <em>is</em> the permission.
+  </div>
+
+  <h2><span class="num">1</span>What MCP actually is</h2>
+  <p>MCP (Model Context Protocol) lets an outside model list and invoke <em>your</em> tools. You expose a small server over stdin/stdout that speaks JSON-RPC; a client (Claude Desktop, or the Inspector) launches it as a subprocess, asks it <code>tools/list</code>, and — when it decides a tool helps — calls it. The tool-calling loop lives in the client. Your job is just to expose a good tool and answer honestly.</p>
+  <p>In this repo the server is <code>mcp-server/index.ts</code>, and it exposes a single tool: <code>query_notes</code> — semantic search over the clinical notes, with names obscured on the way out.</p>
+
+  <h2><span class="num">2</span>Anatomy of the tool</h2>
+  <p>A tool is four things and a return shape:</p>
+  <div class="anatomy">
+    <div><b>name</b> — what the model calls (<code>query_notes</code>)</div>
+    <div><b>description</b> — when to use it; the model reads this to decide</div>
+    <div><b>inputSchema</b> — a Zod object; becomes the JSON schema the model fills in</div>
+    <div><b>handler</b> — your code: run the search, obscure PII, return text</div>
+    <div>returns <b><code>{ content: [{ type: 'text', text }] }</code></b></div>
+  </div>
+  <pre><code>server.registerTool(
+  'query_notes',
+  {
+    description: 'Search clinical notes using semantic search...',
+    inputSchema: {
+      query: z.string().describe('Semantic search query'),
+      patientId: z.string().optional(),
+      topK: z.number().optional().default(5),
+    },
+  },
+  async ({ query, patientId, topK }) =&gt; {
+    const results = await searchClinicalNotes(query, { topK, patientIds: patientId ? [patientId] : undefined });
+    return { content: [{ type: 'text', text: formatVectorResults(results) }] };
+  }
+);</code></pre>
+  <div class="callout note">
+    <span class="tag">Note</span>
+    The <code>text</code> you return is rendered as <strong>markdown</strong> by the client — headings, tables, lists all work.
+  </div>
+
+  <h2><span class="num">3</span>Where the PII actually lives (and leaks)</h2>
+  <p>Each search hit has two parts, and they obscure <em>differently</em>:</p>
+  <div class="anatomy">
+    <div><b>metadata</b> — structured fields: <code>firstName</code>, <code>lastName</code>, etc. The name is <em>known</em> → obscure it directly with <code>obscureName()</code> (hash pseudonym: <code>Patient-A7B3</code>).</div>
+    <div><b>content</b> — the free-text note body. The patient's name is <em>also in here</em> ("Carmen presented with…") plus SSNs, phones → this needs a <code>regex</code> sweep (<code>obscureContent()</code>).</div>
+  </div>
+  <div class="callout danger">
+    <span class="tag">The leak to hunt</span>
+    Obscuring only the metadata name (the header) is not enough — the note <em>body</em> still says the name in plain text. The front-office door must scrub the <strong>content</strong>, not just the label. That's the whole Week 4 lesson: regex de-identification is a mitigation, not a guarantee, and it misses novel formats by design.
+  </div>
+  <p>The strong pattern (your metadata + regex idea): pull the <em>authoritative</em> name from metadata, build a targeted regex to scrub <em>that exact name</em> everywhere in the content, then run <code>obscureContent()</code> for the generic PII (SSN, phone, email) that isn't in metadata. Anchoring the regex on the known name closes the biggest gap that blind pattern-matching leaves open.</p>
+  <p>See the companion <strong>PII walkthrough</strong> — the obscuring itself (<code>lib/pii.ts</code>) is the lab: 33 tests, 31 red until you implement it.</p>
+
+  <h2><span class="num">4</span>Run it locally — the Inspector</h2>
+  <p>The MCP Inspector is a local web UI that lists and calls your tool. <strong>No Claude Desktop, no account.</strong> Raw <code>ts-node</code> doesn't read <code>.env</code>, so load your keys into the shell first:</p>
+  <pre><code>set -a; . ./.env; set +a
+npx @modelcontextprotocol/inspector npx ts-node mcp-server/index.ts</code></pre>
+  <p>First run downloads the inspector, then opens a browser page:</p>
+  <ol>
+    <li><strong>Connect</strong> (top-left) — the server starts, handshake completes.</li>
+    <li><strong>Tools</strong> tab → <strong>List Tools</strong> → <code>query_notes</code> appears.</li>
+    <li>Fill in a query (e.g. <code>chest pain</code>) → <strong>Run</strong> → inspect the result. (Needs <code>lib/pii.ts</code> implemented, since the handler calls <code>obscureName</code>.)</li>
+  </ol>
+  <div class="callout note">
+    <span class="tag">Quick smoke test (no UI)</span>
+    To just prove it boots: <code>echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | npx ts-node mcp-server/index.ts</code> → a JSON-RPC tool listing, plus <code>Medical RAG MCP server running</code> on <em>stderr</em> (stdout is reserved for protocol traffic).
+  </div>
+
+  <h2><span class="num">5</span>Wire it into Claude Desktop</h2>
+  <p>Edit <code>~/Library/Application Support/Claude/claude_desktop_config.json</code> (macOS):</p>
+  <pre><code>{
+  "mcpServers": {
+    "medical-rag": {
+      "command": "npx",
+      "args": ["ts-node", "/ABSOLUTE/PATH/to/parsity_medical_rag/mcp-server/index.ts"],
+      "env": {
+        "DATABASE_URL": "postgresql://...",
+        "OPENAI_API_KEY": "sk-...",
+        "OPENAI_BASE_URL": "https://&lt;your-litellm-proxy&gt;",
+        "PINECONE_API_KEY": "..."
+      }
+    }
+  }
+}</code></pre>
+  <div class="callout">
+    <span class="tag" style="color:var(--warn)">The #1 gotcha</span>
+    The subprocess <strong>inherits no environment</strong> — every key must be in this <code>env</code> block, even though they're already in <code>.env</code> (Claude launches from an arbitrary directory). If you use a LiteLLM/OpenAI proxy, <code>OPENAI_BASE_URL</code> <strong>must be here too</strong>, or embeddings hit <code>api.openai.com</code> and your proxy key is rejected as "not right."
+  </div>
+  <ul>
+    <li>Use an <strong>absolute path</strong> to <code>index.ts</code>.</li>
+    <li>The file must be <strong>valid JSON</strong> — one stray brace and Claude silently drops <em>all</em> servers.</li>
+    <li><strong>Fully quit</strong> Claude (Cmd-Q) and reopen after any edit — closing the window is <em>not</em> a restart; the config is read only at launch.</li>
+    <li>Tail the log to see it start (or fail):
+      <pre><code>tail -f ~/Library/Logs/Claude/mcp-server-medical-rag.log</code></pre>
+    </li>
+  </ul>
+
+  <h2><span class="num">6</span>Demo it</h2>
+  <ol>
+    <li>New chat → <code>query_notes</code> appears in the 🔌 menu.</li>
+    <li><em>"Search the clinical notes for patients with breathing problems."</em> → Claude calls the tool; results come back <strong>with names obscured</strong>. The front-office door working.</li>
+    <li>Contrast: the same search in the app's chat UI returns the full chart. Same data, different channel, different exposure.</li>
+    <li>Now hunt a leak — find PII in a note <em>body</em> that slipped through the regex. That's the point of the lesson.</li>
+  </ol>
+
+  <hr />
+
+  <h2>Your turn</h2>
+  <p>The real lab is the obscuring, not the plumbing. Implement <code>lib/pii.ts</code> (33 tests → green), then make <code>formatVectorResults</code> scrub the note <strong>content</strong> — metadata name + <code>obscureContent()</code> — not just the header. When it's green, re-run the demo and find the format the regex still misses.</p>
+
+  <p class="foot">Files: <code>mcp-server/index.ts</code> · <code>lib/vector-search.ts</code> · <code>lib/pii.ts</code> — see the companion <strong>PII walkthrough</strong> for the obscuring itself.</p>
+</div>
+</body>
+</html>

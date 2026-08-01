@@ -18,7 +18,9 @@ export function aggregate(
 ): ReturnType<typeof streamText> {
 	// text is the results ofr the previous agents
 	return streamText({
-		model: openaiProvider('gpt-4'),
+		// gpt-4o (128k context), NOT gpt-4 (8k): the SQL+RAG context can run tens of
+		// thousands of tokens. gpt-4 silently overflows and streams nothing back.
+		model: openaiProvider('gpt-4o'),
 		system: `
 		Use the information provided to answer the user's question.
 		NEVER INVENT OR INFER MEDICAL INFORMATION. ONLY ANSWER FROM THE PROVIDED INFORMATION.

@@ -22,6 +22,10 @@ const RERANK_MODEL = 'bge-reranker-v2-m3';
 export interface VectorSearchOptions {
 	topK?: number;
 	patientIds?: string[]; // Filter to specific patients (for hybrid queries)
+	firstName?: string; // exact-match Pinecone metadata filters (from RAG extraction)
+	lastName?: string;
+	gender?: string;
+	race?: string;
 	dateFrom?: string;
 	dateTo?: string;
 }
@@ -36,14 +40,30 @@ export async function searchClinicalNotes(
 	docs: any[];
 	rerankedDocuments: any[];
 }> {
-	const { topK = 100, patientIds } = options;
+	const { topK = 100, patientIds, firstName, lastName, gender, race } =
+		options;
+
+	// Combine any provided metadata into one exact-match filter (Pinecone ANDs
+	// multiple clauses via $and). Only include clauses that were actually set.
+	const clauses: Record<string, unknown>[] = [];
+	if (patientIds && patientIds.length > 0) {
+		clauses.push(
+			patientIds.length === 1
+				? { patientId: patientIds[0] }
+				: { patientId: { $in: patientIds } },
+		);
+	}
+	if (firstName) clauses.push({ firstName });
+	if (lastName) clauses.push({ lastName });
+	if (gender) clauses.push({ gender });
+	if (race) clauses.push({ race });
 
 	const filter =
-		patientIds && patientIds.length > 0
-			? patientIds.length === 1
-				? { patientId: patientIds[0] }
-				: { patientId: { $in: patientIds } }
-			: undefined;
+		clauses.length === 0
+			? undefined
+			: clauses.length === 1
+				? clauses[0]
+				: { $and: clauses };
 
 	// turn the query into an embedding
 

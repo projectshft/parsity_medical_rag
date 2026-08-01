@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PII Obscuring Walkthrough — Medical RAG · Week 4</title>
+<style>
+  :root {
+    --ink: #1b2330;
+    --muted: #5b6675;
+    --line: #e3e7ec;
+    --bg: #ffffff;
+    --panel: #f6f8fa;
+    --accent: #2563eb;
+    --good: #15803d;
+    --warn: #b45309;
+    --danger: #b91c1c;
+    --code-bg: #f4f6f8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 6vh 6vw 12vh; }
+  header { border-bottom: 2px solid var(--line); padding-bottom: 1.4rem; margin-bottom: 2.4rem; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; font-size: .8rem; }
+  h1 { font-size: 2.4rem; line-height: 1.12; letter-spacing: -0.02em; margin: .4rem 0 .6rem; }
+  .lede { color: var(--muted); font-size: 1.12rem; }
+  h2 { font-size: 1.5rem; margin: 2.6rem 0 .8rem; letter-spacing: -0.01em; }
+  h2 .num { color: var(--accent); font-variant-numeric: tabular-nums; margin-right: .5rem; }
+  h3 { font-size: 1.05rem; margin: 1.6rem 0 .5rem; }
+  p { margin: .6rem 0; }
+  ul, ol { margin: .6rem 0 .6rem 1.3rem; }
+  li { margin: .3rem 0; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .9em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem; overflow-x: auto; margin: .9rem 0; }
+  pre code { background: none; padding: 0; font-size: .86rem; line-height: 1.5; }
+  .callout { border-left: 3px solid var(--accent); background: var(--panel); padding: .9rem 1.1rem; border-radius: 0 8px 8px 0; margin: 1.1rem 0; }
+  .callout.big-idea { border-color: var(--warn); }
+  .callout.big-idea .tag { color: var(--warn); }
+  .callout.danger { border-color: var(--danger); }
+  .callout.danger .tag { color: var(--danger); }
+  .callout .tag { font-weight: 700; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); display: block; margin-bottom: .2rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .92rem; }
+  th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: .82rem; text-transform: uppercase; letter-spacing: .03em; }
+  td code { white-space: nowrap; }
+  .fn { display: grid; grid-template-columns: 1fr; gap: .55rem; margin: 1rem 0; }
+  .fn div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: .7rem .9rem; }
+  .fn b { color: var(--accent); font-family: ui-monospace, monospace; }
+  hr { border: none; border-top: 1px solid var(--line); margin: 2.4rem 0; }
+  .foot { color: var(--muted); font-size: .9rem; margin-top: 3rem; }
+  .arrow { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Week 4 · Walkthrough</div>
+    <h1>PII obscuring: the emptied room</h1>
+    <p class="lede">The front-office door can stay open with no login — because there's nothing sensitive left in the room to steal.</p>
+  </header>
+
+  <div class="callout big-idea">
+    <span class="tag">The one idea</span>
+    Obscuring is <strong>channel-based, not login-based</strong>. There are no users or roles. The <strong>MCP door always obscures</strong>; the <strong>chat door shows the full chart</strong>. Security comes from what each channel is <em>allowed to emit</em>, not from who's asking.
+  </div>
+
+  <h2><span class="num">1</span>Why no login?</h2>
+  <p>The usual instinct is auth: log people in, give them roles, gate the data. But the front office doesn't need the chart — it needs to book appointments and answer "is this a real patient?" So instead of guarding a room full of secrets, we <strong>empty the room</strong>: the MCP channel only exposes non-identifying tools, and it scrubs every response on the way out. An open door to an empty room is safe.</p>
+
+  <h2><span class="num">2</span>The real question: HOW do you de-identify?</h2>
+  <p>"Scrub the PII" sounds like one step. It isn't — there are four approaches, strongest signal first:</p>
+  <table>
+    <thead><tr><th>Approach</th><th>How it works</th><th>Trade-off</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Known identifiers</strong></td><td>You already hold the patient's name / DOB / MRN in the record → scrub those <em>exact</em> values</td><td>Highest precision — you're not guessing. The anchor.</td></tr>
+      <tr><td><strong>Regex / patterns</strong></td><td>Match SSNs, phones, emails, dates by shape</td><td>Fast, deterministic, auditable — but misses novel formats by design</td></tr>
+      <tr><td><strong>Statistical NER</strong></td><td>A trained model tags names/places in free text by context</td><td>Catches "the patient's mother, Jane" — costs compute, still imperfect</td></tr>
+      <tr><td><strong>LLM</strong></td><td>Ask GPT/Claude to rewrite the note with PII removed</td><td>Flexible — but ships the PHI to a third party, non-deterministic, unauditable</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout big-idea">
+    <span class="tag">The takeaway</span>
+    Real systems <strong>layer</strong> these — they don't pick one. Anchor on the identifiers you already <em>know</em> (deterministic), add NER + regex for the rest, human review for high-stakes. De-identification is defense-in-depth, and the strongest layer is the structured data you already hold.
+  </div>
+
+  <h2><span class="num">3</span>Why "just ask GPT/Claude" is the tempting wrong answer</h2>
+  <ul>
+    <li><strong>You'd ship the PHI to the exact third party you're protecting it from.</strong> Sending the note to an external LLM to strip PHI means it already left your boundary.</li>
+    <li><strong>Non-deterministic + unauditable.</strong> The same note scrubs differently run-to-run — you can't prove HIPAA Safe-Harbor compliance with "the model usually catches it."</li>
+    <li>The legitimate ML version is a <strong>local / self-hosted</strong> model. The issue isn't "ML" — it's "external general-purpose API."</li>
+  </ul>
+  <p><em>Neither OpenAI nor Anthropic ships a dedicated de-identification API</em> — you'd just be prompting the base model. Both offer a HIPAA BAA + zero-retention, but that's governance (lets you legally route PHI), not redaction.</p>
+
+  <h2><span class="num">4</span>The production tool: Microsoft Presidio</h2>
+  <p>When a real team needs de-identification, they reach for a <strong>purpose-built, validated</strong> tool — not a chat model.</p>
+  <div class="callout note">
+    <span class="tag">Microsoft Presidio</span>
+    Open-source and <strong>self-hostable</strong> (runs on your infra — no PHI leaves), combines <strong>NER + regex + rules</strong>, oriented to HIPAA's 18 identifiers, and lets you register custom recognizers. It's the batteries-included version of what we build by hand.
+  </div>
+  <p>Managed cloud equivalents, if you don't want to run it yourself: <strong>AWS Comprehend Medical</strong> (<code>DetectPHI</code>), <strong>Azure AI Language — PII detection</strong> (healthcare mode), <strong>Google Cloud Healthcare API de-identification</strong>. Clinical-specific: Philter, NLM-Scrubber, John Snow Labs.</p>
+
+  <h2><span class="num">5</span>Where the PII lives here — the leak to hunt</h2>
+  <p>Each result has two parts: <strong>metadata</strong> (structured <code>firstName</code>/<code>lastName</code> — the <em>known identifier</em>, obscure it directly) and <strong>content</strong> (the free-text note body, where the name <em>also</em> appears, plus SSNs/phones — needs a regex sweep). Obscuring only the metadata name and printing the note body raw is a live leak — and the whole lesson:</p>
+  <div class="callout danger">
+    <span class="tag">The lesson</span>
+    Regex de-identification is a <strong>mitigation, not a guarantee</strong> — it misses novel formats by design. Knowing <em>where</em> it fails is the job. (Our dataset is <strong>fully synthetic — zero real PHI</strong>, so hunting leaks on screen is safe.)
+  </div>
+
+  <hr />
+
+  <h2>In class</h2>
+  <p>We're staying high-level on the <em>why</em> today and building the code live: implement the regex baseline (<code>lib/pii.ts</code> — 33 tests, 31 red → green), wire it at the MCP door, then run the leak hunt to find the format it still misses. The point that transfers: <strong>anchor on what you know, layer the rest, and reach for Presidio in production — not a chat model.</strong></p>
+
+  <p class="foot">Files: <code>lib/pii.ts</code> · <code>lib/pii.test.ts</code> — see the companion <strong>MCP walkthrough</strong> for the door this protects. Tool to remember: <strong>Microsoft Presidio</strong>.</p>
+</div>
+</body>
+</html>
