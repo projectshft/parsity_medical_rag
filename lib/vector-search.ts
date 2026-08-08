@@ -36,12 +36,19 @@ export interface VectorSearchOptions {
 export async function searchClinicalNotes(
 	query: string, // tell me about patients with breathing issues
 	options: VectorSearchOptions = {},
+	shouldObscurePII = false,
 ): Promise<{
 	docs: any[];
 	rerankedDocuments: any[];
 }> {
-	const { topK = 100, patientIds, firstName, lastName, gender, race } =
-		options;
+	const {
+		topK = 100,
+		patientIds,
+		firstName,
+		lastName,
+		gender,
+		race,
+	} = options;
 
 	// Combine any provided metadata into one exact-match filter (Pinecone ANDs
 	// multiple clauses via $and). Only include clauses that were actually set.
@@ -88,7 +95,7 @@ export async function searchClinicalNotes(
 			(doc: any) =>
 				`
 			Patient note:${doc.metadata.content} 
-			Current medications: ${doc.metadata?.currentMedications?.join(', ')}
+			Current medications: ${shouldObscurePII ? 'Not available' : doc.metadata?.currentMedications?.join(', ')}
 			Race: ${doc.metadata.race}
 			Gender: ${doc.metadata.gender}
 			First name: ${doc.metadata.firstName}

@@ -10,6 +10,7 @@
 		"test": "vitest",
 		"test:run": "vitest run",
 		"test:evals": "RUN_EVALS=1 vitest run lib/evals",
+		"test:selector": "RUN_EVALS=1 vitest run lib/evals/selector.test.ts",
 		"db:generate": "prisma generate",
 		"db:push": "prisma db push",
 		"db:studio": "prisma studio",

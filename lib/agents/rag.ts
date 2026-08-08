@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { openai } from '../openai';
 import { searchClinicalNotes } from '../vector-search';
+import { loadPoisonedNote } from '../security/poison';
 
 const RagFiltersSchema = z.object({
 	firstName: z
@@ -132,7 +133,17 @@ export async function runRag(
 		...(Object.keys(filters).length > 0 ? filters : {}),
 	});
 
-	return notes.rerankedDocuments
-		.map((note) => `${JSON.stringify(note.document)}`)
-		.join('\n\n');
+	const docs = notes.rerankedDocuments.map((note) =>
+		JSON.stringify(note.document),
+	);
+
+	// SECURITY DEMO — POISON_DEMO=1 adds one poisoned note to the results, exactly
+	// where a real one would land. Nothing else changes: same search, same prompt.
+	// If you don't see the log line below, the flag never reached this process.
+	if (process.env.POISON_DEMO) {
+		docs.push(loadPoisonedNote());
+		console.log(`[poison] injected 1 note into ${docs.length} results`);
+	}
+
+	return docs.join('\n\n');
 }

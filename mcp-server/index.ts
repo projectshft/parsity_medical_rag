@@ -18,12 +18,21 @@
  * 3. Run: npx ts-node mcp-server/index.ts
  */
 
+// Must precede lib/* — they build API clients at import time. Anchored to the
+// repo root, not process.cwd(): MCP clients spawn this server from anywhere.
+import { config } from 'dotenv';
+// quiet: dotenv's "injected env" banner goes to stdout, which IS the JSON-RPC
+// stream on a stdio transport — one stray byte and the client drops the server.
+config({ path: require('path').join(__dirname, '..', '.env'), quiet: true });
+
+// .js is required — the SDK's package exports resolve `./*` verbatim, so a
+// bare `server/mcp` becomes dist/cjs/server/mcp and nothing appends the extension.
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
 import { searchClinicalNotes } from '../lib/vector-search';
-import { obscureName } from '../lib/pii';
+import { scheduleAppointment } from '../lib/calendar';
 
 const server = new McpServer({
 	name: 'medical-rag',
@@ -38,7 +47,7 @@ const server = new McpServer({
  * runs semantic search and obscures names before returning them.
  */
 server.registerTool(
-	'query_notes',
+	'query_clinical_notes',
 	{
 		description:
 			'Search clinical notes using semantic search. Use this for finding relevant medical notes, symptoms, treatments, or clinical observations.',
@@ -48,23 +57,27 @@ server.registerTool(
 				.describe(
 					'Semantic search query (e.g., "chest pain", "breathing problems")',
 				),
-			patientId: z
+			patientName: z
 				.string()
 				.optional()
-				.describe('Optional: limit to a specific patient ID'),
+				.describe('Optional: limit to a specific patient name'),
 			topK: z
 				.number()
 				.optional()
-				.default(5)
+				.default(10)
 				.describe('Number of results to return'),
 		},
 	},
-	async ({ query, patientId, topK }) => {
+	async ({ query, patientName, topK }) => {
 		try {
-			const results = await searchClinicalNotes(query, {
-				topK,
-				patientIds: patientId ? [patientId] : undefined,
-			});
+			const results = await searchClinicalNotes(
+				query,
+				{
+					topK,
+					firstName: patientName?.split(' ')[0],
+				},
+				true,
+			);
 
 			if (!results.rerankedDocuments.length) {
 				return {
@@ -78,7 +91,12 @@ server.registerTool(
 			}
 
 			return {
-				content: [{ type: 'text', text: formatVectorResults(results) }],
+				content: [
+					{
+						type: 'text',
+						text: `## Clinical Notes please do not show any PII \n${results.rerankedDocuments.map((doc: any) => JSON.stringify(doc.document)).join('\n')}`,
+					},
+				],
 			};
 		} catch (error) {
 			return {
@@ -91,39 +109,51 @@ server.registerTool(
 	},
 );
 
-// query_notes is the whole demo: one front-office tool that searches the notes
-// and obscures PII on the way out. The lab is the obscuring itself (lib/pii.ts) —
-// see formatVectorResults below, where the name comes from metadata and the note
-// body still needs scrubbing. (Optional: add more read-only, non-identifying tools.)
-
-/**
- * Helper: Format vector search results — always PII-obscured for MCP.
- */
-function formatVectorResults(results: {
-	docs: any[];
-	rerankedDocuments: any[];
-}): string {
-	const parts = ['## Clinical Notes\n'];
-
-	// rerankedDocuments carry the relevance order + score; docs carry the metadata.
-	// ranked.index maps back into docs (both derive from the same matches array).
-	for (const ranked of results.rerankedDocuments) {
-		const meta = results.docs[ranked.index]?.metadata ?? {};
-		const patientName = obscureName(
-			`${meta.firstName ?? ''} ${meta.lastName ?? ''}`.trim() ||
-				'Unknown',
-		);
-		parts.push(
-			`### ${patientName} (relevance ${(ranked.score * 100).toFixed(1)}%)`,
-		);
-		parts.push('```');
-		parts.push(meta.content ?? '');
-		parts.push('```\n');
-	}
-
-	return parts.join('\n');
-}
-
+server.registerTool(
+	'schedule_appointment_for_patient',
+	{
+		description:
+			'Schedule an appointment for a patient using their first name.',
+		inputSchema: {
+			patientName: z
+				.string()
+				.describe(
+					'The first name of the patient to schedule an appointment for',
+				),
+			date: z
+				.string()
+				.describe('The date of the appointment in YYYY-MM-DD format'),
+			time: z
+				.string()
+				.describe('The time of the appointment in HH:MM format'),
+		},
+	},
+	async ({ patientName, date, time }) => {
+		const appointment = await scheduleAppointment({
+			patientName,
+			dateTime: `${date}T${time}:00`,
+		});
+		if (!appointment.success) {
+			return {
+				content: [
+					{
+						type: 'text',
+						text: `Error scheduling appointment: ${appointment.error}`,
+					},
+				],
+				isError: true,
+			};
+		}
+		return {
+			content: [
+				{
+					type: 'text',
+					text: `Appointment scheduled for ${patientName} on ${date} at ${time} successfully`,
+				},
+			],
+		};
+	},
+);
 // Start the server
 async function main() {
 	const transport = new StdioServerTransport();
