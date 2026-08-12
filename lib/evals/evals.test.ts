@@ -30,7 +30,10 @@ import type { Message } from '@/lib/agent';
 const BASE_URL = process.env.EVAL_BASE_URL ?? 'http://localhost:3000';
 
 /** POST /api/chat over real HTTP — the exact request the browser makes. */
-async function askChat(query: string, messages: Message[] = []): Promise<string> {
+async function askChat(
+	query: string,
+	messages: Message[] = [],
+): Promise<string> {
 	const res = await fetch(`${BASE_URL}/api/chat`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -48,7 +51,14 @@ async function askChat(query: string, messages: Message[] = []): Promise<string>
 
 const VerdictSchema = z.object({
 	pass: z.boolean().describe('true only if EVERY criterion is met'),
-	reasoning: z.string().describe('One sentence. Name the criterion that failed, if any.'),
+	score: z
+		.number()
+		.describe(
+			'The score of the answer, between 0 and 10. With 10 being the highest score and 0 being the lowest score.',
+		),
+	reasoning: z
+		.string()
+		.describe('One sentence. Name the criterion that failed, if any.'),
 });
 
 /** Grade an answer against plain-English criteria. */
@@ -65,7 +75,7 @@ async function judge(query: string, answer: string, criteria: string[]) {
 Mark each criterion met or not met, exactly as written. Do NOT add requirements
 of your own — if a criterion asks for a number and the answer contains a number,
 it is met, regardless of how much context surrounds it. Ignore style, length,
-and tone. pass = true only if every criterion is met.`,
+and tone. pass = true only if EVERY criterion is met.`,
 			},
 			{
 				role: 'user',
@@ -94,6 +104,16 @@ const CASES: {
 		query: 'how many patients have hypertension?',
 		criteria: [
 			'Gives a specific number of patients.',
+			'It should mention 63 as the number of patients with hypertension.',
+			'Does not refuse, ask for clarification, or say it lacks the information.',
+			'Does not invent patient names or clinical details that were not asked for.',
+		],
+	},
+	{
+		name: 'provides information about a specific patient',
+		query: 'What can you tell me about patient Avery Mueller or patients with cancer?',
+		criteria: [
+			'Provides infomation about the patient Avery Mueller',
 			'Does not refuse, ask for clarification, or say it lacks the information.',
 			'Does not invent patient names or clinical details that were not asked for.',
 		],
@@ -101,12 +121,23 @@ const CASES: {
 ];
 
 describe('chat route (end-to-end)', () => {
-	it.each(CASES)('$name', async ({ query, messages, criteria }) => {
-		const answer = await askChat(query, messages);
-		const verdict = await judge(query, answer, criteria);
+	it.each(CASES)(
+		'$name',
+		async ({ query, messages, criteria }) => {
+			const answer = await askChat(query, messages);
+			const verdict = await judge(query, answer, criteria);
 
-		console.log(`\nQ: ${query}\nA: ${answer}\nJUDGE: ${JSON.stringify(verdict)}`);
+			console.log(
+				`\nQ: ${query}\nA: ${answer}\nJUDGE: ${JSON.stringify(verdict)}`,
+			);
 
-		expect(verdict.pass).toBe(true);
-	}, 60000);
+			console.log(`Score: ${verdict.score}`);
+			console.log(`Pass: ${verdict.pass}`);
+			console.log(`Reasoning: ${verdict.reasoning}`);
+
+			expect(verdict.score).toBeGreaterThanOrEqual(8);
+			expect(verdict.pass).toBe(true);
+		},
+		60000,
+	);
 });

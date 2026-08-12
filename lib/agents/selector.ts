@@ -63,147 +63,147 @@ export type Plan = {
  * PlanOutput, so a malformed example won't compile. Keep ~2 per category.
  * Categories: sql | rag | hybrid | calendar | clarify.
  */
-const FEW_SHOT: {
-	category: 'sql' | 'rag' | 'hybrid' | 'calendar' | 'clarify';
-	question: string;
-	output: PlanOutput;
-}[] = [
-	{
-		category: 'sql',
-		question: 'How many patients have hypertension?',
-		output: {
-			useSql: true,
-			useRag: false,
-			useScheduler: false,
-			reason: 'A count filtered by a condition — structured data lives in SQL.',
-			agentQuery: 'How many patients have hypertension?',
-			clarificationQuery: null,
-		},
-	},
-	{
-		category: 'sql',
-		question: 'Who is the oldest patient with diabetes?',
-		output: {
-			useSql: true,
-			useRag: false,
-			useScheduler: false,
-			reason: 'Superlative plus a condition filter over structured patient rows.',
-			agentQuery: 'Who is the oldest patient with diabetes?',
-			clarificationQuery: null,
-		},
-	},
-	{
-		category: 'rag',
-		question: 'What do the clinical notes say about patients with breathing problems?',
-		output: {
-			useSql: false,
-			useRag: true,
-			useScheduler: false,
-			reason: 'Meaning-based question over the free-text notes, not a structured filter.',
-			agentQuery: 'clinical notes describing breathing problems / shortness of breath',
-			clarificationQuery: null,
-		},
-	},
-	{
-		category: 'rag',
-		question: 'Summarize the symptoms described for chest pain patients.',
-		output: {
-			useSql: false,
-			useRag: true,
-			useScheduler: false,
-			reason: 'Summarizing note content — vector search over the notes.',
-			agentQuery: 'notes describing chest pain symptoms',
-			clarificationQuery: null,
-		},
-	},
-	{
-		// A demographic "trends" question is NOT vague — it's answerable from the
-		// notes filtered to that group. Route to RAG, do not ask for clarification.
-		category: 'rag',
-		question: 'Of our black patients, what trends do you see?',
-		output: {
-			useSql: false,
-			useRag: true,
-			useScheduler: false,
-			reason: 'A demographic question answered from the notes — scope to the group and read the notes for themes.',
-			agentQuery: 'trends and common themes in the clinical notes for black patients',
-			clarificationQuery: null,
-		},
-	},
-	{
-		category: 'hybrid',
-		question: 'How many patients had a heart attack, and what symptoms do their notes describe?',
-		output: {
-			useSql: true,
-			useRag: true,
-			useScheduler: false,
-			reason: 'A count (SQL) plus a description of note content (RAG) — hybrid.',
-			agentQuery: 'patients with myocardial infarction and the symptoms described in their notes',
-			clarificationQuery: null,
-		},
-	},
-	{
-		category: 'hybrid',
-		question: 'List patients on statins and what their notes mention about side effects.',
-		output: {
-			useSql: true,
-			useRag: true,
-			useScheduler: false,
-			reason: 'Structured medication filter (SQL) plus meaning over notes (RAG) — hybrid.',
-			agentQuery: 'patients on statins and note mentions of side effects',
-			clarificationQuery: null,
-		},
-	},
-	{
-		category: 'calendar',
-		question: 'Book an appointment for Carmen Escobar next Tuesday at 2pm.',
-		output: {
-			useSql: false,
-			useRag: false,
-			useScheduler: true,
-			reason: 'An explicit request to schedule/book an appointment.',
-			agentQuery: 'Book an appointment for Carmen Escobar next Tuesday at 2pm',
-			clarificationQuery: null,
-		},
-	},
-	{
-		category: 'calendar',
-		question: 'Schedule a follow-up visit for John Smith.',
-		output: {
-			useSql: false,
-			useRag: false,
-			useScheduler: true,
-			reason: 'A scheduling action for a named patient.',
-			agentQuery: 'Schedule a follow-up visit for John Smith',
-			clarificationQuery: null,
-		},
-	},
-	{
-		category: 'clarify',
-		question: 'Tell me about him.',
-		output: {
-			useSql: false,
-			useRag: false,
-			useScheduler: false,
-			reason: "Ambiguous reference — no patient named and no history to resolve 'him'.",
-			agentQuery: null,
-			clarificationQuery: 'Which patient do you mean? Please give a name.',
-		},
-	},
-	{
-		category: 'clarify',
-		question: 'Can you help?',
-		output: {
-			useSql: false,
-			useRag: false,
-			useScheduler: false,
-			reason: 'Too vague to route — no medical question or scheduling request stated.',
-			agentQuery: null,
-			clarificationQuery:
-				'What would you like to know? I can answer questions about patients, their conditions, notes, or schedule an appointment.',
-		},
-	},
-];
+// const FEW_SHOT: {
+// 	category: 'sql' | 'rag' | 'hybrid' | 'calendar' | 'clarify';
+// 	question: string;
+// 	output: PlanOutput;
+// }[] = [
+// 	{
+// 		category: 'sql',
+// 		question: 'How many patients have hypertension?',
+// 		output: {
+// 			useSql: true,
+// 			useRag: false,
+// 			useScheduler: false,
+// 			reason: 'A count filtered by a condition — structured data lives in SQL.',
+// 			agentQuery: 'How many patients have hypertension?',
+// 			clarificationQuery: null,
+// 		},
+// 	},
+// 	{
+// 		category: 'sql',
+// 		question: 'Who is the oldest patient with diabetes?',
+// 		output: {
+// 			useSql: true,
+// 			useRag: false,
+// 			useScheduler: false,
+// 			reason: 'Superlative plus a condition filter over structured patient rows.',
+// 			agentQuery: 'Who is the oldest patient with diabetes?',
+// 			clarificationQuery: null,
+// 		},
+// 	},
+// 	{
+// 		category: 'rag',
+// 		question: 'What do the clinical notes say about patients with breathing problems?',
+// 		output: {
+// 			useSql: false,
+// 			useRag: true,
+// 			useScheduler: false,
+// 			reason: 'Meaning-based question over the free-text notes, not a structured filter.',
+// 			agentQuery: 'clinical notes describing breathing problems / shortness of breath',
+// 			clarificationQuery: null,
+// 		},
+// 	},
+// 	{
+// 		category: 'rag',
+// 		question: 'Summarize the symptoms described for chest pain patients.',
+// 		output: {
+// 			useSql: false,
+// 			useRag: true,
+// 			useScheduler: false,
+// 			reason: 'Summarizing note content — vector search over the notes.',
+// 			agentQuery: 'notes describing chest pain symptoms',
+// 			clarificationQuery: null,
+// 		},
+// 	},
+// 	{
+// 		// A demographic "trends" question is NOT vague — it's answerable from the
+// 		// notes filtered to that group. Route to RAG, do not ask for clarification.
+// 		category: 'rag',
+// 		question: 'Of our black patients, what trends do you see?',
+// 		output: {
+// 			useSql: false,
+// 			useRag: true,
+// 			useScheduler: false,
+// 			reason: 'A demographic question answered from the notes — scope to the group and read the notes for themes.',
+// 			agentQuery: 'trends and common themes in the clinical notes for black patients',
+// 			clarificationQuery: null,
+// 		},
+// 	},
+// 	{
+// 		category: 'hybrid',
+// 		question: 'How many patients had a heart attack, and what symptoms do their notes describe?',
+// 		output: {
+// 			useSql: true,
+// 			useRag: true,
+// 			useScheduler: false,
+// 			reason: 'A count (SQL) plus a description of note content (RAG) — hybrid.',
+// 			agentQuery: 'patients with myocardial infarction and the symptoms described in their notes',
+// 			clarificationQuery: null,
+// 		},
+// 	},
+// 	{
+// 		category: 'hybrid',
+// 		question: 'List patients on statins and what their notes mention about side effects.',
+// 		output: {
+// 			useSql: true,
+// 			useRag: true,
+// 			useScheduler: false,
+// 			reason: 'Structured medication filter (SQL) plus meaning over notes (RAG) — hybrid.',
+// 			agentQuery: 'patients on statins and note mentions of side effects',
+// 			clarificationQuery: null,
+// 		},
+// 	},
+// 	{
+// 		category: 'calendar',
+// 		question: 'Book an appointment for Carmen Escobar next Tuesday at 2pm.',
+// 		output: {
+// 			useSql: false,
+// 			useRag: false,
+// 			useScheduler: true,
+// 			reason: 'An explicit request to schedule/book an appointment.',
+// 			agentQuery: 'Book an appointment for Carmen Escobar next Tuesday at 2pm',
+// 			clarificationQuery: null,
+// 		},
+// 	},
+// 	{
+// 		category: 'calendar',
+// 		question: 'Schedule a follow-up visit for John Smith.',
+// 		output: {
+// 			useSql: false,
+// 			useRag: false,
+// 			useScheduler: true,
+// 			reason: 'A scheduling action for a named patient.',
+// 			agentQuery: 'Schedule a follow-up visit for John Smith',
+// 			clarificationQuery: null,
+// 		},
+// 	},
+// 	{
+// 		category: 'clarify',
+// 		question: 'Tell me about him.',
+// 		output: {
+// 			useSql: false,
+// 			useRag: false,
+// 			useScheduler: false,
+// 			reason: "Ambiguous reference — no patient named and no history to resolve 'him'.",
+// 			agentQuery: null,
+// 			clarificationQuery: 'Which patient do you mean? Please give a name.',
+// 		},
+// 	},
+// 	{
+// 		category: 'clarify',
+// 		question: 'Can you help?',
+// 		output: {
+// 			useSql: false,
+// 			useRag: false,
+// 			useScheduler: false,
+// 			reason: 'Too vague to route — no medical question or scheduling request stated.',
+// 			agentQuery: null,
+// 			clarificationQuery:
+// 				'What would you like to know? I can answer questions about patients, their conditions, notes, or schedule an appointment.',
+// 		},
+// 	},
+// ];
 
 const INSTRUCTIONS = `You are the ROUTER for a medical-records assistant. Decide which
 data source(s) a question needs. You do NOT answer the question and you do NOT extract
@@ -212,9 +212,7 @@ filters — the downstream agents do that.
 Sources:
 - SQL database — structured facts about patients: counts, filters, ages, conditions,
   medications, dates. Use for "how many", "which patients", "oldest/youngest", exact lookups.
-- Vector store (RAG) — the free-text clinical notes: symptoms, descriptions, meaning-based
-  questions. Use for "what do the notes say", "describe", "summarize symptoms".
-- Scheduling — booking or scheduling an appointment for a patient.
+
 
 Good vs bad routing:
 - Counts and filters go to SQL, NOT RAG.
@@ -231,8 +229,7 @@ truly cannot route.`;
 const SYSTEM_PROMPT = `${INSTRUCTIONS}
 
 Examples (the output shape you must produce):
-
-${FEW_SHOT.map((ex) => `Q: "${ex.question}"\n${JSON.stringify(ex.output)}`).join('\n\n')}`;
+`;
 
 export async function select(
 	query: string,

@@ -31,6 +31,18 @@ const CASES: {
 		useRag: false,
 		useScheduler: false,
 	},
+	{
+		query: 'Avery Mueller wants to come in Tuesday 4pm',
+		useSql: false,
+		useRag: false,
+		useScheduler: true,
+	},
+	{
+		query: 'patnt wi cncr - tll me botu what is patern',
+		useSql: false,
+		useRag: true,
+		useScheduler: false,
+	},
 ];
 
 describe('selector routing', () => {
@@ -50,6 +62,6 @@ describe('selector routing', () => {
 		},
 		// Generous: this is a live API call, and an occasional slow one shouldn't
 		// read as a routing bug.
-		60000,
+		60_000,
 	);
 });

@@ -145,5 +145,13 @@ export async function runRag(
 		console.log(`[poison] injected 1 note into ${docs.length} results`);
 	}
 
+	//content santization
+	// look for any instructions found in the content and remove them like "system prompt" or "user prompt"
+	const content = docs.join('\n\n');
+	const contentWithoutInstructions = content
+		.replace(/<system prompt>[\s\S]*?<\/system prompt>/g, '')
+		.replace(/<user prompt>[\s\S]*?<\/user prompt>/g, '');
+	return contentWithoutInstructions;
+
 	return docs.join('\n\n');
 }
