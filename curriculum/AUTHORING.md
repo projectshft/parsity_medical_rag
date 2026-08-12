@@ -2,6 +2,8 @@
 
 Working doc for building the day-by-day curriculum in batches. **Update the status table every batch.** The template and rules here are the spec — every day file must follow them so the course reads in one voice.
 
+> **Active workstream (2026-08-11):** [`BACKLOG-live-cohort.md`](BACKLOG-live-cohort.md) — reconciling this written curriculum against the transcript of the live cohort. Five items: what Brian taught live that nothing here carries. Start there for pick-up work; the authoring rules below still bind.
+
 ## ▶▶ RESTRUCTURE IN PROGRESS (2026-07-05, rev 2) — read this first
 
 Big re-scope (Brian). **Core framing:** you're joining a company that *already has* its data in a database. The job = make it **semantically searchable** and build an **agent** on top. So the SQL/structured side is a **GIVEN — not taught, not uploaded live.** Front-load the working system; compress to **5 weeks**. README "Week index" is the canonical map; day files + decks are being reconciled.
