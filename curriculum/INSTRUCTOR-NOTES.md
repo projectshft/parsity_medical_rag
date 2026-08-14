@@ -1,8 +1,16 @@
 # Instructor Notes
 
-Teaching context and talking points that are NOT in the student-facing day
-files. Instructor-only — lives on the `instructor` branch with the rest of
-`curriculum/`, never ships to `student`.
+Cross-cutting teaching context that doesn't belong to any one session — the HIPAA
+framing, the data story, standing talking points. Instructor-only; lives on the
+`instructor` branch and never ships to `student`.
+
+> **Per-session prep, timings, and failure modes live in
+> [`instructor/`](instructor/)** — one runbook per Saturday. This file is for the
+> things you might be asked in any session.
+>
+> Some references below point at the pre-cohort self-paced lesson files, now in
+> [`archive/`](archive/). The teaching content still holds; the file paths and
+> week numbers refer to the archived track, not the six live sessions.
 
 ---
 
