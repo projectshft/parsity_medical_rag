@@ -146,10 +146,10 @@ export async function textToSqlQuery(
   });
 
   const { sql, explanation } = SqlQuerySchema.parse(response.output_parsed);
-  assertReadOnly(sql);
   const safeSql = /\blimit\b/i.test(sql) ? sql : `${sql.trim().replace(/;\s*$/, '')} LIMIT 50`;
 
   try {
+    assertReadOnly(sql); // inside the try: a refused query is a bad answer, not a 500
     const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(safeSql);
     return { sql: safeSql, explanation, rows: serializeRows(rows) };
   } catch (e) {
