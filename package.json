@@ -16,6 +16,8 @@
 		"db:studio": "prisma studio",
 		"vectorize": "npx ts-node scripts/vectorize.ts",
 		"similarity": "npx ts-node scripts/similarity.ts",
+		"mcp": "npx ts-node mcp-server/index.ts",
+		"mcp:inspect": "npx @modelcontextprotocol/inspector npx ts-node mcp-server/index.ts",
 		"retell:deploy": "npx ts-node scripts/retell/deploy-agent.ts",
 		"bible:fetch": "npx ts-node scripts/bible/fetch.ts",
 		"bible:fixed": "npx ts-node scripts/bible/chunk-fixed.ts",

@@ -16,7 +16,7 @@ const pinecone = new Pinecone({
 	apiKey: process.env.PINECONE_API_KEY!,
 });
 
-const INDEX_NAME = 'medical-notes-parsity';
+const INDEX_NAME = process.env.PINECONE_INDEX || 'medical-notes';
 const RERANK_MODEL = 'bge-reranker-v2-m3';
 
 export interface VectorSearchOptions {
