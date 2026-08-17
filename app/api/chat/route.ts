@@ -65,12 +65,16 @@ export async function POST(request: Request) {
     // The scheduling card rides in a header (the UI reads it off the response).
     const headers: Record<string, string> = {};
     if (patient) {
-      headers["X-Scheduling-Action"] = JSON.stringify({
-        patientName: [patient.firstName, patient.lastName].filter(Boolean).join(" "),
-        suggestedDate: scheduling.suggestedDate || getDefaultDate(),
-        suggestedTime: scheduling.suggestedTime || "09:00",
-        reason: scheduling.reason,
-      });
+      // URI-encoded: header values must be latin-1, and patient names aren't
+      // (e.g. "Benjamín Granado"). The UI decodes it.
+      headers["X-Scheduling-Action"] = encodeURIComponent(
+        JSON.stringify({
+          patientName: [patient.firstName, patient.lastName].filter(Boolean).join(" "),
+          suggestedDate: scheduling.suggestedDate || getDefaultDate(),
+          suggestedTime: scheduling.suggestedTime || "09:00",
+          reason: scheduling.reason,
+        }),
+      );
     }
 
     return stream.toTextStreamResponse({ headers });

@@ -10,6 +10,7 @@
 		"test": "vitest",
 		"test:run": "vitest run",
 		"test:evals": "RUN_EVALS=1 vitest run lib/evals",
+		"test:e2e": "RUN_E2E=1 vitest run e2e",
 		"db:generate": "prisma generate",
 		"db:push": "prisma db push",
 		"db:studio": "prisma studio",

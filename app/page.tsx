@@ -82,6 +82,11 @@ export default function Home() {
 
       if (!response.ok) throw new Error("Failed to get response");
 
+      // The scheduling proposal rides in a response header, not in the streamed
+      // text — structured data can't travel in a text stream. Read it up front;
+      // the card renders once the answer finishes streaming.
+      const schedulingHeader = response.headers.get("X-Scheduling-Action");
+
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let assistantMessage = "";
@@ -108,8 +113,11 @@ export default function Home() {
         });
       }
 
-      // Check for scheduling action after stream completes
-      const { action } = parseSchedulingAction(assistantMessage);
+      // Check for scheduling action after stream completes. The header is the
+      // real transport; the inline-comment form is a legacy fallback.
+      const action = schedulingHeader
+        ? (JSON.parse(decodeURIComponent(schedulingHeader)) as SchedulingAction)
+        : parseSchedulingAction(assistantMessage).action;
       if (action) {
         setScheduling({
           action,
