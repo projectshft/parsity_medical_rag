@@ -7,21 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  DOCTOR
-  STAFF
-}
-
-model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  role         Role
-  createdAt    DateTime @default(now())
-
-  @@map("users")
-}
-
 model Patient {
   id            String    @id
   firstName     String?
@@ -36,6 +21,18 @@ model Patient {
   city          String?
   state         String?
 
+  // --- Week 4: what an agent is allowed to change ---
+  // Soft delete. Nothing in this course ever issues a DELETE against a patient
+  // or a note; "removing" a record means stamping deletedAt and filtering it
+  // out on read. A soft delete you forget to filter on is just a lie, so every
+  // read path (SQL agent, vectorize, patient lookup) must exclude these.
+  deletedAt DateTime?
+
+  // A reversible, low-stakes write — the first action we let a tool perform,
+  // and only after a human confirms it.
+  followUpFlag   Boolean @default(false)
+  followUpReason String?
+
   conditions   Condition[]
   observations Observation[]
   medications  Medication[]
@@ -43,6 +40,7 @@ model Patient {
   notes        Note[]
 
   @@index([lastName, firstName])
+  @@index([deletedAt])
   @@map("patients")
 }
 
@@ -106,9 +104,16 @@ model Note {
   date      DateTime?
   content   String // the full note text (~450 chars avg); the source of truth
 
+  // Soft delete. Retracting a note is a two-step write: stamp deletedAt in
+  // Postgres AND delete the vector from Pinecone. Do only the first and the
+  // note stays searchable — a derived index that outlives its source is the
+  // bug this teaches.
+  deletedAt DateTime?
+
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId])
+  @@index([deletedAt])
   @@map("notes")
 }
 
@@ -127,4 +132,32 @@ model Encounter {
   @@index([patientId])
   @@index([classCode])
   @@map("encounters")
+}
+
+// Every write an agent makes, recorded before it happens.
+//
+// This is what makes an agent write action defensible: not that the model is
+// trustworthy, but that the change is attributable, reviewable and reversible.
+// `before` holds the prior value, so any single action can be undone by hand.
+model AuditLog {
+  id             String   @id @default(uuid())
+  at             DateTime @default(now())
+  // Who asked. No login in this course, so it's the channel name
+  // ("chat", "eval", "script") — swap for a user id when you add auth.
+  actor          String
+  // The tool that ran, e.g. "soft_delete_note", "flag_patient_for_follow_up".
+  action         String
+  entity         String // "patient" | "note"
+  entityId       String
+  before         Json? // prior value — the undo button
+  after          Json? // what it became
+  reason         String? // why the model said it was doing this
+  // False means the write happened without a human clicking confirm. In this
+  // codebase that should never be true for a destructive-ish action; assert on
+  // it in your evals.
+  humanConfirmed Boolean  @default(false)
+
+  @@index([entity, entityId])
+  @@index([at])
+  @@map("audit_log")
 }

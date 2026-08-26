@@ -14,10 +14,6 @@ vi.mock('@/lib/calendar', () => ({
   })),
 }));
 
-vi.mock('@/lib/langsmith', () => ({
-  traced: vi.fn(async (_name: string, fn: () => Promise<any>) => fn()),
-}));
-
 import { scheduleAppointment, isCalConfigured } from '@/lib/calendar';
 import { POST } from './route';
 

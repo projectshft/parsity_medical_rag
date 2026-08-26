@@ -1,22 +1,16 @@
-// Vector search result
-export interface VectorSearchResult {
-  id: string;
-  score: number;
-  patientId: string;
-  patientName?: string;
-  documentType: string;
-  date?: string;
-  contentPreview: string;
-}
+/**
+ * Shared types that don't belong to one module.
+ *
+ * Keep this file small. Types that describe a single module's surface live
+ * next to that module (e.g. `MedicalChunk` in lib/pinecone.ts).
+ */
 
-// FHIR types
-export interface FHIRBundle {
-  resourceType: 'Bundle';
-  entry: Array<{ resource: FHIRResource }>;
-}
-
-export interface FHIRResource {
-  resourceType: string;
-  id: string;
-  [key: string]: any;
-}
+/** One retrieved clinical note, after search + rerank. */
+export type RetrievedNote = {
+	id: string;
+	/** Relevance score. Cosine similarity pre-rerank, rerank score post-rerank. */
+	score: number;
+	/** The note text — what was embedded. */
+	content: string;
+	metadata: Record<string, unknown>;
+};

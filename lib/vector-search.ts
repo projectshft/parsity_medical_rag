@@ -10,7 +10,6 @@
 
 import { Pinecone, RerankResult } from '@pinecone-database/pinecone';
 import { createEmbedding } from './openai';
-import type { VectorSearchResult } from './types';
 
 const pinecone = new Pinecone({
 	apiKey: process.env.PINECONE_API_KEY!,

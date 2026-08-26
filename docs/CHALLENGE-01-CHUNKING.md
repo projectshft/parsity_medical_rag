@@ -1,4 +1,4 @@
-# Homework: Chunking — slice up the Bible and store it in Pinecone
+# Week 1 — Chunking: slice up the Bible and store it in Pinecone
 
 > Nothing religious about this exercise — the KJV is just a big, public-domain, heavily-quoted text with lots of structure (books → chapters → verses), which makes it a perfect chunking corpus. Real semantic Bible-search apps exist; this is that, minus the search.
 
@@ -16,10 +16,10 @@ Write a script that **chunks the text and stores it in your own Pinecone index �
 
 - **Chunking strategy is your call**: by verse, by chapter, packed passages, paragraphs, with or without overlap. Have a reason.
 - **Every chunk carries metadata** — at minimum a human-readable reference like `"Genesis 1:1-5"`. (`scripts/bible/parse.ts` is provided: `loadVerses()` gives you every verse as `{ book, chapter, verse, text }`.)
-- **Store it**: reuse `upsertChunks` + `ensureIndexExists` from `lib/pinecone.ts` with `PINECONE_INDEX=bible-kjv` so you don't write into your medical index. The whole book is ~1M embedding tokens ≈ **$0.02**, and it fits your Pinecone free tier.
+- **Store it**: reuse `upsertChunks` + `ensureIndexExists` from `lib/pinecone.ts` with `PINECONE_INDEX=bible-kjv` so you don't write into your medical index. (Everything is yours now — your database, your indexes — so a mistake costs you a re-run, not the class.) The whole book is ~1M embedding tokens ≈ **$0.02**, and it fits your Pinecone free tier.
 - **Verify** in the Pinecone console: the vector count and your metadata look right.
 
-Searching the index comes next class — this week is chunk + store.
+Searching the index comes next class — this week is chunk + store. Keep it around: in week 2 you'll search it, rerank it, and hunt for the query where reranking visibly changes the answer.
 
 ## Further reading
 

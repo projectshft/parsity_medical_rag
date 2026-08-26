@@ -53,7 +53,14 @@ export async function POST(request: Request) {
 			ragResult = await runRag(plan.semanticQuery);
 		}
 
-		// if scheduleing then short circuit
+		// If this is a scheduling request, short-circuit: no SQL, no RAG.
+		//
+		// WEEK 4 REWRITES THIS. The scheduling card is structured data, but the
+		// front end only knows how to read a stream, so the card gets encoded
+		// into a response header below. It works and it is a bad idea — the
+		// header is invisible, size-limited, and needs URI encoding to survive.
+		// Your job in week 4: return a normal JSON response when there is a card
+		// to render, and keep streaming for prose. See docs/CHALLENGE-04-WRITE-ACTIONS.md.
 		if (plan.useScheduler) {
 			const schedulingResult = await detectSchedulingIntent(
 				query,

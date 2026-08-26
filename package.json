@@ -7,26 +7,30 @@
 		"build": "next build",
 		"start": "next start",
 		"lint": "next lint",
+		"setup": "npm run db:generate && npm run db:push && npm run db:seed && npm run doctor",
+		"doctor": "tsx scripts/doctor.ts",
+		"db:generate": "prisma generate",
+		"db:push": "prisma db push",
+		"db:seed": "tsx scripts/db/seed.ts",
+		"db:reset": "tsx scripts/db/reset.ts",
+		"db:studio": "prisma studio",
+		"db:export-seed": "tsx scripts/db/export-seed.ts",
+		"vectorize": "tsx scripts/vectorize.ts",
+		"similarity": "tsx scripts/similarity.ts",
 		"test": "vitest",
 		"test:run": "vitest run",
 		"test:evals": "RUN_EVALS=1 vitest run lib/evals",
-		"db:generate": "prisma generate",
-		"db:push": "prisma db push",
-		"db:studio": "prisma studio",
-		"vectorize": "npx ts-node scripts/vectorize.ts",
-		"similarity": "npx ts-node scripts/similarity.ts",
-		"mcp": "npx ts-node mcp-server/index.ts",
-		"mcp:inspect": "npx @modelcontextprotocol/inspector npx ts-node mcp-server/index.ts",
-		"retell:deploy": "npx ts-node scripts/retell/deploy-agent.ts",
-		"bible:fetch": "npx ts-node scripts/bible/fetch.ts",
-		"bible:fixed": "npx ts-node scripts/bible/chunk-fixed.ts",
-		"bible:smart": "npx ts-node scripts/bible/chunk-smart.ts",
-		"bible:audit": "npx ts-node scripts/bible/audit.ts",
-		"security:poisoned": "npx ts-node scripts/security/demo-poisoned-docs.ts"
+		"bible:fetch": "tsx scripts/bible/fetch.ts",
+		"bible:fixed": "tsx scripts/bible/chunk-fixed.ts",
+		"bible:smart": "tsx scripts/bible/chunk-smart.ts",
+		"bible:audit": "tsx scripts/bible/audit.ts",
+		"security:poisoned": "tsx scripts/security/demo-poisoned-docs.ts"
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "^1.2.0",
-		"@modelcontextprotocol/sdk": "^1.29.0",
+		"@langchain/core": "^1.2.9",
+		"@langchain/langgraph": "^1.4.12",
+		"@langchain/openai": "^1.5.10",
 		"@neondatabase/serverless": "^0.10.0",
 		"@pinecone-database/pinecone": "^4.0.0",
 		"@prisma/client": "^6.0.0",
@@ -38,7 +42,6 @@
 		"react": "^19.0.0",
 		"react-dom": "^19.0.0",
 		"react-markdown": "^9.0.1",
-		"retell-sdk": "^5.43.0",
 		"uuid": "^14.0.1",
 		"zod": "^3.24.0"
 	},
@@ -50,9 +53,12 @@
 		"postcss": "^8",
 		"prisma": "^6.0.0",
 		"tailwindcss": "^3.4.1",
-		"ts-node": "^10.9.2",
+		"tsx": "^4.23.12",
 		"typescript": "^5",
 		"vitest": "^2.1.0"
 	},
-	"packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+	"packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
+	"engines": {
+		"node": ">=20"
+	}
 }

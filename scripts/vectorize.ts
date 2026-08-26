@@ -44,7 +44,7 @@ async function main() {
 	let total = 0;
 
 	// Say what we're about to do BEFORE the first slow page.
-	const noteCount = await prisma.note.count();
+	const noteCount = await prisma.note.count({ where: { deletedAt: null } });
 	const target = limit ? Math.min(limit, noteCount) : noteCount;
 	const pages = Math.ceil(target / PAGE_SIZE);
 	console.log(
@@ -61,6 +61,9 @@ async function main() {
 
 		const notes = await prisma.note.findMany({
 			take,
+			// Never index a retracted note. Postgres is the system of record;
+			// the index is derived from it and must not outlive it.
+			where: { deletedAt: null, patient: { deletedAt: null } },
 			// The cursor points at the LAST row of the previous page; skip: 1
 			// starts this page just after it.
 			...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),

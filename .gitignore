@@ -39,5 +39,9 @@ fhir/
 # Bible chunking lab corpus + generated chunks (downloaded, regenerable)
 data/bible/
 
+# The course dataset. `npm run db:seed` downloads and caches it here; it is
+# regenerable from the source database with `npm run db:export-seed`.
+data/seed/
+
 # gstack browser session artifacts
 .gstack/

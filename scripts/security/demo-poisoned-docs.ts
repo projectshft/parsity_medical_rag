@@ -1,4 +1,4 @@
-#!/usr/bin/env npx ts-node
+#!/usr/bin/env npx tsx
 
 /**
  * Demo: Poisoned Documents Attack (step-by-step)
@@ -146,7 +146,7 @@ async function main(): Promise<void> {
     `  3. ${paint('Sandbox', 'bold')}    — wrap it so the model reads it as data, not commands.`,
     '',
     paint('  Wire these into the retrieval path before the aggregator sees the notes.', 'cyan'),
-    paint('  Hands-on: docs/CHALLENGE-POISONED-DOCS.md', 'dim'),
+    paint('  Hands-on: docs/CHALLENGE-05-EVALS-SECURITY.md', 'dim'),
   ].join('\n'));
   console.log();
   process.exit(0);

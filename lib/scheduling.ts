@@ -8,7 +8,6 @@
 import { z } from 'zod';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { openai } from './openai';
-import { traced } from './langsmith';
 import type { Message } from './agent';
 
 /**
@@ -104,7 +103,13 @@ other fields to null.`,
 
 /**
  * Build the scheduling action object the UI card needs, or null if this isn't
- * a bookable request. The route sends this in the X-Scheduling-Action header.
+ * a bookable request.
+ *
+ * NOTE: the route currently smuggles this through an `X-Scheduling-Action`
+ * response header, because it always returns a stream. That is the Cohort 3
+ * design and week 4 replaces it — return plain JSON when there is a card to
+ * render, and stream only when there is prose to say. Don't copy the header
+ * trick into anything new.
  */
 export function buildSchedulingAction(intent: SchedulingIntent) {
 	if (!intent.patientName) {

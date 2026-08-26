@@ -1,5 +1,11 @@
 # Deferred dependency majors
 
+> **Cohort 4 note.** `ts-node` was dropped in favour of [`tsx`](https://tsx.is)
+> — it handles ESM/CJS/TS across Node versions without configuration, which
+> removes the single largest source of setup failures last cohort. `retell-sdk`
+> and `@modelcontextprotocol/sdk` were removed with the voice and MCP modules.
+> `@langchain/langgraph` was added for the week 6 refactor.
+
 Snapshot: after the safe update (uuid 11→14, dotenv 16→17, lockfile/security
 refresh), these **major** upgrades were held back because they need code
 changes and/or real verification and the live class is the priority. Do them
@@ -14,7 +20,7 @@ between cohorts, not the week of a session. Each is `current → latest`.
 | `next` | 15.1 | 16.x | High | App Router majors; check middleware, route handlers, `app/page.tsx`. |
 | `tailwindcss` | 3.4 | 4.x | High | Config format fully rewritten (CSS-first). Migrate `tailwind.config.ts` + globals. |
 | `prisma` + `@prisma/client` | 6.19 | 7.x | Med-High | Move both together; regenerate client; re-run against Neon. |
-| `vitest` | 2.1 | 4.x | Med | Config/API changes; the 120-test suite is the gate. |
+| `vitest` | 2.1 | 4.x | Med | Config/API changes; the test suite is the gate. |
 | `typescript` | 5.9 | 6.x | Med | New strictness may surface type errors across the repo. |
 | `react-markdown` | 9.1 | 10.x | Low-Med | Used in `app/page.tsx` (currently WIP). Verify component props after Brian's page work lands. |
 | `@neondatabase/serverless` | 0.10 | 1.1 | Low | No direct imports (transitive). Bump when touching the DB driver path. |
@@ -27,4 +33,6 @@ between cohorts, not the week of a session. Each is `current → latest`.
 4. `openai` 6 + `ai` 6 + `@ai-sdk/openai` 3 (the LLM stack, together).
 5. `next` 16 + `tailwind` 4 (the app shell; do after `app/page.tsx` WIP lands).
 
-Gate after each step: `npx tsc --noEmit` and `npm run test:run` (120 tests).
+Gate after each step: `npx tsc --noEmit` and `npm run test:run`. Note that
+`lib/pii.test.ts` is red on purpose — those are the week 5 stubs students
+implement. Everything else must be green.
