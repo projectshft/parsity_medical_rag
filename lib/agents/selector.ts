@@ -65,6 +65,13 @@ export type Plan = {
 // facts; vector store of clinical notes) and when each is needed. A pure general
 // question (a greeting, "what's a normal A1C range?") needs NEITHER. When unsure,
 // prefer searching the notes.
+//
+// ⚠️ Until you write it, `select()` below sends the model NOTHING but the
+// question and the `.describe()` strings on the schema — no instructions, no
+// description of what's in either store. Routing will be close to a coin flip.
+// That is the expected starting state, not something you broke. Getting from
+// "arbitrary" to "reliable" IS the assignment, and the fastest way there is to
+// watch it misroute a real question and then write the sentence that fixes it.
 
 export async function select(
 	query: string,

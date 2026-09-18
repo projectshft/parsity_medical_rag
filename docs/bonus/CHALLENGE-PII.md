@@ -1,5 +1,13 @@
 # Challenge: PII Obscuring
 
+> ⭐ **BONUS — not covered this cohort.** Nothing in the taught path calls these
+> functions. The one consumer is the bonus [MCP server](CHALLENGE-MCP-AUTH.md),
+> the front-office channel, which can't return a single result until
+> `obscureContent` exists — so take this one if you're taking that one.
+>
+> The 31 failing tests in `lib/pii.test.ts` are this lab. A fresh clone shows
+> them red; that's expected, not a broken repo.
+
 Implement PII (Personally Identifiable Information) obscuring utilities for the medical RAG system.
 
 ## Learning Objectives

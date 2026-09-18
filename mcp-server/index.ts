@@ -28,7 +28,7 @@
  *
  * Heads up: every response on this channel is PII-obscured, so this server does
  * not work until `obscureContent` in lib/pii.ts is implemented
- * (docs/CHALLENGE-PII.md). That ordering is deliberate — the obscuring is the
+ * (docs/bonus/CHALLENGE-PII.md). That ordering is deliberate — the obscuring is the
  * door, not a decoration.
  */
 

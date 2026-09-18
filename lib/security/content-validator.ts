@@ -1,8 +1,8 @@
 /**
  * Content Validator - Defense against RAG prompt injection attacks
  *
- * Supplementary challenge (no scheduled session) · docs/CHALLENGE-POISONED-DOCS.md
- * Demo it with `npm run security:poisoned`.
+ * Week 5 · security · docs/CHALLENGE-POISONED-DOCS.md
+ * Demo the attack first with `npm run security:poisoned`, then defend it.
  *
  * Detects and sanitizes potentially malicious content in retrieved documents
  * before they are passed to the LLM as context.

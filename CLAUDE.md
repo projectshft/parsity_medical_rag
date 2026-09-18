@@ -137,9 +137,15 @@ Synthea Coherent Dataset — statistically realistic, **fully synthetic (zero PH
 
 ## PII Obscuring
 
+> ⭐ **Bonus, not taught this cohort** (`docs/bonus/CHALLENGE-PII.md`). Every
+> function in `lib/pii.ts` throws, and its 31 failing tests are the lab, not a
+> regression. The only consumer is the bonus MCP server. Don't wire `obscureContent`
+> into the chat path — that channel is clinician-facing and returns full data.
+
+
 PII obscuring is **channel-based** (no login/roles): the **MCP server** (front-office channel) always obscures; the chat channel (clinician-facing) returns full data.
 
-**The obscuring is shape-agnostic.** Because the SQL agent returns whatever columns the LLM chose, there's no fixed "name field" to pseudonymize — so the obscured channel runs the regex de-identifier (`obscureContent`) over the **entire rendered output** (names, SSNs, phones, dates, addresses). It's imperfect by design (regex misses novel formats) — that's the Week 5 lesson. (`obscurePatient` still exists as a field-by-field helper but the main path doesn't use it.)
+**The obscuring is shape-agnostic.** Because the SQL agent returns whatever columns the LLM chose, there's no fixed "name field" to pseudonymize — so the obscured channel runs the regex de-identifier (`obscureContent`) over the **entire rendered output** (names, SSNs, phones, dates, addresses). It's imperfect by design (regex misses novel formats) — which was the lesson when this was taught. (`obscurePatient` still exists as a field-by-field helper but the main path doesn't use it.)
 
 ### Enable Globally
 ```bash

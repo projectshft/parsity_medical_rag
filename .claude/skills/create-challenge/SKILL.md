@@ -30,7 +30,7 @@ The goal of every challenge: produce **evidence that the student stressed a real
 
 **Tests-first format** (the RBAC challenge `docs/CHALLENGE-RBAC.md` is the canonical example):
 1. Write the failing test specs that pin the exact behavior — including the security-relevant negatives (e.g., "client cannot opt out via header", "calendar never called on 403").
-2. Write stubs that **compile and fail on assertions, not imports**: functions `throw new Error('Not implemented')`, routes return 501. Include TODO comments stating requirements, not steps (match `docs/CHALLENGE-PII.md` tone).
+2. Write stubs that **compile and fail on assertions, not imports**: functions `throw new Error('Not implemented')`, routes return 501. Include TODO comments stating requirements, not steps (match `docs/bonus/CHALLENGE-PII.md` tone).
 3. Install any new deps and add env vars to `.env.example` up front — students start at the spec, not at setup.
 4. **Prove the spec is satisfiable**: implement a throwaway solution, run the FULL suite green, then restore the stubs. Commit the solution to `instructor` (marked `INSTRUCTOR REFERENCE SOLUTION`), never leave copies elsewhere.
 5. Tests mock external services (`vi.mock` prisma/pinecone/openai/calendar) — `npm run test:run` must never hit a network or cost money. Evals that call real LLMs go under `lib/evals/` behind `npm run test:evals`.

@@ -10,7 +10,7 @@
 In this challenge, you'll implement authentication and authorization for the MCP (Model Context Protocol) server that exposes medical RAG tools. You'll add API key validation, permission scopes, and audit logging.
 
 **Prerequisite:** the server only runs once `obscureContent` in `lib/pii.ts` is
-implemented ([../CHALLENGE-PII.md](../CHALLENGE-PII.md)) — every response on this
+implemented ([CHALLENGE-PII.md](CHALLENGE-PII.md)) — every response on this
 channel is de-identified.
 
 ## Learning Objectives

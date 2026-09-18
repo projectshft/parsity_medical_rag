@@ -1,8 +1,8 @@
 /**
  * LLM-as-Judge Evaluator
  *
- * Supplementary challenge (no scheduled session). Your week-3 query log is the
- * eval set this scores against — see lib/evals/retrieval.test.ts.
+ * Week 5 · evals. Your week-3 query log is the eval set this scores against —
+ * see lib/evals/retrieval.test.ts. Run them with `npm run test:evals`.
  *
  * Uses an LLM to evaluate RAG system outputs against quality criteria.
  *
