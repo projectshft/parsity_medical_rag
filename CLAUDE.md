@@ -97,7 +97,7 @@ interface Patient { id: string; firstName: string | null }
 - **Prisma ORM**: type-safe database access.
 - **The chat pipeline** (`/api/chat`) — one file per agent in `lib/agents/`, orchestrated by `app/api/chat/route.ts` (the route IS the orchestrator): **selector** (pure routing — `Plan { useSql, useRag, useScheduler, needsSearch, semanticQuery }`, no entity extraction) → **sql ‖ rag** (each returns TEXT) → **aggregator** (streams the grounded answer). A scheduling request **short-circuits** retrieval: the route streams its own response and rides the action out in the `X-Scheduling-Action` header, so the aggregator is the only streamer *on the retrieval path*, not in the file. `lib/agent.ts` holds only the shared `Message` type.
 - **The tool-calling channel** (`/api/chat-graph`) — `lib/graph.ts`: the same `runSql` / `runRag` functions exposed as LangGraph tools, where the **model** picks what to call instead of the selector. Deliberately a *second* route: `/api/chat` keeps working, and the two are meant to be compared on the same question. Student task — `buildGraph` throws until implemented.
-- There is no `/api/query`. The channels are chat, chat-graph, and the MCP server (bonus, not taught this cohort).
+- There is no `/api/query` and no MCP server. The channels are `/api/chat` and `/api/chat-graph`.
 
 ### The SQL side is text-to-SQL — do NOT hand-code query builders
 
@@ -134,44 +134,3 @@ const myTool = tool(async ({ arg }) => runSomething(arg), {
 
 Synthea Coherent Dataset — statistically realistic, **fully synthetic (zero PHI)**. The deployed/shared database is a **~200-patient subset** (fits the Neon free tier), ~21k SOAP-style clinical notes. Students connect **read-only**; nobody creates or seeds it.
 - See `docs/DATA_STRUCTURE.md` for FHIR resource details.
-
-## PII Obscuring
-
-> ⭐ **Bonus, not taught this cohort** (`docs/bonus/CHALLENGE-PII.md`). Every
-> function in `lib/pii.ts` throws, and its 31 failing tests are the lab, not a
-> regression. The only consumer is the bonus MCP server. Don't wire `obscureContent`
-> into the chat path — that channel is clinician-facing and returns full data.
-
-
-PII obscuring is **channel-based** (no login/roles): the **MCP server** (front-office channel) always obscures; the chat channel (clinician-facing) returns full data.
-
-**The obscuring is shape-agnostic.** Because the SQL agent returns whatever columns the LLM chose, there's no fixed "name field" to pseudonymize — so the obscured channel runs the regex de-identifier (`obscureContent`) over the **entire rendered output** (names, SSNs, phones, dates, addresses). It's imperfect by design (regex misses novel formats) — which was the lesson when this was taught. (`obscurePatient` still exists as a field-by-field helper but the main path doesn't use it.)
-
-### Enable Globally
-```bash
-# In .env
-OBSCURE_PII=true
-```
-
-### Applying it
-```typescript
-const combined = [sqlText, ragText].filter(Boolean).join('\n\n');
-const safe = obscureContent(combined); // scrub the whole rendered output
-```
-
-### What Gets Obscured
-
-| Data Type | Original | Obscured |
-|-----------|----------|----------|
-| Names | `John Smith` | `Patient-A7B3` |
-| Birth dates | `1985-03-15` | `1985-XX-XX` |
-| Locations | `Boston, MA 02101` | `[LOCATION REDACTED]` |
-| Clinical notes | Names, SSNs, phones, emails, addresses | `[NAME]`, `[SSN REDACTED]`, etc. |
-
-### Utilities (`lib/pii.ts`)
-- `shouldObscurePII(flag?)` - Check if obscuring is enabled
-- `obscureName(name)` - Hash-based pseudonymization
-- `obscureDate(date)` - Keep year, hide month/day
-- `obscureLocation(city, state, zip)` - Full redaction
-- `obscureContent(text)` - Regex patterns for PII in clinical text
-- `obscurePatient(patient, obscure?)` - Apply all obscuring to a patient object
