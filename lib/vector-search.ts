@@ -20,7 +20,8 @@ const INDEX_NAME = process.env.PINECONE_INDEX || 'medical-notes';
 const RERANK_MODEL = 'bge-reranker-v2-m3';
 
 export interface VectorSearchOptions {
-	topK?: number;
+	topK?: number; // candidates the cosine search fetches (wide + cheap)
+	topN?: number; // candidates kept after reranking (narrow + careful)
 	patientIds?: string[]; // Filter to specific patients (for hybrid queries)
 	dateFrom?: string;
 	dateTo?: string;
@@ -36,7 +37,7 @@ export async function searchClinicalNotes(
 	docs: any[];
 	rerankedDocuments: any[];
 }> {
-	const { topK = 100, patientIds } = options;
+	const { topK = 100, topN = 10, patientIds } = options;
 
 	const filter =
 		patientIds && patientIds.length > 0
@@ -62,7 +63,7 @@ export async function searchClinicalNotes(
 	 */
 
 	const rerankedDocuments = await pinecone.inference.rerank(
-		'bge-reranker-v2-m3',
+		RERANK_MODEL,
 		query,
 		docs.matches.map(
 			(doc: any) =>
@@ -74,10 +75,11 @@ export async function searchClinicalNotes(
 			First name: ${doc.metadata.firstName}
 			Last name: ${doc.metadata.lastName}
 			`,
-			{
-				topN: 10,
-			},
 		),
+		// topN belongs to rerank(), NOT to .map() — passed as map's second
+		// argument it becomes the callback's `thisArg` and is silently ignored,
+		// which is why reranking looked like it did nothing.
+		{ topN },
 	);
 
 	return { docs: docs.matches, rerankedDocuments: rerankedDocuments.data };

@@ -56,14 +56,16 @@ Traditional search fails because:
 
 ## 6-Week Curriculum
 
-| Week | Topic | What You'll Learn |
-|------|-------|-------------------|
-| 1 | **Intro to RAG** | What is RAG? Project setup, explore the data |
-| 2 | **Chunking** | Splitting documents for vector search |
-| 3 | **Vector Search** | Embeddings and Pinecone |
-| 4 | **Agents & Prompts** | Query understanding and response generation |
-| 5 | **MCP Integration** | Expose your RAG to Claude/Cursor |
-| 6 | **Capstone** | Build your own enhancement |
+| Week | Topic | What You'll Build | Homework |
+|------|-------|-------------------|----------|
+| 1 | **Intro to RAG + ingestion** | Embeddings, metadata design, vectorize the 21k notes into Pinecone | [CHALLENGE-CHUNKING.md](docs/CHALLENGE-CHUNKING.md) |
+| 2 | **Retrieval & reranking** | `searchClinicalNotes`, `/api/search`, two-stage retrieval | [CHALLENGE-NOTE-INGEST.md](docs/CHALLENGE-NOTE-INGEST.md) |
+| 3 | **The agent pipeline** | selector → SQL ‖ RAG → aggregator, plus human-confirmed scheduling | [CHALLENGE-TOOL-CALLING.md](docs/CHALLENGE-TOOL-CALLING.md) |
+| 4 | **Tool-calling & LangGraph** | The model picks the tools instead of your `if` statements | [CHALLENGE-LANGGRAPH.md](docs/CHALLENGE-LANGGRAPH.md) |
+| 5 | **Evals, security, privacy** | Measure it, attack it, de-identify it | [CHALLENGE-POISONED-DOCS.md](docs/CHALLENGE-POISONED-DOCS.md) · [CHALLENGE-PII.md](docs/CHALLENGE-PII.md) |
+| 6 | **Capstone** | Your own data, your own RAG app | — |
+
+Bonus, not covered this cohort: [MCP server](docs/bonus/CHALLENGE-MCP-AUTH.md) — same idea as week 4, but over a wire protocol so Claude Desktop does the tool-picking.
 
 ---
 
@@ -73,7 +75,6 @@ You need **Node 18+** and your own free [OpenAI](https://platform.openai.com) an
 
 ```bash
 git clone <repo-url> && cd medical-rag
-git checkout student
 npm install
 cp .env.example .env
 ```
@@ -93,7 +94,9 @@ npm run db:generate   # builds the DB client (local codegen — does NOT touch t
 npm run dev           # open http://localhost:3000
 ```
 
-That's it. The database is read-only, so **don't** run `db:push` or `ingest` (they'll fail — the data's already there). Browse the tables anytime with `npm run db:studio`.
+That's it. The Postgres database is read-only and already loaded, so **don't** run `db:push` (it'll fail, and there's nothing to load). Browse the tables anytime with `npm run db:studio`.
+
+Your **Pinecone** index is yours, though — `npm run vectorize` builds it from the notes in Postgres. That's week 1.
 
 ---
 
@@ -101,36 +104,58 @@ That's it. The database is read-only, so **don't** run `db:push` or `ingest` (th
 
 ```
 medical-rag/
-├── app/                    # Next.js UI (pre-built)
-│   ├── page.tsx            # Chat interface
-│   └── api/                # API routes
+├── app/
+│   ├── page.tsx                  # Chat UI (pre-built, intentionally plain)
+│   └── api/
+│       ├── chat/route.ts         # W3: THE ORCHESTRATOR — selector → sql ‖ rag → aggregator
+│       ├── chat-graph/route.ts   # W4: the tool-calling channel (LangGraph)
+│       ├── search/route.ts       # W2: raw vector search, for poking at retrieval
+│       └── schedule/route.ts     # W3: Cal.com booking (human-confirmed)
 ├── lib/
-│   ├── chunking.ts         # Week 2: Document chunking
-│   ├── embeddings.ts       # Week 3: OpenAI embeddings
-│   ├── vector-search.ts    # Week 3: Pinecone queries
-│   ├── query-analyzer.ts   # Week 4: Query understanding
-│   ├── agent.ts            # Week 4: Response generation
-│   ├── sql-queries.ts      # Pre-built SQL queries
-│   └── prisma.ts           # Database client
-├── mcp-server/             # Week 5: MCP integration
-├── prisma/
-│   └── schema.prisma       # Database schema
+│   ├── agents/
+│   │   ├── selector.ts           # W3: routes — { useSql, useRag }. Nothing else.
+│   │   ├── sql.ts                # W3: text-to-SQL. The LLM writes the query.
+│   │   ├── rag.ts                # W3: semantic search → context block
+│   │   └── aggregator.ts         # W3: the ONLY streamer (provided)
+│   ├── graph.ts                  # W4: the tool-calling graph
+│   ├── vector-search.ts          # W2: Pinecone query + rerank
+│   ├── pinecone.ts               # W1: index + upsert (MedicalChunk lives here)
+│   ├── openai.ts                 # the ONE place we configure OpenAI (+ LangSmith)
+│   ├── reranker.ts               # W2: two-stage retrieval
+│   ├── scheduling.ts             # W3: intent detection → proposed action
+│   ├── calendar.ts               # W3: Cal.com adapter
+│   ├── patients.ts               # findPatientByName — scheduling's one exact lookup
+│   ├── pii.ts                    # W5: de-identification (your task)
+│   ├── security/                 # W5: poisoned-document defenses
+│   ├── evals/                    # W5: retrieval + LLM-judge evals
+│   └── prisma.ts                 # database client
+├── mcp-server/                   # ⭐ bonus, not covered this cohort
+├── prisma/schema.prisma          # the schema of the read-only database
 ├── scripts/
-│   └── ingest-coherent.ts  # Data ingestion
-├── data/                   # Patient data (Synthea)
-└── docs/                   # Challenge specs + reference docs
+│   ├── vectorize.ts              # W1: Postgres notes → Pinecone
+│   ├── similarity.ts             # W1: cosine-similarity playground
+│   └── bible/                    # chunking homework helpers
+├── visuals/                      # in-class explainers (open visuals/index.html)
+├── data/                         # Synthea source data + security fixtures
+└── docs/                         # challenge specs; docs/bonus/ = optional
 ```
+
+There is deliberately **no** `sql-queries.ts` / query-builder layer. The SQL
+agent's LLM writes the SQL from the schema plus real distinct values from the
+data. When a query comes back wrong, you fix the prompt or the grounding in
+`lib/agents/sql.ts` — you don't add a function per question.
 
 ---
 
 ## The Data
 
-We're using the [Synthea Coherent Dataset](https://synthea.mitre.org/): realistic synthetic patient records with:
+We're using the [Synthea Coherent Dataset](https://synthea.mitre.org/): statistically realistic, **fully synthetic** patient records — zero real people, so it's safe to break. The shared database is a ~200-patient subset (it fits the Neon free tier):
 
-- ~150 patients
-- Medical conditions (diabetes, hypertension, COPD, etc.)
-- Medications and lab results
-- **Clinical notes** (SOAP format)—this is what we'll search semantically
+- **200 patients** with conditions (diabetes, hypertension, COPD, …), medications, lab observations, and encounters
+- **~21,000 clinical notes** in SOAP format — this is what we search semantically
+- Notes average ~450 characters, which is why week 1 needs no chunking: a note *is* a chunk. (The Bible homework is where you have to actually chunk something.)
+
+See [docs/DATA_STRUCTURE.md](docs/DATA_STRUCTURE.md) for the FHIR resource details.
 
 ---
 

@@ -1,8 +1,17 @@
 # Challenge: Securing MCP Server with Authentication
 
+> ⭐ **BONUS — not covered this cohort.** We're doing tool-calling with LangGraph
+> instead ([../CHALLENGE-LANGGRAPH.md](../CHALLENGE-LANGGRAPH.md)). Nothing else
+> depends on this one. Take it if you want your RAG reachable from Claude
+> Desktop and want to think about what it costs to expose tools over a wire.
+
 ## Overview
 
 In this challenge, you'll implement authentication and authorization for the MCP (Model Context Protocol) server that exposes medical RAG tools. You'll add API key validation, permission scopes, and audit logging.
+
+**Prerequisite:** the server only runs once `obscureContent` in `lib/pii.ts` is
+implemented ([../CHALLENGE-PII.md](../CHALLENGE-PII.md)) — every response on this
+channel is de-identified.
 
 ## Learning Objectives
 
@@ -14,17 +23,24 @@ In this challenge, you'll implement authentication and authorization for the MCP
 
 ## Background
 
-The MCP server in `mcp-server/index.ts` exposes 5 tools:
+The MCP server in `mcp-server/index.ts` ships with **one** working tool, and a
+TODO asking you to add more. Which is to say: the tools below are the ones you'd
+plausibly build, and every one of them lands unauthenticated by default.
 
-| Tool | Description | Current Security |
-|------|-------------|------------------|
-| `search_patients` | Search patients by query | None |
-| `query_notes` | Semantic search clinical notes | None |
-| `get_patient` | Get detailed patient info | None |
-| `find_patient_by_name` | Lookup patient by name | None |
-| `list_patients_by_condition` | List patients with condition | None |
+| Tool | Description | In the repo? | Current Security |
+|------|-------------|--------------|------------------|
+| `query_notes` | Semantic search clinical notes | ✅ provided | None |
+| `search_patients` | Search patients by query | you add it | None |
+| `get_patient` | Get detailed patient info | you add it | None |
+| `find_patient_by_name` | Lookup patient by name | you add it | None |
+| `list_patients_by_condition` | List patients with condition | you add it | None |
 
 **Current vulnerability**: Anyone who can connect to the MCP server has full access to all tools and all patient data.
+
+Note the scope question that comes with each one. This is a FRONT-OFFICE
+channel — `get_patient` and `find_patient_by_name` hand back identifying detail
+that front-office staff have no business seeing. "Add auth" and "should this tool
+exist here at all" are two different answers, and the second one is cheaper.
 
 ## Part 1: Understanding the Problem
 

@@ -1,5 +1,12 @@
 /**
- * MCP Server for Medical RAG — YOUR TASK
+ * MCP Server for Medical RAG — ⭐ BONUS, NOT COVERED THIS COHORT.
+ *
+ * This cohort builds tool-calling with LangGraph instead (`lib/graph.ts` +
+ * `docs/CHALLENGE-LANGGRAPH.md`). MCP is the same idea — a model choosing tools —
+ * but over a wire protocol, so another client (Claude Desktop, Cursor) does the
+ * choosing instead of your own graph. Do this one if you want your RAG reachable
+ * from Claude Desktop; nothing else depends on it. The bonus challenge for
+ * hardening it is `docs/bonus/CHALLENGE-MCP-AUTH.md`.
  *
  * Expose your RAG system as tools that Claude Desktop / Cursor can call.
  *
@@ -14,8 +21,15 @@
  *
  * Setup:
  * 1. npm install (@modelcontextprotocol/sdk is already a dependency)
- * 2. Configure Claude Desktop or Cursor (see the Week 3 curriculum)
- * 3. Run: npx ts-node mcp-server/index.ts
+ * 2. Verify the tools first with `npm run mcp:inspect` (a Swagger-like UI for
+ *    MCP — list tools, call one with arguments, read the error). Only wire up
+ *    Claude Desktop / Cursor once a tool works there.
+ * 3. Run: npm run mcp
+ *
+ * Heads up: every response on this channel is PII-obscured, so this server does
+ * not work until `obscureContent` in lib/pii.ts is implemented
+ * (docs/CHALLENGE-PII.md). That ordering is deliberate — the obscuring is the
+ * door, not a decoration.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -23,7 +37,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 
 import { searchClinicalNotes } from '../lib/vector-search';
-import { obscureName } from '../lib/pii';
+import { obscureContent } from '../lib/pii';
 
 const server = new McpServer({
   name: 'medical-rag',
@@ -52,16 +66,16 @@ server.registerTool(
   },
   async ({ query, patientId, topK }) => {
     try {
-      const results = await searchClinicalNotes(query, {
+      const { rerankedDocuments } = await searchClinicalNotes(query, {
         topK,
         patientIds: patientId ? [patientId] : undefined,
       });
 
-      if (!results.length) {
+      if (!rerankedDocuments.length) {
         return { content: [{ type: 'text', text: 'No matching clinical notes found.' }] };
       }
 
-      return { content: [{ type: 'text', text: formatVectorResults(results) }] };
+      return { content: [{ type: 'text', text: formatVectorResults(rerankedDocuments) }] };
     } catch (error) {
       return {
         content: [{ type: 'text', text: `Error searching notes: ${error}` }],
@@ -78,20 +92,27 @@ server.registerTool(
 //     obscures PII for the front-office channel.
 // For each: server.registerTool(name, { description, inputSchema: { ...zod } }, handler).
 // The handler returns { content: [{ type: 'text', text }] }. NEVER leak a real
-// patient name on this channel — the obscured formatter / obscureName() is the door.
+// patient name on this channel — obscureContent() over the rendered text is the
+// door, and every new tool has to walk through it.
 
 /**
- * Helper: Format vector search results — always PII-obscured for MCP.
+ * Helper: Format reranked results — always PII-obscured for MCP.
+ *
+ * The reranker hands back rendered TEXT blocks (note content plus the metadata
+ * `lib/vector-search.ts` stitched in), not patient-shaped objects — so there is
+ * no "name field" to pseudonymize. That's why the whole block goes through
+ * `obscureContent`: on this channel the de-identifier has to be shape-agnostic.
+ * Imperfect by design — a regex misses formats it has never seen, which is the
+ * point of the PII challenge.
  */
-function formatVectorResults(results: any[]): string {
+function formatVectorResults(rerankedDocuments: any[]): string {
   const parts = ['## Clinical Notes\n'];
 
-  for (const result of results) {
-    const patientName = obscureName(result.patientName || 'Unknown');
-    parts.push(`### ${patientName} - ${result.documentType || 'Clinical Note'} (${result.date || 'undated'})`);
-    parts.push(`Relevance: ${(result.score * 100).toFixed(1)}%`);
+  for (const result of rerankedDocuments) {
+    const text = result.document?.text ?? JSON.stringify(result.document);
+    parts.push(`### Note (relevance ${(result.score * 100).toFixed(1)}%)`);
     parts.push('```');
-    parts.push(result.contentPreview || result.content);
+    parts.push(obscureContent(text));
     parts.push('```\n');
   }
 

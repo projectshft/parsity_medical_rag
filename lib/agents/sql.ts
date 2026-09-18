@@ -208,6 +208,21 @@ export async function runSql(
 	const { sql } = SqlSchema.parse(response.output_parsed);
 	console.log(`[sql agent] ${sql}`);
 
+	// TODO (guardrail) — write `assertReadOnly(sql)` and call it here.
+	//
+	// Read the next line again: a string an LLM wrote, executed with
+	// $queryRawUnsafe. The prompt says "SELECT only" — a prompt is a request,
+	// not a constraint. Nothing on this path enforces it.
+	//
+	// Accept exactly one statement, and only if it starts with SELECT: no
+	// semicolons (that's how you smuggle a second statement), no INSERT/UPDATE/
+	// DELETE/DROP/ALTER/TRUNCATE/GRANT, no CTE that hides a write. Throw
+	// otherwise — failing loudly beats running it.
+	//
+	// Then notice the guardrail that's ALREADY doing the real work: DATABASE_URL
+	// points at `student_ro`, a role with SELECT and nothing else. Even a perfect
+	// bypass of your validator hits a permission error. That ordering is the
+	// lesson — the database enforces, the validator explains.
 	const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(sql);
 	if (rows.length === 0) return 'SQL result: 0 rows — nothing matches.';
 

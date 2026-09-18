@@ -26,6 +26,9 @@
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "^1.2.0",
+		"@langchain/core": "^1.2.11",
+		"@langchain/langgraph": "^1.4.15",
+		"@langchain/openai": "^1.5.8",
 		"@modelcontextprotocol/sdk": "^1.29.0",
 		"@neondatabase/serverless": "^0.10.0",
 		"@pinecone-database/pinecone": "^4.0.0",
