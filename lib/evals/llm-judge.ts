@@ -46,12 +46,16 @@ export async function evaluateRetrievalRelevance(
   query: string,
   retrievedContent: string[]
 ): Promise<EvalResult> {
-  // TODO: Implement with structured outputs
-  return {
-    score: 0,
-    reasoning: 'Not implemented',
-    pass: false,
-  };
+  // TODO: Implement with structured outputs (Responses API + zodTextFormat —
+  // see the pattern in CLAUDE.md and lib/agents/sql.ts).
+  //
+  // Throwing, not returning a zero: a stub that hands back
+  // { score: 0, pass: false } makes the "scores irrelevant results below
+  // threshold" test pass for the wrong reason, and it stays green no matter
+  // what you write. A test that cannot fail is worse than no test.
+  throw new Error(
+    'Not implemented — your turn! (lib/evals/llm-judge.ts → evaluateRetrievalRelevance)',
+  );
 }
 
 /**
@@ -71,12 +75,16 @@ export async function evaluateAnswerFaithfulness(
   context: string,
   answer: string
 ): Promise<EvalResult> {
-  // TODO: Implement with structured outputs
-  return {
-    score: 0,
-    reasoning: 'Not implemented',
-    pass: false,
-  };
+  // TODO: Implement with structured outputs (Responses API + zodTextFormat —
+  // see the pattern in CLAUDE.md and lib/agents/sql.ts).
+  //
+  // Throwing, not returning a zero: a stub that hands back
+  // { score: 0, pass: false } makes the "scores irrelevant results below
+  // threshold" test pass for the wrong reason, and it stays green no matter
+  // what you write. A test that cannot fail is worse than no test.
+  throw new Error(
+    'Not implemented — your turn! (lib/evals/llm-judge.ts → evaluateAnswerFaithfulness)',
+  );
 }
 
 /**
@@ -96,10 +104,14 @@ export async function evaluateAnswerCompleteness(
   query: string,
   answer: string
 ): Promise<EvalResult> {
-  // TODO: Implement with structured outputs
-  return {
-    score: 0,
-    reasoning: 'Not implemented',
-    pass: false,
-  };
+  // TODO: Implement with structured outputs (Responses API + zodTextFormat —
+  // see the pattern in CLAUDE.md and lib/agents/sql.ts).
+  //
+  // Throwing, not returning a zero: a stub that hands back
+  // { score: 0, pass: false } makes the "scores irrelevant results below
+  // threshold" test pass for the wrong reason, and it stays green no matter
+  // what you write. A test that cannot fail is worse than no test.
+  throw new Error(
+    'Not implemented — your turn! (lib/evals/llm-judge.ts → evaluateAnswerCompleteness)',
+  );
 }

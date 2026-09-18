@@ -1,10 +1,19 @@
 /**
- * RAG Evaluation Tests
+ * RAG Evaluation Tests (Week 5) — YOUR TASK
  *
- * Uses LLM-as-judge pattern to evaluate retrieval and generation quality.
- * Run with: npm test lib/evals/retrieval.test.ts
+ * LLM-as-judge: score retrieval and answer quality when the right answer can't
+ * be string-matched.
  *
- * Week 6: Implement the evaluators in llm-judge.ts, then these tests will pass
+ *   npm run test:evals
+ *
+ * Use that script, not plain `npm test` — these are EXCLUDED from the default
+ * run (see vitest.config.ts) because they hit the real OpenAI API and cost money
+ * on every run. `npm test lib/evals/retrieval.test.ts` silently matches zero
+ * tests, which looks like success.
+ *
+ * They fail until you implement the evaluators in `llm-judge.ts`. The two
+ * written tests are the pattern; the `it.todo`s below are the rest of the
+ * assignment.
  */
 
 import { describe, it, expect } from 'vitest';
