@@ -58,7 +58,7 @@ MCP stays as bonus. Point the two or three people who want Claude Desktop at it.
 | 1:20 | **Build it together** | Add the SQL tool + `buildGraph`. Hands on keyboards. |
 | 1:40 | **Read `result.messages`** | Log the whole array on screen and narrate it. |
 | 1:50 | **Same question, both routes** | The payoff. Use your rehearsed multi-hop question. |
-| 1:58 | Homework | Build + comparison table + capstone doc. |
+| 1:58 | Homework | Build + five-question table + capstone doc. Name the priority: capstone doc first. |
 
 ## The set piece: descriptions as routing logic
 
@@ -127,22 +127,32 @@ Predicted from the code — this session hasn't run. Update after you teach it.
 
 ## Homework to post
 
-Four parts. The full text is in the student guide.
+**Three parts, deliberately.** The first draft of this session had four and it was
+too much for a week that also carries the capstone plan doc.
 
 1. **Build the graph** (`docs/CHALLENGE-LANGGRAPH.md`)
-2. **Run the week-3 query log through both routes** — the comparison table
-3. **Break one description on purpose** and count the misroutes
-4. **The capstone plan doc** — the template link, both tracks, *find the data
+2. **Five questions through both routes** — one table, three or four sentences
+   total. Not the whole week-3 log, and not an essay per row: the table was always
+   the deliverable.
+3. **The capstone plan doc** — the template link, both tracks, *find the data
    before you choose the idea*, and the completeness test (*paste it into Claude
    and say "build this"; if it needs four clarifying questions, it isn't done*)
 
-**Sell part 2 hardest.** It's the payoff for the logging you pushed in week 3, and
-it's the first time their own eval set does real work. Cohort 3 under-collected
-those pairs and few had a usable log by capstone; if the log is thin, this
-homework is what makes them care.
+Plus the video: both routes on one question, walk the table, one surprise.
 
-**Part 4 is the one with a deadline attached** — week 5 is the capstone build
-session and it's wasted for anyone without a plan. Say that explicitly.
+**Say the priority out loud: part 3 first.** Week 5 is the capstone build session
+and it's wasted for anyone without a plan. The graph can slip a few days; the
+plan can't. Cohort 3 had several people show up to week 5 with no doc and those
+were the students who struggled at demo day.
+
+**Part 2 is the payoff for the week-3 logging.** Sell it as such — it's the first
+time their own eval set does real work. Five questions is enough to see the
+difference and small enough that people actually do it.
+
+Two things moved to optional: breaking a tool description on purpose, and whether
+`schedule_appointment` should be a tool. **Do the description one live in class
+instead** (it's the set piece above), and save the scheduling question for the
+discussion slot — it's a better argument than it is an assignment.
 
 ## Notes from cohort 4
 

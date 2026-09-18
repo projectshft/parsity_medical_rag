@@ -16,7 +16,8 @@ where the room is.
 - [ ] **Skim the week-4 comparison tables** people posted. Tool calling is a full
       session now, so this week is no longer where it gets introduced — but the
       tables tell you who actually ran both implementations, and a student who
-      found the workflow winning is worth three minutes of the room's time.
+      found the workflow winning is worth three minutes of the room's time. They're
+      five rows each — this is a quick skim, not an evening.
 - [ ] Have the data-sourcing tools ready to demo: Firecrawl, Crawl4AI, yt-dlp.
 
 ## The arc

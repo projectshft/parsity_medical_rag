@@ -37,7 +37,7 @@ platform and Slack, not by reading the repo. (See [`AUTHORING.md`](AUTHORING.md)
 | 1 | 07-11 | [The vector store](student/week-1-vector-store.md) | Chunk the Bible, store it with metadata, justify your dimensions 🎥 |
 | 2 | 07-18 | [Retrieval & reranking](student/week-2-retrieval-reranking.md) | Rerank on your own index; read *Building Effective Agents* 🎥 |
 | 3 | 07-25 | [The agent pipeline](student/week-3-agent-pipeline.md) | Ship the whole app; collect 10 query/response pairs; tool-calling 🎥 |
-| 4 | — | [Tool calling with LangGraph](student/week-4-tool-calling.md) 🆕 | Build the graph; run the week-3 log through both routes; the capstone plan doc |
+| 4 | — | [Tool calling with LangGraph](student/week-4-tool-calling.md) 🆕 | Build the graph; five questions through both routes; **the capstone plan doc** |
 | 5 | 08-08 | [Capstone build](student/week-5-capstone-build.md) | Build it |
 | 6 | 08-15 | [Demo day](student/week-6-demo-day.md) | 5-minute presentation 🎥 |
 

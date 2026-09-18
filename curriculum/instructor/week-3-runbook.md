@@ -136,7 +136,8 @@ Three parts — the full text is in the student guide:
    project, plus a diagram
 
 **Part 2 is the one to sell.** Say explicitly: *"Keep this list — **next week**
-you run every one of these through a second implementation and compare."* In
+you pick five of these, run them through a second implementation, and compare."*
+Tell them to log more than five so they get to choose which. In
 cohort 3 the payoff was vague and distant ("a couple of weeks") and few students
 had a usable log by capstone. In cohort 4 it's week 4's homework, so the promise
 is concrete. Make it.

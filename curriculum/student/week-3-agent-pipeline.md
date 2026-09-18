@@ -258,5 +258,5 @@ video is the prediction you get to check against a running system.
 - Book an appointment end to end and see it in your cal.com dashboard.
 - Open LangSmith and trace one query from selector to answer.
 - You have 10+ logged pairs, including at least three bad ones. **Don't lose
-  them** — week 4 runs every one of them through a second implementation and
-  compares.
+  them** — next week you pick five and run them through a second implementation
+  to compare. Log more than five now so you get to choose.

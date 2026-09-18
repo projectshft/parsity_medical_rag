@@ -120,39 +120,36 @@ thing" is not a lesson anyone needs twice.
 
 ## Homework
 
+Three things, and the third one is the one with a deadline.
+
 ### 1. Build it — `docs/CHALLENGE-LANGGRAPH.md`
 
 The model and one working tool (`search_clinical_notes`) are provided as the
 pattern. You add the SQL tool, write `buildGraph()`, and wire the route.
 
-### 2. Run your week-3 query log through both routes
+### 2. Compare them — five questions, one table
 
-You collected 10+ query/response pairs last week. **That's your eval set** — this
-is the "we build on it in a couple of weeks" we promised.
-
-Send each question to `/api/chat` and `/api/chat-graph` and fill in a table:
+Pull **five** questions out of the query log you started last week. Include at
+least one exact-number question and at least one follow-up that depends on the
+previous turn.
 
 | # | Question | `/api/chat` | `/api/chat-graph` | Tools called | Better? |
 |---|---|---|---|---|---|
 
-Then write three or four sentences on each of:
+Then **three or four sentences total** on the biggest difference you saw — not
+per row. The table is the deliverable; the prose just proves you read it.
 
-- **Where did tool-calling win?** Look at the multi-hop questions and the
-  follow-ups. The selector routes once; the graph can search, look, and search
-  again.
-- **Where did it lose?** Check latency, and check your exact-number questions.
-  "63" is either right or wrong, and a model that skips the SQL tool will happily
-  answer from the notes instead.
-- **Which tool description did you have to rewrite, and what did that fix?**
+This is what the week-3 logging was for. Two things worth checking specifically:
+the follow-ups, where the selector routes once and the graph can search, look,
+and search again — and the exact-number questions, where "63" is either right or
+wrong and a model that *chooses* to skip the SQL tool will answer from the notes
+instead.
 
-### 3. Break it on purpose
+### 3. The capstone plan doc
 
-Change `search_clinical_notes`'s description to something vague — `"searches
-medical data"` — re-run your questions, count the misroutes, change it back.
-You've just measured how much of your system's behavior lives in an untested
-string.
-
-### 4. The capstone plan doc
+**Do this one first if you're short on time.** Next week is the capstone build
+session and it doesn't work for anyone without a plan — the graph can slip a few
+days, this can't.
 
 Make a copy of the [capstone plan template](https://docs.google.com/document/d/1CoJvxoJkfzFb_V3hXYE-YC08wH8a_N8QU1fMDlq4Td0/edit?usp=sharing)
 and fill it in. Post it in the channel. Two tracks — pick one:
@@ -178,13 +175,21 @@ finished — and neither is your thinking.
 Short, a few minutes.
 
 - **Demo the same question on both routes.** Show the difference.
-- **Walk your comparison table** — where tool-calling won, where it lost.
-- **Show one tool description you rewrote**, and what it fixed.
-- **Does `schedule_appointment` become a tool?** It writes to the real world, and
-  week 3's whole point was that a human confirms first. Your call, defended.
+- **Walk your table** — where tool-calling won, where it lost.
+- **One thing that surprised you.**
 
 Last week you argued for tool-calling in theory. Tell us what changed once you ran
 it.
+
+### Optional, if you have time
+
+- **Break it on purpose.** Make `search_clinical_notes`'s description vague —
+  `"searches medical data"` — re-run your five questions, count the misroutes,
+  change it back. Ten minutes, and it shows you how much of your system's
+  behavior lives in an untested string.
+- **Does `schedule_appointment` become a tool?** It writes to the real world, and
+  week 3's whole point was that a human confirms first. Worth thinking through
+  even if you don't build it — we'll argue about it in class.
 
 ## Reading
 
@@ -220,6 +225,6 @@ Predicted from the code, not yet observed — this session hasn't run.
 - The same question, asked on both routes, and you can explain why the answers
   differ.
 - You can point at `result.messages` and narrate the model's decisions in order.
-- Your comparison table is filled in, including at least one row where the
-  workflow beat the graph.
+- Your five-row comparison table is filled in.
 - Your capstone plan doc is posted.
+
