@@ -3,7 +3,8 @@
 Six Saturday sessions. Students build a hybrid RAG system over synthetic medical
 records: a vector store they populate themselves, an agent pipeline that routes
 questions to the right engine, human-gated scheduling, a tool-calling agent that
-takes over that routing — and a capstone on data they choose.
+takes over that routing, evals and injection defenses that keep it honest — and a
+capstone on data they choose.
 
 **This is the course of record.** Weeks 1–3 document what was actually taught in
 cohort 3 (2026-07-11 → 2026-08-15), reconstructed from the session recordings and
@@ -11,18 +12,23 @@ the `#cohort-3` Slack channel where every assignment was posted, and corrected
 against the code as it stands for cohort 4.
 
 **Week 5 changed too.** Evals and prompt-injection defense were ten rushed
-minutes plus an archived deep-dive nobody read; they're now half of week 5. PII
-obscuring, which cohort 3 taught inside the MCP session, went to bonus along with
-it — `lib/pii.ts` and its 31-test contract stay in the repo
-(`docs/bonus/CHALLENGE-PII.md`) but nothing in the taught path calls them.
+minutes plus an archived deep-dive nobody read; they're now half of week 5.
+
+**PII obscuring is gone.** Cohort 3 taught it inside the MCP session, and when
+that session went, `lib/pii.ts`, its 244-line test file and its challenge doc
+were deleted from the repo. A fresh clone is now fully green — the 31 red PII
+tests are no longer the expected baseline, so anything red is a real regression.
+De-identification is still worth *naming* as a control a real deployment needs
+(see [`INSTRUCTOR-NOTES.md`](INSTRUCTOR-NOTES.md)); it just isn't built here.
 
 **Week 4 changed for cohort 4.** Cohort 3 taught MCP there and most of the room
 never got a server connected — the session collapsed into environment debugging.
 It's now [tool calling with LangGraph](student/week-4-tool-calling.md): the same
 idea (a model choosing tools), no subprocess or protocol, and it runs inside the
-repo students already have working. MCP survives as
-[bonus material](student/bonus-mcp.md), failure catalogue intact. That session has
-not been delivered yet, and its guide says so.
+repo students already have working. The MCP code has since been removed from the
+repo entirely; its guides are [archived](archive/bonus-mcp.md) for the failure
+catalogue, which is the reason the session was cut. Week 4 has not been delivered
+yet, and its guide says so.
 
 ## The two versions
 
@@ -47,9 +53,8 @@ platform and Slack, not by reading the repo. (See [`AUTHORING.md`](AUTHORING.md)
 | 5 | 08-08 | [Evals, security & capstone build](student/week-5-capstone-build.md) | Build it |
 | 6 | 08-15 | [Demo day](student/week-6-demo-day.md) | 5-minute presentation 🎥 |
 
-Plus two optional bonus tracks, neither a scheduled session:
-[voice AI](student/bonus-voice-ai.md) (Retell, ~$25) and
-[MCP](student/bonus-mcp.md) (cohort 3's week 4).
+Plus one optional bonus track, not a scheduled session:
+[voice AI](student/bonus-voice-ai.md) (Retell, ~$25).
 
 🎥 = video deliverable, posted in Slack.
 
@@ -65,7 +70,6 @@ flowchart LR
     V --> A
     G[Tool-calling graph<br/>model picks] -.week 4, same tools.-> Q
     G -.-> V
-    M[MCP server<br/>bonus] -.front-office channel.-> V
 ```
 
 Postgres is the system of record and arrives **pre-loaded** — students connect to

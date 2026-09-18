@@ -1,10 +1,18 @@
 # Bonus — MCP: your RAG as a tool other AIs can call
 
+> 🗄️ **ARCHIVED — MCP is no longer part of this course.** It was week 4 in
+> cohort 3; cohort 4 replaced it with tool calling and then removed the MCP code
+> from the repo entirely (`mcp-server/` and `@modelcontextprotocol/sdk` are
+> gone). Nothing here runs against the current repo without restoring them.
+>
+> Kept for the failure catalogue, which is still accurate about MCP itself and
+> is the reason the session was cut.
+
 **Not a session. Optional, do it whenever.**
 **Needs:** a working app; optionally Claude Desktop (paid) or Cursor
 
 > ⭐ **This was week 4 in cohort 3. It is bonus material now** — cohort 4 spends
-> that session on [tool-calling with LangGraph](week-4-tool-calling.md) instead.
+> that session on [tool-calling with LangGraph](../student/week-4-tool-calling.md) instead.
 >
 > Same underlying idea, different owner of the loop. In week 4 *your* graph holds
 > the tool list and decides. With MCP you publish the tool list over a protocol
@@ -144,7 +152,7 @@ decoration.
 
 ## No homework
 
-The capstone plan doc moved to [week 4](week-4-tool-calling.md), which is where
+The capstone plan doc moved to [week 4](../student/week-4-tool-calling.md), which is where
 that session lives now.
 
 ## When it breaks

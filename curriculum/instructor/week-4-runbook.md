@@ -1,8 +1,9 @@
 # Week 4 Runbook — Tool calling with LangGraph
 
 **~2h.** Replaces cohort 3's MCP session, which ate itself on environment setup
-(see [`bonus-mcp-runbook.md`](bonus-mcp-runbook.md) — worth reading before you
-teach this, because the failure mode you're avoiding is documented there).
+(see [`../archive/bonus-mcp-runbook.md`](../archive/bonus-mcp-runbook.md) — worth
+reading before you teach this, because the failure mode you're avoiding is
+documented there).
 
 **Student guide:** [`../student/week-4-tool-calling.md`](../student/week-4-tool-calling.md)
 
@@ -25,7 +26,11 @@ protocol, no second app, and it runs inside the repo they already have working.
 And it sets up a comparison MCP never could — the same question through a
 hand-rolled workflow and a model-driven loop, side by side.
 
-MCP stays as bonus. Point the two or three people who want Claude Desktop at it.
+MCP has since been removed from the repo entirely — `mcp-server/` and the SDK are
+gone — so there's nothing to point the curious at beyond the archived guides. If
+someone genuinely wants Claude Desktop integration for their capstone, the
+concepts transfer directly from what they build today; the tool definitions are
+the same shape.
 
 ## Before you start
 

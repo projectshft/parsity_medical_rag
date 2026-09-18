@@ -38,9 +38,12 @@ something a student can defend at demo day. The capstone content that used to
 fill this slot survives — scope triage is still the highest-value twenty minutes
 you'll spend — it just doesn't own the whole session.
 
-**PII is no longer taught.** It lived in cohort 3's MCP session and went with it.
-`lib/pii.ts` and its 31-test contract are still in the repo as bonus; if a student
-asks why the suite is red on a fresh clone, that's the answer.
+**PII is no longer taught, and the code is gone.** It lived in cohort 3's MCP
+session and went with it — `lib/pii.ts` and its tests were deleted. A fresh clone
+is fully green now (51 tests), so if a student's suite is red, it's a real
+regression and not the old PII lab. De-identification still deserves a mention in
+the security block as a control a real deployment owes its patients; see
+[`../INSTRUCTOR-NOTES.md`](../INSTRUCTOR-NOTES.md).
 
 ## The week-4 debrief
 

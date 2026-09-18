@@ -69,8 +69,10 @@ the one who falls apart on the job. You confronted yours, repeatedly, with numbe
 
 - **The recordings and this material stay yours.** Lifetime access.
 - **The self-paced track in `archive/`** goes deeper than the live sessions had
-  time for — evals, PII, poisoned documents, chunking failure modes. Bonus, not
-  homework, but it's there.
+  time for — evals, PII/de-identification, poisoned documents, chunking failure
+  modes, and the MCP session we cut. Bonus, not homework, but it's there. Note
+  that the PII and MCP *code* was removed from the repo, so those two are reading
+  material rather than something you can run.
 - **Post what you build next.** The channel doesn't close when the course does,
   and the most useful thing in it has always been other people's work.
 

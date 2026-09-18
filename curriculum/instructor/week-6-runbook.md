@@ -80,6 +80,7 @@ Then the practical bits:
 - **Do a retro while it's fresh.** What broke, what to move, what to cut. The
   standing candidates from cohort 3, and what was done about each in cohort 4:
   front-load Node-version checks (still worth doing); ~~split the MCP session~~
-  (cut it — week 4 is tool-calling with LangGraph now); push the query/response
+  (cut it — week 4 is tool-calling with LangGraph, and the MCP code plus the PII
+  lab were removed from the repo); push the query/response
   log harder in week 3 (done — week 4's homework consumes it directly, so the
   payoff is one week away instead of three).

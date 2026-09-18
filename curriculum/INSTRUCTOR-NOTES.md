@@ -36,20 +36,26 @@ real deployment needs, on data that's safe to break.
 
 ### The course already teaches the HIPAA *technical controls*
 Name this connection when you teach the production-gates block — it turns
-"we added PII features" into "we understand the law behind them":
+"we wrote some code" into "we understand which controls a real deployment owes
+its patients" — including the ones this build skips:
 
 | HIPAA requirement | Where the course builds it |
 |---|---|
-| Minimum-necessary access | The **channel access model**: a front-office channel exposes only non-identifying tools and never surfaces PII; the direct app is the clinician channel. Enforced by the entry point, not by roles. In cohort 3 that channel was the MCP server (week 4); in cohort 4 MCP is [bonus](student/bonus-mcp.md), so the framing is taught but the second channel is optional. **If you skip the bonus, say the idea out loud somewhere anyway** — it's the one place the course addresses minimum-necessary access. |
-| De-identification | **Not taught in cohort 4.** PII obscuring (`lib/pii.ts`, `docs/bonus/CHALLENGE-PII.md`) is bonus — pseudonymized names, redacted dates/locations, scrubbed note text. The code and its 31-test contract are still in the repo for anyone who wants it. If you're drawing the HIPAA map on the board, name de-identification as a required control this build *doesn't* implement, same as the audit trail below. |
+| Minimum-necessary access | **Not built in cohort 4.** Cohort 3 had a second, front-office channel (the MCP server) that exposed only non-identifying tools — access enforced by the entry point rather than by roles. That channel is gone, so there's one channel and it's clinician-facing. Worth *describing* when you draw the map: the idea that the door you come through decides what you can see is the cheapest access control there is, and it's the shape a real clinic deployment would need. |
+| De-identification | **Not built in cohort 4.** `lib/pii.ts` and its tests were deleted along with the MCP channel that consumed them. Name it as a required control this build doesn't implement, same as the audit trail below — the honest version is more useful than a lab with no consumer. |
 | Don't overshare / leak | Grounding + refusals (w3-04-chat-agent / w3-06-failure-day), injection defenses (poisoned-docs homework) |
 
-> **Not built:** an audit trail, RBAC/login, and (as of cohort 4)
-> de-identification. Earlier drafts had role-based access + audit logging; both
-> were removed, and PII obscuring moved to bonus. Minimum-necessary is now enforced
-> by the **channel** (which door a request comes through), not by roles, and
-> there is no access log. If you want to teach "accountable access / audit," name
-> it as a control a real deployment would add — it isn't in this build.
+> **Not built:** an audit trail, RBAC/login, de-identification, and
+> minimum-necessary access. Earlier drafts had role-based access + audit logging;
+> both were removed. Cohort 3 enforced minimum-necessary by the **channel** (which
+> door a request comes through); cohort 4 removed the second channel and the PII
+> obscuring with it.
+>
+> That leaves the technical-controls story thinner than it was, and you should say
+> so rather than overclaim. Name each of these as a control a real deployment
+> adds — it's a genuinely good discussion, and "here's what we did NOT build and
+> why it would matter" is a stronger answer at a job interview than a
+> half-implemented regex de-identifier.
 
 ### The honest caveat (teach this — don't hide it)
 The course teaches the **technical controls**, not full compliance. Real
@@ -75,10 +81,9 @@ records as-is.
 ### Optional additions not yet made (decided to keep as notes for now)
 - A one-line UI disclaimer ("Demo on synthetic data — not for real patient
   records").
-- An explicit HIPAA sentence connecting the channel model to "minimum necessary"
-  and naming the audit-trail requirement as not-built. (The archive lesson this
-  was meant to live in, `archive/w4-06-pii.md`, is no longer on the taught path —
-  so it needs a home in the week-4 or week-5 session instead.)
+- An explicit HIPAA sentence naming de-identification, audit trail and
+  minimum-necessary access as controls this build doesn't implement. Week 5's
+  security block is the natural home now that PII and the second channel are gone.
 
 ---
 

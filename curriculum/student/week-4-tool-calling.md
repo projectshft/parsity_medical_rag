@@ -3,8 +3,8 @@
 **Session:** Saturday · [recording posted in Slack]
 **Needs:** everything so far, plus a working `/api/chat`
 
-> **Cohort 4, first run.** This session replaces cohort 3's MCP week (now
-> [bonus material](bonus-mcp.md)). Unlike weeks 1–3, this guide was written
+> **Cohort 4, first run.** This session replaces cohort 3's MCP week, which has
+> been retired. Unlike weeks 1–3, this guide was written
 > *before* the session rather than from a recording, so "When it breaks" is
 > predicted from the code, not yet observed in a room. It'll be rewritten from
 > what actually happens.

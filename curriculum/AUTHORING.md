@@ -23,11 +23,9 @@ curriculum/
 ├── student/                  what students get — one file per session
 │   ├── week-0-prework.md
 │   ├── week-1-vector-store.md … week-6-demo-day.md
-│   ├── bonus-voice-ai.md
-│   └── bonus-mcp.md          cohort 3's week 4, now optional
+│   └── bonus-voice-ai.md
 ├── instructor/               one runbook per session
-│   ├── week-1-runbook.md … week-6-runbook.md
-│   └── bonus-mcp-runbook.md
+│   └── week-1-runbook.md … week-6-runbook.md
 └── archive/                  the pre-cohort self-paced track (bonus material)
 ```
 
@@ -112,7 +110,8 @@ Update in this order:
 ## The archive
 
 `archive/` holds the 24-lesson self-paced track written before cohort 3, plus its
-slide decks, its authoring tracker, and its standalone homework docs.
+slide decks, its authoring tracker, its standalone homework docs, and (since
+cohort 4) the MCP session's student guide and runbook.
 
 Partway through cohort 3 it was explicitly demoted to **bonus material** —
 students were told to do only the homework posted in Slack. It is kept because
@@ -134,12 +133,11 @@ match the six live sessions.
   exists to teach chunking on a corpus that needs it.
 - Pinecone: `text-embedding-3-small`, 1536 dims, cosine. Reranker is
   `bge-reranker-v2-m3` via `pinecone.inference.rerank` (hosted, free).
-- Node **20**. Later versions break `ts-node` on every script in `scripts/` (and
-  on the bonus MCP server).
+- Node **20**. Later versions break `ts-node` on every script in `scripts/`.
 - npm scripts: `dev`, `build`, `start`, `lint`, `test`, `test:run`, `test:evals`,
-  `db:generate`, `db:push`, `db:studio`, `vectorize`, `similarity`, `mcp`,
-  `mcp:inspect`, `retell:deploy`, `bible:fetch`, `bible:fixed`, `bible:smart`,
-  `bible:audit`, `security:poisoned`.
+  `db:generate`, `db:push`, `db:studio`, `vectorize`, `similarity`,
+  `retell:deploy`, `bible:fetch`, `bible:fixed`, `bible:smart`, `bible:audit`,
+  `security:poisoned`.
 - Agent pipeline files: `lib/agents/{selector,sql,rag,aggregator}.ts`, orchestrated
   by `app/api/chat/route.ts`. Tool calling is `lib/graph.ts` +
   `app/api/chat-graph/route.ts` (LangGraph v1 — `schema:` on `tool()`, **not** the
@@ -158,7 +156,6 @@ it; don't repeat that.
 |---|---|---|
 | `assertReadOnly` | a marked TODO above `$queryRawUnsafe` | implemented, `lib/agents/sql.ts:108` |
 | `buildGraph()` | throws (the exercise) | — |
-| `lib/pii.ts` (bonus, not taught in cohort 4) | every function throws — its 31 red tests are the lab | implemented |
 | Tool-calling answer | — | `lib/agent-tools.ts`, `/api/chat-tools` (AI SDK, older) |
 
 The live SQL guardrail on **both** branches is the database role: `DATABASE_URL`
@@ -181,6 +178,11 @@ validator explains.
   **`LANGSMITH_TRACING=true`** is the switch `wrapOpenAI` reads. Both are in
   `.env.example` now. Ignore `lib/langsmith.ts`; it's an unused half-written
   helper.
+- **PII and MCP are deleted, not deferred** (cohort 4). Gone: `lib/pii.ts`,
+  `lib/pii.test.ts`, `mcp-server/`, both challenge docs, the `mcp` /
+  `mcp:inspect` scripts, `@modelcontextprotocol/sdk`, and `OBSCURE_PII`. The MCP
+  guides live in `archive/`. **A fresh clone is fully green (51 tests)** — the
+  old "pii lab fails (31) + rest green" baseline is obsolete.
 - `searchClinicalNotes(query, options)` takes **two** arguments, options are
   `{ topK, topN, patientIds, dateFrom, dateTo }`, and it returns
   `{ docs, rerankedDocuments }` — **not an array**. No `firstName` option, no

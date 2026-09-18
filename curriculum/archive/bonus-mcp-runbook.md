@@ -1,15 +1,23 @@
 # Bonus Runbook — MCP
 
+> 🗄️ **ARCHIVED — MCP is no longer part of this course.** It was week 4 in
+> cohort 3; cohort 4 replaced it with tool calling and then removed the MCP code
+> from the repo entirely (`mcp-server/` and `@modelcontextprotocol/sdk` are
+> gone). Nothing here runs against the current repo without restoring them.
+>
+> Kept for the failure catalogue, which is still accurate about MCP itself and
+> is the reason the session was cut.
+
 **Not a session in cohort 4.** This was week 4 in cohort 3 and it went worse than
 any other session: most of the room never got a server connected. Cohort 4 teaches
-[tool calling with LangGraph](week-4-runbook.md) in that slot instead — same core
+[tool calling with LangGraph](../instructor/week-4-runbook.md) in that slot instead — same core
 idea, none of the subprocess plumbing.
 
 **Kept because the failure catalogue below is hard-won and still true**, and
 because a couple of students every cohort want Claude Desktop integration. Read it
 before teaching week 4 — the thing you're deliberately avoiding is all here.
 
-**Student guide:** [`../student/bonus-mcp.md`](../student/bonus-mcp.md)
+**Student guide:** [`bonus-mcp.md`](bonus-mcp.md)
 
 > **Read this whole runbook before teaching it.** The concept takes twenty
 > minutes. The remaining ninety are environment failures, and they are
