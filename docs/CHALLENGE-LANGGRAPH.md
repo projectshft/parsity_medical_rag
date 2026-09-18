@@ -57,65 +57,52 @@ tool requests, the tool results, and the final answer, in order. It is the
 clearest look at tool-calling you'll get, and it's the thing you can't see in
 the selector version.
 
-## 3. Prove it — run your query log through both (don't skip this)
+## 3. Compare them — five questions, one table
 
-You collected 10+ query/response pairs last week. That's your eval set. Send
-each one to **both** routes and record what came back:
+Pull **five** questions out of the query log you started last week. Make sure at
+least one is an exact-number question ("how many patients have…") and at least
+one is a follow-up that depends on the previous turn.
 
-| # | Question | `/api/chat` | `/api/chat-graph` | Tools the model called | Better? |
-|---|----------|-------------|-------------------|------------------------|---------|
+Send each to both routes and fill this in:
+
+| # | Question | `/api/chat` | `/api/chat-graph` | Tools called | Better? |
+|---|----------|-------------|-------------------|--------------|---------|
 | 1 | How many patients have hypertension? | 63 ✅ | | | |
 
-Fill in every row. Then answer these in writing — three or four sentences each,
-this is the deliverable that matters:
+Then **three or four sentences total** — not per row — on the biggest difference
+you saw. If one route was better, say which and why you think so.
 
-- **Where did tool-calling win?** Look hardest at the multi-hop questions and
-  the follow-ups ("what about her notes?"). The selector routes once. The graph
-  can search, look at what it got, and search again.
-- **Where did it lose?** Check latency and check your exact-number questions.
-  "63" is either right or it's wrong, and a model that decides to skip the SQL
-  tool will happily answer from the notes instead.
-- **Where did it call the wrong tool, and what fixed it?** If the answer was
-  "I rewrote the description," say what you changed and why that worked. That's
-  the actual skill here.
-
-Keep the table. It's your before/after, and it's the most portfolio-ready thing
-you'll produce this week.
-
-## 4. Break it on purpose
-
-Change `search_clinical_notes`'s description to something vague — `"searches
-medical data"` — and re-run your 10 questions. Note how many now route wrong.
-Change it back.
-
-You just measured how much of your system's behavior is sitting in a string
-with no type checking, no test, and no error when it's wrong. That's the trade
-you made when you let the model drive: the routing logic got more capable and
-much less inspectable.
-
-## 5. One call to make: does scheduling become a tool?
-
-`/api/chat` keeps a human in the loop — the model proposes an appointment, a
-person confirms, *then* it hits the calendar. If `schedule_appointment` is just
-another tool in the list, the model can call it mid-loop on its own.
-
-Decide, implement your decision, and be ready to defend it. There's a right
-answer here and it isn't about LangGraph.
+That's the whole written deliverable. The table is the point; the prose is just
+enough to prove you looked at it.
 
 ## The video 🎥 (the required deliverable)
 
 Short — a few minutes, screen recording is fine.
 
 - **Demo the same question on both routes.** Show the difference.
-- **Walk your comparison table.** Where tool-calling won, where it lost.
-- **Show one tool description you had to rewrite**, and what it fixed.
-- **Your call on scheduling**, and why.
+- **Walk your table.** Where did tool-calling win, where did it lose?
+- **One thing that surprised you.**
 
 Last week you argued for tool-calling in theory. Tell us what changed once you
 ran it.
 
+## Also due this week: the capstone plan doc
+
+Posted separately in Slack, and it's the one with a real deadline — next week is
+the capstone build session and it doesn't work for anyone without a plan. Do that
+one first if you're short on time; the graph can slip a few days, the plan can't.
+
 ## Bonus
 
+- **Break it on purpose.** Change `search_clinical_notes`'s description to
+  something vague — `"searches medical data"` — re-run your five questions, count
+  the misroutes, change it back. Ten minutes, and it shows you how much of your
+  system's behavior is sitting in an untested string.
+- **Does scheduling become a tool?** `/api/chat` keeps a human in the loop: the
+  model proposes, a person confirms, *then* it hits the calendar. A
+  `schedule_appointment` tool in the list can be called mid-loop on its own.
+  Worth thinking through even if you don't build it — we'll argue about it in
+  class.
 - **Stream it** — `graph.stream(input, { streamMode: 'messages' })` so the graph
   route feels like the other one.
 - **Add a third tool** the selector never had (patient lookup by name —
