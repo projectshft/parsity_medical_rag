@@ -1,4 +1,4 @@
-# Week 5 Runbook — Capstone build
+# Week 5 Runbook — Evals, security & capstone build
 
 **~2h, loosely structured.** Half teaching, half clinic. The shape depends on
 where the room is.
@@ -24,11 +24,23 @@ where the room is.
 
 | Time | What | Notes |
 |---|---|---|
-| 0:00 | **Week-4 debrief** | 15 min. Their comparison tables — where did the graph win, where did the workflow? Short, and it's a warm-up, not a lecture. |
-| 0:20 | **Scope triage, out loud** | Go round the room: one sentence each on what they're building. Cut what's too big, publicly and kindly. |
-| 0:50 | **Data sourcing demo** | Firecrawl live on a site someone names. Show markdown-not-HTML. |
-| 1:10 | **The non-negotiables** | Observability + evals. Tie back to the week-3 query log. |
-| 1:25 | **Clinic** | Open floor. Screen shares, unblocking. |
+| 0:00 | **Week-4 debrief** | 10 min. Their comparison tables — where did the graph win, where did the workflow? A warm-up, not a lecture. |
+| 0:10 | **Evals** | 25 min. Their week-3 query log becomes a test suite. `lib/evals/`, `npm run test:evals`. The payoff for three weeks of logging. |
+| 0:35 | **Security: poisoned documents** | 25 min. Run the attack, watch it work, then defend it. `npm run security:poisoned`, `lib/security/content-validator.ts`. |
+| 1:00 | **Scope triage, out loud** | 20 min. One sentence each on what they're building. Cut what's too big, publicly and kindly. |
+| 1:20 | **Data sourcing demo** | 10 min. Firecrawl live on a site someone names. Show markdown-not-HTML. |
+| 1:30 | **Clinic** | Open floor. Screen shares, unblocking. |
+
+Two new blocks this cohort. Evals and security used to be ten rushed minutes of
+"you should really do this" plus an archived deep-dive nobody read; they're now
+half the session, because they're the two things that separate a demo from
+something a student can defend at demo day. The capstone content that used to
+fill this slot survives — scope triage is still the highest-value twenty minutes
+you'll spend — it just doesn't own the whole session.
+
+**PII is no longer taught.** It lived in cohort 3's MCP session and went with it.
+`lib/pii.ts` and its 31-test contract are still in the repo as bonus; if a student
+asks why the suite is red on a fresh clone, that's the answer.
 
 ## The week-4 debrief
 
@@ -64,19 +76,54 @@ The failure patterns to catch, all of which appeared in cohort 3:
 - **Building the architecture before having the data.** The most common and most
   expensive error. Redirect hard: get twenty documents and *read them* first.
 
-## The non-negotiables, and why to insist
+## Evals — the payoff for the logging
 
-Observability and evals. Ten minutes, and be direct about the failure mode:
+Twenty-five minutes, and open with the failure mode, directly:
 
 > Someone builds a genuinely clever system entirely with an AI coding tool,
 > deploys it, and it breaks in ways they cannot diagnose — no traces, no
 > regression suite, no way to tell whether today's prompt edit fixed the thing or
 > broke two others. The code was never the hard part.
 
-Tie it straight back to the week-3 query/response log: **that's their eval set.**
-If they collected it, this is nearly free. If they didn't, this is the moment they
-find out why it was asked for — and the honest instruction is to start now, because
-it's cheaper than reconstructing later.
+Then make it concrete, because they already have the raw material:
+
+1. **Their week-3 query log IS the eval set.** Three weeks of "keep this list"
+   pays off here. Anyone who collected it is nearly done; anyone who didn't finds
+   out now why it was asked for, and the honest instruction is to start today
+   because reconstructing it later is miserable.
+2. **Walk `lib/evals/retrieval.test.ts`** — a golden question, the documents that
+   should come back, an assertion. That's the whole idea. A retrieval eval is not
+   exotic; it's a test with fuzzy matching.
+3. **Then `lib/evals/llm-judge.ts`** — when the correct answer can't be string-
+   matched, you score it with a model. Be honest that this is a weaker
+   instrument: the judge has its own failure modes, and you calibrate it by
+   spot-checking its verdicts against your own.
+4. **Run `npm run test:evals`** on screen.
+
+The line to land: **an eval is how you find out a change helped.** Without one,
+every prompt edit is a vibe and every regression is a surprise from a user.
+
+## Security — poisoned documents
+
+Twenty-five minutes, and it demos beautifully, so lead with the attack.
+
+1. **`npm run security:poisoned`.** A document in the corpus contains
+   instructions rather than information, gets retrieved as context, and the model
+   follows them. Let the room watch it happen before you explain anything.
+2. **Name why it works.** Retrieved text arrives in the same channel as your
+   instructions. The model has no way to tell "content I was given" from "orders
+   I was issued" unless you build that boundary.
+3. **Tie it back to week 3's aggregator** — the `<retrieved-data>` tags. That was
+   the first, weakest version of this boundary, and now they can see what it was
+   for.
+4. **Then defend it**: `lib/security/content-validator.ts`, and the deeper point
+   that detection is a filter, not a fix. Defense in depth — validate on the way
+   in, mark boundaries in the prompt, and don't give the model authority it
+   doesn't need.
+
+Best discussion hook: *"who can put a document in your corpus?"* For the clinic,
+anyone who writes a note. For their capstone scraping public pages, **anyone on
+the internet.**
 
 ## Discussion prompts
 
@@ -84,6 +131,10 @@ it's cheaper than reconstructing later.
 - *"How do you know your retrieval is good? What would tell you it got worse?"*
 - *"What are you deliberately not building?"* → sets up the postmortem, and it's
   the question most students have never been asked.
+- *"Who can put a document into your corpus?"* → the poisoned-docs question that
+  matters most for a scraped capstone.
+- *"Your eval passes. What does that actually prove?"* → good, uncomfortable.
+  Lands on: it proves you didn't regress the cases you thought of.
 
 ## Homework to post
 

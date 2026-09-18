@@ -158,7 +158,7 @@ it; don't repeat that.
 |---|---|---|
 | `assertReadOnly` | a marked TODO above `$queryRawUnsafe` | implemented, `lib/agents/sql.ts:108` |
 | `buildGraph()` | throws (the exercise) | — |
-| `lib/pii.ts` | every function throws | implemented |
+| `lib/pii.ts` (bonus, not taught in cohort 4) | every function throws — its 31 red tests are the lab | implemented |
 | Tool-calling answer | — | `lib/agent-tools.ts`, `/api/chat-tools` (AI SDK, older) |
 
 The live SQL guardrail on **both** branches is the database role: `DATABASE_URL`

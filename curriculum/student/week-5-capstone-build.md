@@ -1,10 +1,11 @@
-# Week 5 — Capstone build
+# Week 5 — Evals, security & capstone build
 
 **Session:** Saturday · [recording posted in Slack]
-**Needs:** whatever your project needs
+**Needs:** whatever your project needs, plus your week-3 query log
 
-The last working session. No new architecture — this one is for unblocking, and
-for the one refactor that reframes everything you've built.
+The last working session. Two things that turn a demo into something you can
+defend — evals and prompt-injection defense — and then the floor is yours for
+capstone work.
 
 ## What we covered
 
@@ -20,6 +21,65 @@ rather than a victory lap: check latency, and check your exact-number questions.
 
 The cohort-3 walkthrough video is still in Slack ([Loom](https://www.loom.com/share/5cce88f56dc7429fb5a861aaa23761b9)) if you want another pass at the
 comparison — it predates the LangGraph version but the argument is the same.
+
+### Evals — your query log becomes a test suite
+
+The failure mode this prevents: you build something clever, deploy it, and it
+breaks in ways you can't diagnose. No traces, no regression suite, no way to tell
+whether today's prompt edit fixed the thing you were looking at or broke two
+others you weren't. The code was never the hard part.
+
+**Your week-3 query log is the eval set.** That's what the "keep this list" was
+for, three weeks running.
+
+Two kinds, and you need both:
+
+- **`lib/evals/retrieval.test.ts` — did the right documents come back?** A golden
+  question, the notes that should be retrieved, an assertion. Nothing exotic;
+  it's a test with fuzzy matching. This is the one that catches a chunking or
+  metadata change quietly wrecking retrieval.
+- **`lib/evals/llm-judge.ts` — was the answer any good?** When the correct answer
+  can't be string-matched ("summarise this patient's history"), you score it with
+  a model against criteria: is it faithful to the retrieved context, is it
+  complete, did it invent anything.
+
+Be sceptical of the judge. It has its own failure modes and its own opinions, and
+the way you keep it honest is to spot-check its verdicts against your own on a
+handful of cases. A judge you've never audited is a number that makes you feel
+good.
+
+```bash
+npm run test:evals
+```
+
+The line worth remembering: **an eval is how you find out whether a change
+helped.** Without one, every prompt edit is a vibe.
+
+### Security — poisoned documents
+
+Run this before reading on:
+
+```bash
+npm run security:poisoned
+```
+
+A document in the corpus contains *instructions* instead of *information*. It
+gets retrieved as context like any other note, and the model does what it says.
+
+It works because retrieved text arrives through the same channel as your own
+instructions. The model cannot distinguish "content I was handed" from "orders I
+was given" unless you build that boundary — which is what the
+`<retrieved-data>` tags around the aggregator's context in week 3 were the first,
+weakest attempt at.
+
+`lib/security/content-validator.ts` is the defense, and the honest framing is
+that detection is a filter, not a fix: you validate on the way in, you mark
+boundaries in the prompt, and you don't hand the model authority it doesn't need
+for the job. Defense in depth, because any single layer is bypassable.
+
+The question that matters most for your capstone: **who can put a document into
+your corpus?** For the clinic, anyone who writes a note. If you're scraping
+public pages, anyone on the internet.
 
 ### Everything else was your project
 
@@ -167,6 +227,9 @@ stressed this." The failures are the content.
 
 ## Check yourself
 
+- You have run `npm run test:evals` and can say what a failing one would mean.
+- You have watched `npm run security:poisoned` work, and can explain why the
+  model obeyed a document.
 - You can state, in one sentence with a number, why one thing in your system is
   there.
 - A stranger reading your postmortem can tell you *stressed* the system rather

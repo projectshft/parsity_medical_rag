@@ -10,6 +10,12 @@ cohort 3 (2026-07-11 → 2026-08-15), reconstructed from the session recordings 
 the `#cohort-3` Slack channel where every assignment was posted, and corrected
 against the code as it stands for cohort 4.
 
+**Week 5 changed too.** Evals and prompt-injection defense were ten rushed
+minutes plus an archived deep-dive nobody read; they're now half of week 5. PII
+obscuring, which cohort 3 taught inside the MCP session, went to bonus along with
+it — `lib/pii.ts` and its 31-test contract stay in the repo
+(`docs/bonus/CHALLENGE-PII.md`) but nothing in the taught path calls them.
+
 **Week 4 changed for cohort 4.** Cohort 3 taught MCP there and most of the room
 never got a server connected — the session collapsed into environment debugging.
 It's now [tool calling with LangGraph](student/week-4-tool-calling.md): the same
@@ -38,7 +44,7 @@ platform and Slack, not by reading the repo. (See [`AUTHORING.md`](AUTHORING.md)
 | 2 | 07-18 | [Retrieval & reranking](student/week-2-retrieval-reranking.md) | Rerank on your own index; read *Building Effective Agents* 🎥 |
 | 3 | 07-25 | [The agent pipeline](student/week-3-agent-pipeline.md) | Ship the whole app; collect 10 query/response pairs; tool-calling 🎥 |
 | 4 | — | [Tool calling with LangGraph](student/week-4-tool-calling.md) 🆕 | Build the graph; five questions through both routes; **the capstone plan doc** |
-| 5 | 08-08 | [Capstone build](student/week-5-capstone-build.md) | Build it |
+| 5 | 08-08 | [Evals, security & capstone build](student/week-5-capstone-build.md) | Build it |
 | 6 | 08-15 | [Demo day](student/week-6-demo-day.md) | 5-minute presentation 🎥 |
 
 Plus two optional bonus tracks, neither a scheduled session:
