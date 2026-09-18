@@ -1,6 +1,8 @@
 /**
  * Scheduling Intent Detection
  *
+ * Week 3 · YOUR TASK · assignment: docs/CHALLENGE-TOOL-CALLING.md
+ *
  * Detects when a user wants to schedule an appointment and extracts relevant info.
  * This is the LLM component of the human-in-the-loop pattern.
  */
@@ -8,7 +10,6 @@
 import { z } from 'zod';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { openai } from './openai';
-import { traced } from './langsmith';
 import type { Message } from './agent';
 
 /**

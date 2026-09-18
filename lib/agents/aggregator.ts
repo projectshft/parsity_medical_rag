@@ -1,6 +1,8 @@
 /**
  * AGGREGATOR agent — the ONLY streamer. (Provided.)
  *
+ * Week 3 · PROVIDED. Read it, don't rewrite it — streaming is plumbing.
+ *
  * Takes the text blocks the SQL and RAG agents produced (either may be absent)
  * and streams one grounded answer. On a short-circuit (no context) it answers
  * the general question directly. The route may override the system prompt for

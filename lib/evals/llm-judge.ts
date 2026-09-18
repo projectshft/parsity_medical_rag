@@ -1,6 +1,9 @@
 /**
  * LLM-as-Judge Evaluator
  *
+ * Supplementary challenge (no scheduled session). Your week-3 query log is the
+ * eval set this scores against — see lib/evals/retrieval.test.ts.
+ *
  * Uses an LLM to evaluate RAG system outputs against quality criteria.
  *
  * Week 6: Implement these evaluators to measure your RAG system quality

@@ -1,6 +1,8 @@
 /**
  * SELECTOR agent — YOUR TASK. Structured output only (never streams).
  *
+ * Week 3 · assignment: docs/CHALLENGE-TOOL-CALLING.md
+ *
  * The selector just ROUTES: does this question need the SQL database (structured
  * facts, counts, filters), the clinical notes (meaning-based search), both, or
  * neither (a general question)? It does NOT extract conditions/filters/entities —

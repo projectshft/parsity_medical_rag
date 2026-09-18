@@ -1,6 +1,8 @@
 /**
  * THE GRAPH — tool-calling with LangGraph. YOUR TASK.
  *
+ * Week 4 · assignment: docs/CHALLENGE-LANGGRAPH.md
+ *
  * In `/api/chat` (the pipeline you already built) YOUR CODE decides what runs:
  * the selector returns `{ useSql, useRag }` and the route calls the specialists.
  * Here the MODEL decides. You hand it a list of tools; it picks which to call,

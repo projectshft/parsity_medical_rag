@@ -1,6 +1,8 @@
 /**
  * Structure-aware chunking — YOUR TASK (Bible chunking homework)
  *
+ * Week 1 homework · assignment: docs/CHALLENGE-CHUNKING.md
+ *
  * Read docs/CHALLENGE-CHUNKING.md FIRST — the strategy is yours to choose
  * (by verse? chapter? packed passages? with overlap?) and defending that choice
  * is the assignment. The naive chunker (`npm run bible:fixed`) slices blindly by

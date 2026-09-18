@@ -1,5 +1,8 @@
 /**
  * SQL agent — text-to-SQL. Feed the schema, get ONE read-only SELECT, run it.
+ *
+ * Week 3 · PROVIDED, walked through in class — except the guardrail TODO
+ * further down, which is yours.
  */
 
 import { z } from 'zod';

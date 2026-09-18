@@ -18,6 +18,8 @@ const ChatGraphRequestSchema = z.object({
 /**
  * The tool-calling channel — YOUR TASK.
  *
+ * Week 4 · assignment: docs/CHALLENGE-LANGGRAPH.md
+ *
  * Same contract as `/api/chat` (same body in, streamed text out) so you can
  * point the UI at either one and compare answers on the same question. The
  * difference is everything in between: there is no selector here, and this

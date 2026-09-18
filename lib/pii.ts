@@ -1,6 +1,10 @@
 /**
  * PII (Personally Identifiable Information) obscuring utilities — YOUR TASK
  *
+ * Supplementary challenge (no scheduled session) · docs/CHALLENGE-PII.md
+ * The contract is lib/pii.test.ts — 31 failing tests that go green as you
+ * implement. Run `npm test` and work the list.
+ *
  * Query-time de-identification for the medical RAG system. The *channel* decides
  * WHEN to obscure (the MCP front-office server always does) — your job is the
  * HOW. Implement the functions below so `lib/pii.test.ts` goes green, then wrap

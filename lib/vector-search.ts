@@ -8,16 +8,16 @@
  * beats no search.
  */
 
-import { Pinecone, RerankResult } from '@pinecone-database/pinecone';
+import { Pinecone } from '@pinecone-database/pinecone';
 import { createEmbedding } from './openai';
-import type { VectorSearchResult } from './types';
+import { rerankResults } from './reranker';
+import type { SearchResult } from './pinecone';
 
 const pinecone = new Pinecone({
 	apiKey: process.env.PINECONE_API_KEY!,
 });
 
 const INDEX_NAME = process.env.PINECONE_INDEX || 'medical-notes';
-const RERANK_MODEL = 'bge-reranker-v2-m3';
 
 export interface VectorSearchOptions {
 	topK?: number; // candidates the cosine search fetches (wide + cheap)
@@ -28,14 +28,21 @@ export interface VectorSearchOptions {
 }
 
 /**
- * Search clinical notes with semantic search + reranking
+ * Search clinical notes with semantic search + reranking.
+ *
+ * Both lists are `SearchResult[]` — the same shape, so you can diff them:
+ *   - `docs`            the cosine candidates, in cosine order (topK of them)
+ *   - `rerankedDocuments`  the same objects reranked and cut to topN
+ *
+ * Keeping both is deliberate. Logging them side by side is the only way to
+ * actually see whether reranking did anything on a given query.
  */
 export async function searchClinicalNotes(
 	query: string, // tell me about patients with breathing issues
 	options: VectorSearchOptions = {},
 ): Promise<{
-	docs: any[];
-	rerankedDocuments: any[];
+	docs: SearchResult[];
+	rerankedDocuments: SearchResult[];
 }> {
 	const { topK = 100, topN = 10, patientIds } = options;
 
@@ -50,37 +57,31 @@ export async function searchClinicalNotes(
 
 	const embeddedQuery = await createEmbedding(query);
 
-	const docs = await pinecone.Index(INDEX_NAME).query({
+	const response = await pinecone.Index(INDEX_NAME).query({
 		vector: embeddedQuery,
 		topK,
-		includeMetadata: true,
+		includeMetadata: true, // WITHOUT this you get ids and floats and no note text
 		...(filter ? { filter } : {}), // if there are patient ids, filter the results to only include those patients
 	});
 
-	// console.log(JSON.stringify(docs, null, 2));
-	/**
-	 ['doc1', 'doc2', 'doc3'] => ['doc2', 'doc3', 'doc1']
-	 */
+	// Pinecone hands back its own match shape, with the note text buried in
+	// `metadata.content`. Normalise it once, here, into the SearchResult shape
+	// the rest of the app uses — so nothing downstream has to guess whether the
+	// text lives on `.content`, `.document.text`, or somewhere else.
+	const docs: SearchResult[] = response.matches.map((match) => {
+		const { content, ...metadata } = (match.metadata ??
+			{}) as Record<string, unknown>;
+		return {
+			id: match.id,
+			score: match.score ?? 0,
+			content: typeof content === 'string' ? content : '',
+			metadata: metadata as SearchResult['metadata'],
+		};
+	});
 
-	const rerankedDocuments = await pinecone.inference.rerank(
-		RERANK_MODEL,
-		query,
-		docs.matches.map(
-			(doc: any) =>
-				`
-			Patient note:${doc.metadata.content} 
-			Current medications: ${doc.metadata?.currentMedications?.join(', ')}
-			Race: ${doc.metadata.race}
-			Gender: ${doc.metadata.gender}
-			First name: ${doc.metadata.firstName}
-			Last name: ${doc.metadata.lastName}
-			`,
-		),
-		// topN belongs to rerank(), NOT to .map() — passed as map's second
-		// argument it becomes the callback's `thisArg` and is silently ignored,
-		// which is why reranking looked like it did nothing.
-		{ topN },
-	);
+	// Stage two: rerank. Falls back to cosine order if the reranker is down —
+	// see lib/reranker.ts.
+	const rerankedDocuments = await rerankResults(query, docs, topN);
 
-	return { docs: docs.matches, rerankedDocuments: rerankedDocuments.data };
+	return { docs, rerankedDocuments };
 }

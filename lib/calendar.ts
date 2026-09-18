@@ -1,6 +1,10 @@
 /**
  * Cal.com Integration
  *
+ * Week 3 · YOUR TASK. Prove a booking works with STATIC test data before you
+ * wire the agent to it — cohort 3 lost an hour to a v1-vs-v2 API mismatch that
+ * had nothing to do with the LLM.
+ *
  * Provides appointment scheduling via Cal.com API.
  * This is the "action" part of the human-in-the-loop pattern.
  *

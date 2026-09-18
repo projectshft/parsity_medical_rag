@@ -27,6 +27,8 @@ const ChatRequestSchema = z.object({
 /**
  * The chat pipeline — YOUR TASK. This route IS the orchestrator:
  *
+ * Week 3 · assignment: docs/CHALLENGE-TOOL-CALLING.md
+ *
  *   1. accept the message + history   (done — parsed below)
  *   2. the selector decides which stores to hit
  *   3. call 0, 1, or 2 specialists (sql / rag)

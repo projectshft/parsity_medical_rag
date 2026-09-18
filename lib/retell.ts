@@ -1,6 +1,8 @@
 /**
  * Retell AI — outbound appointment-confirmation call (EXTENSION / STUDENT STUB)
  *
+ * ⭐ Bonus, optional, costs ~$25 of your own money. Nothing depends on it.
+ *
  * After Cal.com books an appointment, place an automated voice call to confirm
  * the patient can attend — wiring a voice agent into an action flow.
  *

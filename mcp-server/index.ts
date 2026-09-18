@@ -38,6 +38,7 @@ import { z } from 'zod';
 
 import { searchClinicalNotes } from '../lib/vector-search';
 import { obscureContent } from '../lib/pii';
+import type { SearchResult } from '../lib/pinecone';
 
 const server = new McpServer({
   name: 'medical-rag',
@@ -98,21 +99,27 @@ server.registerTool(
 /**
  * Helper: Format reranked results — always PII-obscured for MCP.
  *
- * The reranker hands back rendered TEXT blocks (note content plus the metadata
- * `lib/vector-search.ts` stitched in), not patient-shaped objects — so there is
- * no "name field" to pseudonymize. That's why the whole block goes through
- * `obscureContent`: on this channel the de-identifier has to be shape-agnostic.
- * Imperfect by design — a regex misses formats it has never seen, which is the
- * point of the PII challenge.
+ * Two separate decisions here, and both matter:
+ *
+ * 1. We print `content` and NOTHING from `metadata`. The results carry
+ *    `firstName` / `lastName` / `city` — this channel simply never renders them.
+ *    Not obscuring a field you don't emit is the cheapest privacy control there
+ *    is, and the most reliable.
+ * 2. The note prose still goes through `obscureContent`, because a doctor
+ *    writing a note will name the patient, the spouse, and the referring
+ *    physician right there in the text. No field to strip — it's free-form, so
+ *    it needs the regex de-identifier.
+ *
+ * (2) is imperfect by design: a regex misses formats it has never seen. That's
+ * the point of the PII challenge — and the reason (1) carries the real weight.
  */
-function formatVectorResults(rerankedDocuments: any[]): string {
+function formatVectorResults(rerankedDocuments: SearchResult[]): string {
   const parts = ['## Clinical Notes\n'];
 
   for (const result of rerankedDocuments) {
-    const text = result.document?.text ?? JSON.stringify(result.document);
     parts.push(`### Note (relevance ${(result.score * 100).toFixed(1)}%)`);
     parts.push('```');
-    parts.push(obscureContent(text));
+    parts.push(obscureContent(result.content));
     parts.push('```\n');
   }
 
