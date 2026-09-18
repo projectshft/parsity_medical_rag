@@ -80,7 +80,7 @@ const reranked = await pinecone.inference.rerank(
   docs.matches.map(doc => `Patient note: ${doc.metadata.content}
     Current medications: ${doc.metadata.currentMedications.join(', ')}
     Race: ${doc.metadata.race}  Gender: ${doc.metadata.gender}  Age: ${doc.metadata.age}`),
-  { topN: 10 },
+  { topN: 10 },   // ← 4th arg, to rerank(). Inside the .map() it does nothing.
 );
 ```
 
@@ -90,8 +90,20 @@ too. The reranker reads plain strings, so anything you want it to weigh has to b
 
 Honest note from the session: **reranking was hard to see working live.** The
 medical notes are long and similar to each other, and the score changes were
-muddy. That's exactly why the homework moves it to your Bible index, where the
-chunks are short and distinct and the reordering is obvious.
+muddy. That's why the homework moves it to your Bible index, where the chunks are
+short and distinct and the reordering is obvious.
+
+> **Postscript, found while writing this up: it also wasn't running.** In
+> `lib/vector-search.ts` the `{ topN: 10 }` object was passed as the *second
+> argument to `.map()`* — which is the callback's `thisArg` — instead of as the
+> fourth argument to `rerank()`. JavaScript accepts that silently: no error, no
+> warning, and `topN` never reached Pinecone. Every rerank returned the provider
+> default.
+>
+> Fixed now (`topN` is a real `VectorSearchOptions` field). Keep the bug in mind
+> as a shape, though, because it's the kind that survives code review: a
+> misplaced argument in a call that still returns plausible data. "It ran and the
+> output looked fine" is not evidence that it did what you meant.
 
 ### 4. Structured outputs — the LLM as a typed function
 
@@ -182,9 +194,10 @@ between an opinion and a defended one.
 - **Results come back with no text.** `includeMetadata: true` is missing.
 - **`403` on `openai.responses.parse()`.** `OPENAI_BASE_URL` again — the proxy is
   strict about it, and the failure surfaces at the first *new* call you write.
-- **404 on the Pinecone index.** `lib/vector-search.ts` shipped with a hardcoded
-  `INDEX_NAME`. Point it at `process.env.PINECONE_INDEX` or edit it to your index
-  name — it will not match yours by default.
+- **404 on the Pinecone index.** `PINECONE_INDEX` in your `.env` doesn't match the
+  index you created — copy the name out of the console exactly. (In cohort 3 this
+  was a hardcoded `INDEX_NAME` in `lib/vector-search.ts`; that's fixed, so it's
+  your `.env` now, not the code.)
 - **The reranker returns nothing useful.** Check what you're actually passing it.
   It sees only the strings you build; if `metadata.content` is undefined, you're
   reranking empty templates.

@@ -59,7 +59,7 @@ Ten minutes at the end. Worth naming what they did, because six weeks compresses
 in memory: keyword search couldn't find *myocardial infarction* from "heart
 attack," and they built the index that fixes it, the reranker that sharpens it,
 the router that chooses, the aggregator that refuses to invent, the human gate on
-real actions, the MCP channel that de-identifies by default — and enough
+real actions, the tool-calling version they built to compare against — and enough
 measurement to know when a change helped.
 
 Then the practical bits:
@@ -78,6 +78,8 @@ Then the practical bits:
 - Ask permission at the end to reference their work publicly. Easier now than
   chasing later.
 - **Do a retro while it's fresh.** What broke, what to move, what to cut. The
-  standing candidates from cohort 3: front-load Node-version checks, split the MCP
-  session, and push the query/response log harder in week 3 so evals aren't
-  starting from zero at capstone time.
+  standing candidates from cohort 3, and what was done about each in cohort 4:
+  front-load Node-version checks (still worth doing); ~~split the MCP session~~
+  (cut it — week 4 is tool-calling with LangGraph now); push the query/response
+  log harder in week 3 (done — week 4's homework consumes it directly, so the
+  payoff is one week away instead of three).

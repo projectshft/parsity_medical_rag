@@ -40,8 +40,9 @@ still bruised.
 3. **The Avery Mueller demo.** Query `"What can you tell me about Avery Mueller?"`
    → results are Avery Kemmer, Avery Baumbach, etc. Let the room sit with it, then
    ask what fixes it. Someone will say metadata. Add the `patientId` filter.
-4. `pinecone.inference.rerank` with `topN`. Show what string you build for each
-   doc — emphasise that the reranker only sees what you put in the string.
+4. `pinecone.inference.rerank` with `topN` — **as the fourth argument**, outside
+   the `.map()`. Show what string you build for each doc; emphasise that the
+   reranker only sees what you put in the string.
 5. Selector: build `planAgentSchema` field by field, taking `.describe()` text from
    the room. Then `openai.responses.parse` with `zodTextFormat`.
 6. Ask the selector 3–4 questions and console.log the plan. Include a nonsense one.
@@ -52,7 +53,7 @@ still bruised.
 |---|---|---|
 | Results have no text | `includeMetadata` missing | Add it — this is a teaching beat, not an accident |
 | `403` on `responses.parse()` | `OPENAI_BASE_URL` | Same as week 1. It resurfaces because it's a *new* call. |
-| Pinecone 404 | **`lib/vector-search.ts` has a hardcoded `INDEX_NAME`** | Genuine repo bug. Have them point it at `process.env.PINECONE_INDEX`. Hit multiple people across weeks 2 and 4. |
+| Pinecone 404 | `PINECONE_INDEX` in their `.env` doesn't match the console | **Fixed in `19f4194`** — the code reads env now. This was a genuine repo bug in cohort 3 that hit people in weeks 2 and 4; it's their `.env` this time. |
 | `value is not JSON serializable` from the route | returning the raw Pinecone response | Return `docs.matches` / the reranked data |
 | Model ignores the schema | using `chat.completions` + `response_format` | `responses.parse` + `text: { format: zodTextFormat(...) }`. Their AI tools will suggest the old API — warn them. |
 | Reranker returns garbage | `metadata.content` undefined in the built string | Log one string before sending |
@@ -63,7 +64,18 @@ still bruised.
 the score deltas are muddy. Cohort 3 spent fifteen minutes trying to make it
 visibly better and it mostly wasn't.
 
-Don't fight it. Say plainly: *"this is hard to see here, and that's why the
+> **Part of that was a bug, and it's fixed.** `{ topN: 10 }` was being passed as
+> `.map()`'s second argument — the callback's `thisArg` — instead of `rerank()`'s
+> fourth. Silent no-op: `topN` never reached Pinecone, so every rerank returned
+> the provider default count. Corrected in cohort 4 (`topN` is a real
+> `VectorSearchOptions` field), so the demo may land better than it did. Try it
+> before you decide how much to hedge.
+>
+> **This is also a free teaching beat if you want it**: a misplaced argument, in a
+> call that still returned perfectly plausible data, that survived a live session
+> and a write-up. "It ran and the output looked reasonable" is not evidence.
+
+Don't fight it if it's still muddy. Say plainly: *"this is hard to see here, and that's why the
 homework moves it to your Bible index where the chunks are short and distinct."*
 Being honest about a weak demo costs nothing and buys credibility. Trying to sell
 a result the room can see isn't there costs a lot.
@@ -91,7 +103,7 @@ including a zero-keyword-overlap query), read
 and a two-part video (reranking explained + which pattern should this project use,
 defended with a tradeoff).
 
-**The paper is the setup for week 3 and week 5.** Say that. It gives them the
+**The paper is the setup for weeks 3 and 4.** Say that. It gives them the
 vocabulary — routing, parallelization, prompt chaining — that the whole rest of the
 course uses. Cohort 3's videos came back noticeably sharper for it; one student
 correctly identified the pipeline as "dependency-aware prompt chaining with

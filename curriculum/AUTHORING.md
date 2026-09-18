@@ -23,9 +23,11 @@ curriculum/
 ├── student/                  what students get — one file per session
 │   ├── week-0-prework.md
 │   ├── week-1-vector-store.md … week-6-demo-day.md
-│   └── bonus-voice-ai.md
+│   ├── bonus-voice-ai.md
+│   └── bonus-mcp.md          cohort 3's week 4, now optional
 ├── instructor/               one runbook per session
-│   └── week-1-runbook.md … week-6-runbook.md
+│   ├── week-1-runbook.md … week-6-runbook.md
+│   └── bonus-mcp-runbook.md
 └── archive/                  the pre-cohort self-paced track (bonus material)
 ```
 
@@ -99,8 +101,13 @@ Update in this order:
 2. **Student guides after** — fold in anything that changed, and re-check that the
    homework matches what you actually posted in Slack.
 3. **`README.md`** if the session shape changed.
-4. Rename "Notes from cohort 3" → keep both, oldest last. Two cohorts of evidence
-   is better than one.
+4. Add a "Notes from cohort N" section — **keep the older ones, oldest last**. Two
+   cohorts of evidence is better than one. (Week 4's is empty and waiting; it has
+   not been delivered.)
+5. **Verify every claim against the branch students actually have**, not against
+   `instructor`. The table above exists because cohort 3's guides described the
+   solutions branch as if it were the student repo, which sent people looking for
+   code that wasn't there.
 
 ## The archive
 
@@ -127,9 +134,54 @@ match the six live sessions.
   exists to teach chunking on a corpus that needs it.
 - Pinecone: `text-embedding-3-small`, 1536 dims, cosine. Reranker is
   `bge-reranker-v2-m3` via `pinecone.inference.rerank` (hosted, free).
-- Node **20**. Later versions break `ts-node` on the scripts and the MCP server.
-- npm scripts: `dev`, `test`, `test:run`, `test:evals`, `db:generate`, `db:push`,
-  `db:studio`, `vectorize`, `similarity`, `bible:fetch`, `bible:fixed`,
-  `bible:smart`, `bible:audit`, `retell:deploy`.
-- Known repo wart: `lib/vector-search.ts` has a hardcoded `INDEX_NAME`. It 404s
-  students in weeks 2 and 4. Fix it or warn about it — both runbooks say so.
+- Node **20**. Later versions break `ts-node` on every script in `scripts/` (and
+  on the bonus MCP server).
+- npm scripts: `dev`, `build`, `start`, `lint`, `test`, `test:run`, `test:evals`,
+  `db:generate`, `db:push`, `db:studio`, `vectorize`, `similarity`, `mcp`,
+  `mcp:inspect`, `retell:deploy`, `bible:fetch`, `bible:fixed`, `bible:smart`,
+  `bible:audit`, `security:poisoned`.
+- Agent pipeline files: `lib/agents/{selector,sql,rag,aggregator}.ts`, orchestrated
+  by `app/api/chat/route.ts`. Tool calling is `lib/graph.ts` +
+  `app/api/chat-graph/route.ts` (LangGraph v1 — `schema:` on `tool()`, **not** the
+  AI SDK's `parameters:`; both libraries are installed).
+- `Plan` carries `useSql`, `useRag`, `useScheduler`, `needsSearch`,
+  `semanticQuery`. Scheduling short-circuits retrieval and the route streams that
+  response itself, so the aggregator is not the only streamer in the file.
+
+### Branch-divergent facts — check WHICH branch before you write
+
+These differ between `main`/`cohort_4` (what students have) and `instructor` (the
+solutions). Cohort 3's guides stated the instructor version as though students had
+it; don't repeat that.
+
+| Thing | Student branch | `instructor` |
+|---|---|---|
+| `assertReadOnly` | a marked TODO above `$queryRawUnsafe` | implemented, `lib/agents/sql.ts:108` |
+| `buildGraph()` | throws (the exercise) | — |
+| `lib/pii.ts` | every function throws | implemented |
+| Tool-calling answer | — | `lib/agent-tools.ts`, `/api/chat-tools` (AI SDK, older) |
+
+The live SQL guardrail on **both** branches is the database role: `DATABASE_URL`
+→ `student_ro`, SELECT only. Say it that way round — the database enforces, a
+validator explains.
+
+### Corrections made for cohort 4 (don't reintroduce these)
+
+- ~~`lib/vector-search.ts` has a hardcoded `INDEX_NAME`~~ — **fixed** in
+  `19f4194`; reads `process.env.PINECONE_INDEX`. A 404 is the student's `.env`.
+- ~~`selector.ts` ships a commented-out `FEW_SHOT` array of 11 typed examples~~ —
+  **never true on any current branch.** It existed and was deleted in `6e95a1d`
+  when the selector became pure-routing. Teach few-shot by typing it live.
+- `{ topN: 10 }` was passed as `.map()`'s second argument (the callback's
+  `thisArg`), never to `rerank()` — a silent no-op, and part of why reranking
+  demoed badly. **Fixed**; `topN` is a real `VectorSearchOptions` field.
+- The aggregator was on `gpt-4` (8K context) and silently truncated patients with
+  many notes. **Now `gpt-4o`.**
+- `LANGSMITH_API_KEY` alone produces no traces and no error —
+  **`LANGSMITH_TRACING=true`** is the switch `wrapOpenAI` reads. Both are in
+  `.env.example` now. Ignore `lib/langsmith.ts`; it's an unused half-written
+  helper.
+- `searchClinicalNotes(query, options)` takes **two** arguments, options are
+  `{ topK, topN, patientIds, dateFrom, dateTo }`, and it returns
+  `{ docs, rerankedDocuments }` — **not an array**. No `firstName` option, no
+  third "obscure" argument.

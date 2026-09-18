@@ -166,15 +166,19 @@ Every one of these hit someone in cohort 3.
 - **Index not found (404).** The name in `PINECONE_INDEX` doesn't match the index
   you created. Open the console and copy the name exactly.
 - **`Can't reach database server`.** Check `DATABASE_URL` against the string from
-  class. Note that the vectorize script prefers `DIRECT_URL` (or de-poolers your
-  URL) — a pooled connection times out on long batch reads.
+  class. `scripts/vectorize.ts` prefers `DIRECT_URL` when it's set — a *pooled*
+  connection times out on the long batch read over 21k notes. `.env.example`
+  documents it as an optional commented line; uncomment it with the non-pooled
+  host (no `-pooler` in the hostname) if the full run keeps dying.
 - **The run dies partway with `ECONNRESET` / `fetch failed`.** Transient. Re-run
   it — ids make it idempotent. If it's persistent, delete the index and start
   clean; that fixed it for at least one person faster than debugging did.
 - **Bible verses in your medical index.** Someone did this. Set `PINECONE_INDEX`
   deliberately before every run — and if it happens, writing the cleanup script is
   a genuinely useful thirty minutes.
-- **`Unknown file extension ".ts"`.** You're on Node 22 or 24. `nvm use 20`.
+- **`Unknown file extension ".ts"`.** You're on Node 22 or 24. `nvm use 20`. This
+  bites every `npx ts-node` script in the repo — `vectorize`, `similarity`, the
+  Bible scripts.
 
 ## Check yourself
 

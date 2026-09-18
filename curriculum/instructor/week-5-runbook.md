@@ -13,35 +13,38 @@ where the room is.
       it's a rewrite.
 - [ ] **Chase the people who haven't posted one.** In cohort 3 several hadn't by
       the session, and those were the students who struggled at demo day.
-- [ ] Record the tool-calling refactor walkthrough **ahead of time** and post it —
-      cohort 3 did this as a Loom and it worked better than teaching it live,
-      because it's a compare-two-implementations thing people need to pause and
-      scrub.
+- [ ] **Skim the week-4 comparison tables** people posted. Tool calling is a full
+      session now, so this week is no longer where it gets introduced — but the
+      tables tell you who actually ran both implementations, and a student who
+      found the workflow winning is worth three minutes of the room's time.
 - [ ] Have the data-sourcing tools ready to demo: Firecrawl, Crawl4AI, yt-dlp.
 
 ## The arc
 
 | Time | What | Notes |
 |---|---|---|
-| 0:00 | **Tool-calling refactor** | 20 min. They watched the video; this is Q&A + the tradeoff argument. |
-| 0:25 | **Scope triage, out loud** | Go round the room: one sentence each on what they're building. Cut what's too big, publicly and kindly. |
+| 0:00 | **Week-4 debrief** | 15 min. Their comparison tables — where did the graph win, where did the workflow? Short, and it's a warm-up, not a lecture. |
+| 0:20 | **Scope triage, out loud** | Go round the room: one sentence each on what they're building. Cut what's too big, publicly and kindly. |
 | 0:50 | **Data sourcing demo** | Firecrawl live on a site someone names. Show markdown-not-HTML. |
 | 1:10 | **The non-negotiables** | Observability + evals. Tie back to the week-3 query log. |
 | 1:25 | **Clinic** | Open floor. Screen shares, unblocking. |
 
-## The tool-calling conversation
+## The week-4 debrief
 
-The refactor inverts control: instead of `if (plan.useSql)`, hand the model a tool
-list and let it loop.
+Tool calling moved to [week 4](week-4-runbook.md) as a full build session, so this
+is a debrief, not a lecture. Fifteen minutes, and the only thing you're fishing
+for is **evidence**.
 
-**Don't sell it.** Present both and let them argue. The honest position — and the
-one that holds up — is that for a clinic assistant with four known jobs, the
-workflow is defensible: predictable, cheap, debuggable. Tool calling wins when
-you can't enumerate the requests in advance.
+Ask for a table where the **workflow beat the graph** and have that person walk
+it. That's the conversation worth having: in cohort 3 this argument was theory
+in a video, and the honest position — for a clinic assistant with four known
+jobs, the predictable, cheap, debuggable workflow is defensible — was something
+they had to take on trust. Now they measured it.
 
-This closes the loop on the week-2 reading and the week-3 video. Several cohort 3
-students had already argued this well in their videos; **call them out by name and
-let them make the case.** It lands differently from a peer.
+**Don't sell either one.** If nobody found a case where the workflow won, that's
+worth naming too, and it should make you curious rather than pleased.
+
+Then move on. Scope triage is the real job this week.
 
 ## Scope triage — the actual job this week
 

@@ -72,9 +72,18 @@ the single highest-leverage thing in the whole SQL path.
 
 Two guardrails, and they're the point:
 
-- **`assertReadOnly`** — accepts a single `SELECT`. No DML, no DDL, no semicolons.
-  An LLM writing SQL is an injection surface; treat it like one. In production
-  you'd also point `DATABASE_URL` at a read-only role.
+- **The read-only role.** `DATABASE_URL` points at `student_ro`, which holds
+  `SELECT` and nothing else. This is the guardrail that is actually protecting you
+  right now, and it's worth noticing that it lives in the *database*, not in your
+  code.
+- **`assertReadOnly`** — a validator that accepts a single `SELECT` and rejects
+  semicolons, DML and DDL. An LLM writing SQL is an injection surface; treat it
+  like one. **This is a TODO in your repo**, marked in `lib/agents/sql.ts` right
+  above the `$queryRawUnsafe` call — read that line and notice that nothing
+  between the model's output and your database is checking anything. Write it.
+  Then keep the ordering straight: the database *enforces*, the validator
+  *explains*. A validator alone would be theatre; a role alone gives you a
+  permission error instead of a clear message.
 - **Grounding**, above — a correct query against misunderstood values is still a
   wrong answer.
 
@@ -105,9 +114,13 @@ won't rescue a bad prompt, but it makes "what is data vs. what is instruction"
 unambiguous.
 
 > **Model choice bit us here.** `gpt-4` has an 8K context window, and patients with
-> many notes silently blew past it. Switching the aggregator to **`gpt-4o`** fixed
-> it. If your app works for most patients and mysteriously fails on a few, this is
-> your first suspect.
+> many notes silently blew past it — the answer just quietly got worse for exactly
+> the patients who had the most history. Switching the aggregator to **`gpt-4o`**
+> fixed it, and that's what `lib/agents/aggregator.ts` ships with now.
+>
+> Keep the diagnostic, not just the fix: **if your app works for most inputs and
+> mysteriously fails on a few, measure the input size before you touch the
+> prompt.** It's the cheapest check and almost nobody does it first.
 
 ### 5. Human-in-the-loop scheduling
 
@@ -137,12 +150,21 @@ matters.
 ### 6. Observability
 
 We wired up [LangSmith](https://smith.langchain.com/) — three lines, wrapping the
-OpenAI client — and suddenly every call in the pipeline is inspectable: what the
+OpenAI client in `lib/openai.ts` — and suddenly every call in the pipeline is
+inspectable: what the
 selector decided, what the SQL agent wrote, what tokens cost, what the user
 actually asked.
 
+> **Two env vars, and the second one is the switch.** `LANGSMITH_API_KEY` is not
+> enough — `wrapOpenAI` only ships traces when **`LANGSMITH_TRACING=true`**. Set
+> the key, forget the flag, and you get silence rather than an error, which is the
+> worst possible failure for an observability tool. Both are in `.env.example`.
+
 Console logs cannot debug a non-deterministic system. You need the trace from
 *before* you changed the prompt. Wire this early; it costs nothing.
+
+(Ignore `lib/langsmith.ts` — it's a half-finished `traced()` helper that nothing
+imports. The real tracing is the `wrapOpenAI` call in `lib/openai.ts`.)
 
 ## Homework
 
@@ -153,9 +175,15 @@ Console logs cannot debug a non-deterministic system. You need the trace from
   pop the confirm card.
 - **Extend vector search to use metadata** (bonus). The selector or a small
   extraction step can pull `firstName`, `race`, `gender` out of the question and
-  pass them as a filter. This is where few-shot examples earn their keep — see
-  the `FEW_SHOT` scaffold commented out in `lib/agents/selector.ts`. Uncomment it,
-  add an example from a misroute you actually hit, and watch the routing change.
+  pass them as a filter — `searchClinicalNotes` already accepts `patientIds`, and
+  the other fields are all sitting in the metadata you chose in week 1.
+- **Try few-shot examples on the selector.** When a question routes wrong, adding
+  a labelled example of the right answer beats adding another paragraph of
+  instructions — a misroute is a classification error, and an example is a
+  classification correction. There's no scaffold in the file; write the array
+  yourself and serialise it into the system prompt. Discipline: about two examples
+  per category. If the array balloons, your categories are wrong, not your example
+  count.
 - **Polish the flow.** Chase the questions that route wrong or answer badly, and
   fix the prompts until the common cases feel solid.
 
@@ -203,7 +231,8 @@ Short and light, a few minutes.
   *the model* decides which tool to call. Sketch how ours would change.
 - **Draw a small diagram.**
 
-No right answer. I want your reasoning.
+No right answer. I want your reasoning — **and next week you build it**, so this
+video is the prediction you get to check against a running system.
 
 [OpenAI — Function calling](https://developers.openai.com/api/docs/guides/function-calling)
 
@@ -228,4 +257,6 @@ No right answer. I want your reasoning.
   question. All four should behave differently and correctly.
 - Book an appointment end to end and see it in your cal.com dashboard.
 - Open LangSmith and trace one query from selector to answer.
-- You have 10+ logged pairs, including at least three bad ones.
+- You have 10+ logged pairs, including at least three bad ones. **Don't lose
+  them** — week 4 runs every one of them through a second implementation and
+  compares.

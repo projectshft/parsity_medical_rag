@@ -55,9 +55,10 @@ index that fixes it, by hand, from a database you didn't create. You made rankin
 earn its keep with a reranker. You turned a language model into a typed component
 and used it to route. You built a pipeline of specialists that retrieve in
 parallel and an aggregator that refuses to invent. You gated a real-world action
-behind a human. You exposed the whole thing to a foreign model through MCP, with
-de-identification the caller can't switch off. And you measured enough of it to
-know when a change helped.
+behind a human. Then you built the same system a second way — handing the model
+the tools and letting it choose — and you have the table that says which one was
+actually better, on your own questions. And you measured enough of it to know when
+a change helped.
 
 Then you did it again, on data you chose yourself.
 

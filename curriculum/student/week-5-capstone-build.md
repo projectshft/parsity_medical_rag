@@ -8,24 +8,18 @@ for the one refactor that reframes everything you've built.
 
 ## What we covered
 
-### The tool-calling refactor
+### Week-4 debrief
 
-Posted as a walkthrough video ahead of the session ([Loom](https://www.loom.com/share/5cce88f56dc7429fb5a861aaa23761b9), code in the Slack thread).
+You built the tool-calling version last week and ran your query log through both
+routes. We opened by walking a couple of those comparison tables — specifically
+looking for cases where **the workflow beat the graph**, because that's the
+finding people don't expect and the one worth defending in a demo.
 
-Everything you built routes with **code**: the selector returns booleans, the
-route reads them, `if (plan.useSql)` calls the SQL agent. That's a **workflow** in
-the *Building Effective Agents* vocabulary — routing plus conditional
-parallelization.
+If your table showed the graph winning everywhere, that's worth a second look
+rather than a victory lap: check latency, and check your exact-number questions.
 
-The alternative is **tool calling**: hand the model a list of tools and let *it*
-decide which to invoke, in a loop, until it's done. Same components, inverted
-control.
-
-Worth understanding, worth trying — and worth being skeptical about. What you give
-up is predictability, cost control, and debuggability. What you gain is handling
-requests you didn't anticipate. For a clinic assistant with four known jobs, the
-workflow is defensible; that argument is exactly what the week-2 video asked you
-to make. Now you can see both implementations and judge.
+The cohort-3 walkthrough video is still in Slack ([Loom](https://www.loom.com/share/5cce88f56dc7429fb5a861aaa23761b9)) if you want another pass at the
+comparison — it predates the LangGraph version but the argument is the same.
 
 ### Everything else was your project
 

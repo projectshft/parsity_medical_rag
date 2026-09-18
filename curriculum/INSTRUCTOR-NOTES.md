@@ -40,9 +40,9 @@ Name this connection when you teach the production-gates block — it turns
 
 | HIPAA requirement | Where the course builds it |
 |---|---|
-| Minimum-necessary access | The **channel access model** (Week 5): the front-office (MCP) channel exposes only non-identifying tools and never surfaces PII; the direct app is the clinician channel. Enforced by the entry point, not by roles. |
+| Minimum-necessary access | The **channel access model**: a front-office channel exposes only non-identifying tools and never surfaces PII; the direct app is the clinician channel. Enforced by the entry point, not by roles. In cohort 3 that channel was the MCP server (week 4); in cohort 4 MCP is [bonus](student/bonus-mcp.md), so the framing is taught but the second channel is optional. **If you skip the bonus, say the idea out loud somewhere anyway** — it's the one place the course addresses minimum-necessary access. |
 | De-identification | PII obscuring (`lib/pii.ts`, CHALLENGE-PII): pseudonymized names, redacted dates/locations, scrubbed note text |
-| Don't overshare / leak | Grounding + refusals (w3-04-chat-agent / w3-06-failure-day), injection defenses (poisoned-docs homework / the Week 5 session) |
+| Don't overshare / leak | Grounding + refusals (w3-04-chat-agent / w3-06-failure-day), injection defenses (poisoned-docs homework) |
 
 > **Not built:** an audit trail and RBAC/login. Earlier drafts had role-based
 > access + audit logging; both were removed. Minimum-necessary is now enforced

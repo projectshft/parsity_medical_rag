@@ -1,124 +1,152 @@
-# Week 4 Runbook — MCP
+# Week 4 Runbook — Tool calling with LangGraph
 
-**~2h, and it will feel like more.** This session went worse than any other in
-cohort 3. Most of the room never got a server connected during the session.
+**~2h.** Replaces cohort 3's MCP session, which ate itself on environment setup
+(see [`bonus-mcp-runbook.md`](bonus-mcp-runbook.md) — worth reading before you
+teach this, because the failure mode you're avoiding is documented there).
 
-**Student guide:** [`../student/week-4-mcp.md`](../student/week-4-mcp.md)
+**Student guide:** [`../student/week-4-tool-calling.md`](../student/week-4-tool-calling.md)
 
-> **Read this whole runbook before teaching it.** The concept takes twenty
-> minutes. The remaining ninety are environment failures, and they are
-> *predictable* — which means they're preventable. Cohort 3 lost roughly 45
-> minutes to three specific problems, all listed below.
+> **This session has not been delivered.** Everything below is planned, not
+> observed. Fill in "Notes from cohort 4" the same day you teach it — that section
+> is the highest-value thing in this file and you cannot reconstruct it a month
+> later.
 
-## Before you start — do this the week before, not on the day
+## Why this replaces MCP
 
-- [ ] **Poll Node versions in Slack midweek.** `node -v`. Anyone on 22/24 fixes it
-      before Saturday. This alone recovers most of the lost time.
-- [ ] **Confirm the npm scripts exist** on the canonical branch:
-      ```json
-      "mcp": "npx ts-node mcp-server/index.ts",
-      "mcp:inspect": "npx @modelcontextprotocol/inspector npx ts-node mcp-server/index.ts"
-      ```
-      If they don't, add them first. Cohort 3 had students typing the raw
-      invocation and getting it subtly wrong. `tsconfig.json` already carries the
-      `ts-node` CommonJS + `transpileOnly` block that makes it work.
-- [ ] **Ask who has Claude Desktop.** It's paid. Plan for a mixed room and lead
-      with the Inspector, not the desktop app.
-- [ ] **Fix the hardcoded `INDEX_NAME` in `lib/vector-search.ts`** or warn about it
-      again. It 404s people here for the second time.
-- [ ] Have your own server working *and* a screen-share of it working, in case
-      yours breaks live (it did in cohort 3).
+Worth being explicit with yourself about the trade, because a student will ask.
+
+MCP taught one real idea — a model you never prompted picks your tool — wrapped
+in about ninety minutes of stdio transports, `.js` extensions, Node version
+mismatches and desktop-app restart cycles. Most of cohort 3 never got a server
+connected in the room.
+
+Tool calling teaches the *same* idea with none of that: no subprocess, no
+protocol, no second app, and it runs inside the repo they already have working.
+And it sets up a comparison MCP never could — the same question through a
+hand-rolled workflow and a model-driven loop, side by side.
+
+MCP stays as bonus. Point the two or three people who want Claude Desktop at it.
+
+## Before you start
+
+- [ ] **Confirm deps are on the canonical branch**: `@langchain/langgraph`,
+      `@langchain/openai`, `@langchain/core`. Have someone who did a fresh clone
+      run `npm install` midweek and confirm.
+- [ ] **Your own `buildGraph()` working, on a branch you don't screen-share.**
+      You need it for the payoff demo; you do not want to paste the solution.
+- [ ] **A question you know routes wrong** with a vague tool description, and the
+      rewritten description that fixes it. This is the session's best ten minutes
+      and it is much better rehearsed than improvised.
+- [ ] **A multi-hop question** that the week-3 selector genuinely handles badly —
+      ideally a follow-up like *"and what do her notes say?"* Verify it beforehand.
+- [ ] Open: `app/api/chat/route.ts` (to read the three `if` lines), `lib/graph.ts`,
+      `app/api/chat-graph/route.ts`, `docs/CHALLENGE-LANGGRAPH.md`.
+- [ ] Ask midweek in Slack who actually finished week 3. Anyone whose `/api/chat`
+      doesn't work cannot do the comparison homework, which is the point of the
+      week. Triage those people first.
 
 ## The arc
 
 | Time | What | Notes |
 |---|---|---|
-| 0:00 | Homework review | Light — last week's was big. |
-| 0:10 | **What MCP is** | API for agents, RPC underneath. Ask who's used Figma/GitHub MCP — most have. |
-| 0:20 | **The front-office framing** | Why STAFF sees no PII; the channel *is* the permission. |
-| 0:30 | **Anatomy of a tool** | name / description / inputSchema / handler. Emphasise description-as-interface. |
-| 0:45 | **Build one together** | Walk the provided `query_clinical_notes`, then everyone writes their own. |
-| 1:05 | **Everyone writes a tool** | 15 min hands-on. Calculator, BMI, schedule — anything. |
-| 1:20 | **Run it in the Inspector** | This is where it breaks. Budget generously. |
-| 1:45 | **Claude Desktop** (if time) | Config, restart, the "foreign model picks your tool" moment. |
-| 1:55 | Homework: the capstone doc | |
+| 0:00 | Homework review — the tool-calling videos | 15 min. These were the deliverable; play one or two. Great cold open: they already argued the thing you're about to build. |
+| 0:15 | **The three `if` lines** | Open `route.ts`, read them aloud. "This is what we're replacing. Not the agents — these." |
+| 0:25 | **Workflow vs agent** | The table from the student guide. Reference the week-2 paper. Do NOT frame tool-calling as the upgrade. |
+| 0:40 | **Anatomy of a tool** | name / description / schema / handler. Handler is one line — it calls `runRag`. |
+| 0:50 | **The description IS the routing logic** | The set piece. See below. |
+| 1:05 | **The graph** | Two nodes, one condition, one edge back. Whiteboard it before any code. |
+| 1:20 | **Build it together** | Add the SQL tool + `buildGraph`. Hands on keyboards. |
+| 1:40 | **Read `result.messages`** | Log the whole array on screen and narrate it. |
+| 1:50 | **Same question, both routes** | The payoff. Use your rehearsed multi-hop question. |
+| 1:58 | Homework | Build + comparison table + capstone doc. |
 
-## The three failures that will eat your session
+## The set piece: descriptions as routing logic
 
-Have these on a slide. Say them **before** anyone runs anything.
+Ten minutes, and it's the thing they'll remember.
 
-**1. `Unknown file extension ".ts"`** — Node 22/24. `nvm use 20`. Most common by
-far.
+1. Show the good description for `search_clinical_notes`.
+2. Replace it live with `"searches medical data"`.
+3. Ask the question you rehearsed. Watch it call the wrong tool.
+4. Ask the room *why* — don't tell them.
+5. Put it back. Ask again. It works.
 
-**2. Dropping `.js` from the SDK imports.** It must be
-`@modelcontextprotocol/sdk/server/mcp.js`. Several students removed the extension
-because "it's a TypeScript file." The SDK's package exports resolve `./*`
-verbatim; nothing appends it. Say this preemptively — it's unintuitive and costs
-twenty minutes to diagnose.
+Then land it: **in week 3, routing was a typed boolean you could test. Now it's an
+English paragraph with no type, no test, and no error when it's wrong.** That is
+what you traded for the model's flexibility. Not better, not worse — different,
+and you should know which one you're buying.
 
-**3. The Inspector's transport.** It does not default to STDIO. Students sat on a
-connect screen that never connected. **Point at the dropdown and say "STDIO"
-before anyone clicks connect.**
+## Live-coding checkpoints
 
-Then the second tier:
+1. **The SQL tool.** Let them write the description first, before any code, then
+   compare three of them out loud. Descriptions get better when read aloud next to
+   a competitor.
+2. **`agentNode`.** `model.bindTools(tools)`, `invoke(state.messages)`, return
+   `{ messages: [reply] }`. Three lines; say why it returns an array (the state
+   reducer appends).
+3. **The graph wiring.** Deliberately omit `.addEdge('tools', 'agent')` first. It
+   retrieves and then says nothing. Let them find it. This is the single most
+   instructive bug in the session.
+4. **`result.messages`.** `console.log(JSON.stringify(result.messages, null, 2))`
+   and read it as a story: *it asked for this tool, with these arguments, got this
+   back, then wrote this.*
+5. **Both routes, same question.** Keep `/api/chat` open in a second tab the whole
+   session so this is one click.
+
+## Where it breaks
+
+Predicted from the code — this session hasn't run. Update after you teach it.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `OPENAI_API_KEY is missing` in the Inspector | it doesn't read `.env` | Add vars in its env panel, or `export` them inline |
-| Pinecone 404 | hardcoded `INDEX_NAME` | Point at `process.env.PINECONE_INDEX` |
-| Tool hangs in Claude Desktop, fine in Inspector | **stdout pollution** | Something wrote to stdout — which *is* the JSON-RPC stream. `console.error`, and `config({ quiet: true })` for dotenv's banner |
-| Server never appears in Claude Desktop | relative path or invalid JSON | Absolute path; check `~/Library/Logs/Claude/mcp-server-medical-rag.log` |
-| Config edited, nothing changed | read at launch | Full Cmd-Q and reopen |
-| `searchClinicalNotes not implemented` | student's own week-2 stub | Their week 2 wasn't finished |
-
-**Teaching move that works:** when a student's server fails, have them share
-screen and debug it in front of everyone. Cohort 3 did this repeatedly and each
-fix generalised to two or three other people silently stuck. It's slower for one
-person and much faster for the room.
-
-## The payoff moment — don't skip it
-
-If anyone gets Claude Desktop working, put it on screen. Ask it, in plain
-language, *"what patients have dementia and what are the trends?"* and let the room
-watch a model nobody prompted find the tool, call it, and render a formatted table.
-
-That moment is why the session exists. If your own setup is broken, borrow a
-student's screen.
+| Graph retrieves, then answers with nothing | missing `.addEdge('tools', 'agent')` | Add it. Teach it as checkpoint 3. |
+| `Recursion limit reached` | conditional edge never routes to `END` | Use `toolsCondition`, don't hand-write it |
+| `tool()` call rejected / model can't call it | wrote `parameters:` (AI SDK v4) instead of `schema:` (LangGraph v1) | Both libs are installed; don't mix in one file |
+| `401`/`403` from `ChatOpenAI` | `baseURL` at top level | `configuration: { baseURL: process.env.OPENAI_BASE_URL }` |
+| Model never calls the SQL tool | description doesn't distinguish it from the notes tool | The set piece above, applied |
+| Exact-number answers got worse | the model *chooses* SQL; the selector was forced | Not a bug. Make them report it. |
+| `buildGraph is not implemented` | it throws by design | That's the assignment |
 
 ## Discussion prompts
 
-- *"Who owns the prompt that decides whether your tool gets called?"* → nobody in
-  this room. That's why descriptions are the interface.
-- *"What could go wrong exposing this to any AI on the machine?"* → good, real
-  security discussion; leads into the PII framing.
-- *"Why not just let the caller pass `showPII: true`?"* → a control the caller can
-  switch off is decoration.
-- *"Would you deploy this at your company?"* → cohort 3 had a student building
-  something adjacent for a real clinic; that conversation was worth ten minutes.
+- *"Who decides what runs now?"* → the model. Push until someone is uncomfortable
+  about it. That discomfort is correct.
+- *"Your selector returned a `reason` string. Was it true?"* → it was generated
+  after the decision, to look like a justification. `result.messages` is the
+  actual record. Good, slightly unsettling distinction.
+- *"Should `schedule_appointment` be a tool?"* → the best argument of the session.
+  Week 3 said a human confirms before anything hits the calendar. A tool in the
+  list can be called mid-loop. Someone will propose "make the tool only *propose*"
+  — that's the right answer and let them get there.
+- *"We deleted 4 lines of routing and added a paragraph of English. Better?"* →
+  no single answer. Make them commit to one and give a tradeoff: latency, cost,
+  debuggability, handling the unanticipated.
+- *"Which would you ship at work?"* → most will say the workflow, and they should
+  be able to say why without sounding like they're avoiding the hard thing.
+- *"What would you need to see to change your mind?"* → the eval-set question,
+  one week early. It sets up week 5.
 
 ## Homework to post
 
-**The capstone plan doc, and nothing else.** No code. Post the Google Doc template
-link and tell people to copy it and fill it in.
+Four parts. The full text is in the student guide.
 
-Explicitly offer both tracks — extend the medical system, or build their own. Say
-that most people pick their own and it makes the better portfolio piece. Then give
-them the one instruction that matters: **find the data before you choose the
-idea.**
+1. **Build the graph** (`docs/CHALLENGE-LANGGRAPH.md`)
+2. **Run the week-3 query log through both routes** — the comparison table
+3. **Break one description on purpose** and count the misroutes
+4. **The capstone plan doc** — the template link, both tracks, *find the data
+   before you choose the idea*, and the completeness test (*paste it into Claude
+   and say "build this"; if it needs four clarifying questions, it isn't done*)
 
-And the completeness test: *paste the doc into Claude and say "build this." If it
-needs four clarifying questions, the doc isn't done.*
+**Sell part 2 hardest.** It's the payoff for the logging you pushed in week 3, and
+it's the first time their own eval set does real work. Cohort 3 under-collected
+those pairs and few had a usable log by capstone; if the log is thin, this
+homework is what makes them care.
 
-## Notes from cohort 3
+**Part 4 is the one with a deadline attached** — week 5 is the capstone build
+session and it's wasted for anyone without a plan. Say that explicitly.
 
-- Brian's own MCP server failed to connect during the session while several
-  students' worked. Handle it the way he did — keep moving, debug after. The
-  Inspector fallback is what saved the segment.
-- Roughly half the room stayed 45+ minutes after. Expect it and don't schedule
-  anything after.
-- The Slack post afterwards — *"MCP!!! Holy moly that was tougher than
-  anticipated"* — was the right tone. Naming the difficulty publicly kept nobody
-  feeling singularly incompetent.
-- Consider splitting this into concept (30 min) + a separate hands-on clinic, or
-  moving MCP earlier while energy is higher. It's the strongest candidate for
-  restructuring in cohort 4.
+## Notes from cohort 4
+
+*(Fill this in the day you teach it. Suggested: did the description set piece
+land? Did anyone's comparison table show the workflow winning? Did the
+`schedule_appointment` argument go anywhere good? How long did the graph wiring
+actually take?)*

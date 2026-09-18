@@ -1,11 +1,21 @@
-# Week 4 — MCP: your RAG as a tool other AIs can call
+# Bonus — MCP: your RAG as a tool other AIs can call
 
-**Session:** Saturday · [recording posted in Slack]
+**Not a session. Optional, do it whenever.**
 **Needs:** a working app; optionally Claude Desktop (paid) or Cursor
 
-> Straight from the Slack post afterwards: *"MCP!!! Holy moly that was tougher
-> than anticipated."* Budget patience. The concept is small; the setup is fiddly.
-> The "When it breaks" section below is longer than usual for a reason.
+> ⭐ **This was week 4 in cohort 3. It is bonus material now** — cohort 4 spends
+> that session on [tool-calling with LangGraph](week-4-tool-calling.md) instead.
+>
+> Same underlying idea, different owner of the loop. In week 4 *your* graph holds
+> the tool list and decides. With MCP you publish the tool list over a protocol
+> and somebody else's model — Claude Desktop, Cursor — does the deciding. Do
+> week 4 first; this reads much better afterwards.
+>
+> Straight from the cohort-3 Slack post: *"MCP!!! Holy moly that was tougher than
+> anticipated."* Budget patience. The concept is small; the setup is fiddly, and
+> most of the room never got a server connected inside the session. That's why it
+> isn't a session any more. The "When it breaks" section below is longer than
+> usual for a reason, and it's the reason to keep this file.
 
 ## What we built
 
@@ -49,15 +59,26 @@ server.registerTool(
       topK: z.number().optional().default(10).describe('Number of results'),
     },
   },
-  async ({ query, patientName, topK }) => {
-    const results = await searchClinicalNotes(query, { topK, firstName: patientName?.split(' ')[0] }, true);
-    return { content: [{ type: 'text', text: /* ...obscured... */ }] };
+  async ({ query, patientId, topK }) => {
+    const { rerankedDocuments } = await searchClinicalNotes(query, {
+      topK,
+      patientIds: patientId ? [patientId] : undefined,
+    });
+    return { content: [{ type: 'text', text: formatVectorResults(rerankedDocuments) }] };
   },
 );
 ```
 
 Four parts: **name**, **description**, **input schema**, **handler that returns
 `{ content: [{ type: 'text', text }] }`**.
+
+> Watch the signature: `searchClinicalNotes(query, options)` takes **two**
+> arguments, and its options are `{ topK, topN, patientIds, dateFrom, dateTo }`.
+> There is no `firstName` option and no third "obscure" argument — obscuring
+> happens in the formatter, on the way out. It returns
+> `{ docs, rerankedDocuments }`, **not an array**, so `results.length` is
+> `undefined`. That exact mistake is why `mcp-server/index.ts` didn't compile for
+> most of cohort 3.
 
 **The description is the interface.** You don't own the client's prompt. A model
 you have never prompted picks between your tools using nothing but the names,
@@ -112,40 +133,19 @@ Because this is the front-office channel, responses run through de-identificatio
 before they leave. `lib/pii.ts` has the helpers; `obscureContent` scrubs a whole
 rendered blob with regex.
 
+`obscureContent` is a **TODO you have to write** (`docs/CHALLENGE-PII.md`), and
+until you do, this server throws on its first result. That ordering is on purpose:
+the obscuring is the door, not a decoration you add later.
+
 It is **imperfect by design** — regex misses novel formats — and that's the
 lesson. The defense that matters isn't the regex, it's that the obscuring is
 **not something the caller can switch off**. A control the client can disable is
 decoration.
 
-## Homework — the capstone plan doc
+## No homework
 
-**Only homework this week. No code.**
-
-Make a copy of the [capstone plan template](https://docs.google.com/document/d/1CoJvxoJkfzFb_V3hXYE-YC08wH8a_N8QU1fMDlq4Td0/edit?usp=sharing)
-and fill it in. Post it in the channel.
-
-You have two tracks; pick one:
-
-**Track A — extend this system.** Ship one real addition to the medical app,
-measured. A new front-office tool. Reranking, wired in and justified with a
-number. An obscured-view toggle. Hardening `obscureContent` against a format it
-currently misses.
-
-**Track B — build your own.** A RAG system on data you choose. Most people pick
-this, and it makes the better portfolio piece.
-
-If you're going Track B, the thing that decides your project is **the data, not
-the idea.** Find data you can actually get, in volume, and let it tell you what
-it's good for. A semantic index over 40 documents is a demo — you can't tell good
-retrieval from bad. See [the capstone guide](week-5-capstone-build.md) for where
-to find data and how to scope it.
-
-The doc is short. Five sections: data source, user flow, vector store + chunking +
-metadata, how the data stays fresh, agent architecture.
-
-**The test for whether it's done:** paste it into Claude or Cursor and say "build
-this." If the model needs four clarifying questions before it can start, the doc
-isn't finished — and neither is your thinking.
+The capstone plan doc moved to [week 4](week-4-tool-calling.md), which is where
+that session lives now.
 
 ## When it breaks
 
@@ -162,13 +162,17 @@ of how often it hit people:
   doesn't default to it, and the connect screen just sits there.
 - **Missing env in the Inspector.** It doesn't read your `.env` either — add each
   variable in its env panel, or run it from a shell that has them exported.
-- **404 on the Pinecone index.** `lib/vector-search.ts` has a hardcoded
-  `INDEX_NAME` that isn't yours. Same bug as week 2, new blast radius.
+- **404 on the Pinecone index.** `PINECONE_INDEX` isn't reaching the subprocess.
+  (In cohort 3 this was a hardcoded `INDEX_NAME` in `lib/vector-search.ts`; that's
+  fixed — it reads `process.env.PINECONE_INDEX` now. So if you get a 404 here,
+  it's the env block in your client config, not the code.)
 - **The tool hangs in Claude Desktop but works in the Inspector.** Something wrote
   to **stdout** — which *is* the JSON-RPC stream on a stdio transport. One stray
-  byte and the client drops the server. This is why `mcp-server/index.ts` calls
-  `config({ quiet: true })` (dotenv's startup banner goes to stdout) and logs with
-  `console.error`, not `console.log`.
+  byte and the client drops the server, silently. `mcp-server/index.ts` logs with
+  `console.error` for exactly this reason. If you add dotenv yourself, load it as
+  `config({ quiet: true })` — its startup banner goes to stdout and will break the
+  transport. (The server does **not** load dotenv today; env comes from the client
+  config's `env` block.)
 - **Server never appears in Claude Desktop.** Invalid JSON in the config, or a
   relative path. Check `~/Library/Logs/Claude/mcp-server-medical-rag.log`.
 - **You edited the config and nothing changed.** Full quit (Cmd-Q) and reopen.
@@ -183,4 +187,5 @@ of how often it hit people:
   a sensible response.
 - You added at least one tool of your own beyond the provided example.
 - You can explain why a caller-supplied "hide PII" flag would be worthless.
-- Your capstone plan doc is posted.
+- You can say what MCP gives you that your week-4 graph doesn't, in one sentence.
+  (Hint: it isn't capability. It's who owns the client.)
