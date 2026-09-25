@@ -92,7 +92,7 @@ interface Patient { id: string; firstName: string | null }
 
 ## Project Architecture
 
-- **Neon PostgreSQL**: structured medical data (patients, conditions, observations, medications, notes, encounters) — the system of record. **Each student owns their own** (`npm run db:push && npm run db:seed`); there is no shared read-only instance any more.
+- **Neon PostgreSQL**: structured medical data (patients, conditions, observations, medications, notes, encounters) — the system of record. **Each student gets their own writable Neon branch of the course database, provisioned for them and already loaded.** There is no shared read-only instance, and students never run `db:push` or `db:seed` — those are instructor tooling for building the golden branch (`docs/INSTRUCTOR-DB.md`). Student setup is `npm run setup` = `db:generate` + `doctor`.
 - **Pinecone**: vector search over the clinical notes — a *derived* index, rebuildable from Postgres via `npm run vectorize`.
 - **Prisma ORM**: type-safe database access.
 - **The chat pipeline** — one file per agent in `lib/agents/`, orchestrated by `app/api/chat/route.ts` (the route IS the orchestrator): **selector** (pure routing — `Plan { useSql, useRag, needsSearch, semanticQuery }`, no entity extraction) → **sql ‖ rag** run in parallel (each returns TEXT) → **aggregator** (the ONLY streamer; short-circuits to a direct answer when `needsSearch` is false). `lib/agent.ts` holds only the shared `Message` type.
@@ -143,12 +143,17 @@ From week 4 the agent can change records. Three non-negotiables:
 - **The model proposes; a human confirms.** A write tool returns a proposal;
   a separate confirmed route performs it and sets `humanConfirmed: true`.
 
+These are load-bearing, not stylistic: `npm run db:reset` restores a student's
+database by replaying `audit_log.before` backwards. A write that skips the audit
+row, or hard-deletes, is a write that cannot be undone — students have no seed
+file to fall back on.
+
 Retracting a note is *two* writes — Postgres and Pinecone — and they can't be
 atomic. Ordering and failure handling are part of the lesson, not an oversight.
 
 ## Data Source
 
-Synthea Coherent Dataset — statistically realistic, **fully synthetic (zero PHI)**. A **~200-patient subset** (fits the Neon free tier), ~21k SOAP-style clinical notes. Each student loads it into their own database with `npm run db:seed`; the instructor regenerates the seed artifact with `npm run db:export-seed`.
+Synthea Coherent Dataset — statistically realistic, **fully synthetic (zero PHI)**. A **~200-patient subset**, ~21k SOAP-style clinical notes, pre-loaded in every student's branch. The instructor builds the golden branch with `db:push` + `db:seed` and regenerates the seed artifact with `db:export-seed` — see `docs/INSTRUCTOR-DB.md`.
 
 ## PII Obscuring
 

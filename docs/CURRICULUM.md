@@ -18,7 +18,7 @@ guess. Together they free roughly four hours of live time.
 |---|---|---|
 | **Building an MCP server** | ~90 min of session 4, mostly failed | Node-version and `ts-node` resolution errors ate the session and most people never saw it work. It's also not a skill that pays: you consume MCP servers far more often than you write one. Replaced by a 10-minute explainer in week 6 — see [MCP-NOTE.md](MCP-NOTE.md). |
 | **Retell / voice-AI agent** | a bonus session outside the six weeks | Fun demo, no transferable concept that tool calling doesn't already teach. Gone from the repo. |
-| **Environment setup during class** | ~75 min of session 1, recurring after | Now pre-work, with `npm run doctor` naming the broken thing instead of twenty people screen-sharing in turn. |
+| **Environment setup during class** | ~75 min of session 1, recurring after | Now pre-work, with `npm run doctor` naming the broken thing instead of twenty people screen-sharing in turn. The database arrives loaded, so there's no schema push and no seed to go wrong. |
 | **Bulk `vectorize` of 21k notes live** | ~45 min of session 1 | Still done in week 1, but on `--limit 200` in class and the full run in the background. Nobody watches a progress bar together. |
 | **Hand-rolled streaming + `X-Scheduling-Action` header** | ~25 min of session 3, called "black magic" on the recording | The header hack taught us nothing about agents. Week 4 sends a normal JSON response for the confirm card and keeps streaming for prose. |
 | **Deep prompt-injection module** | had a whole slot | Compressed to a 40-minute live demo in week 5. One poisoned document, watched hijacking the answer, then defended. That's the lesson; the rest was surface area. |
@@ -27,8 +27,10 @@ guess. Together they free roughly four hours of live time.
 
 ## What we added
 
-- **Your own database.** `npm run db:push && npm run db:seed`. No shared
-  read-only connection string.
+- **A writable database each.** We fork the course database per student (Neon
+  branching), so everyone gets their own pre-loaded copy — no shared read-only
+  connection string, no seeding, and a write is something you can practise.
+  See [INSTRUCTOR-DB.md](INSTRUCTOR-DB.md) for how they're provisioned.
 - **Evals from week 2**, not week 6. Every architecture decision after week 2
   gets defended with a number.
 - **Tool calling as a real week**, built against the workflow so students can
@@ -55,23 +57,24 @@ after they added reranking.
 
 ---
 
-## Week 0 — before the first session (async, ~40 min)
+## Week 0 — before the first session (async, ~20 min)
 
-Everything that used to eat session 1.
+Everything that used to eat session 1. It's short because we hand you the
+database.
 
-1. Accounts: [Neon](https://neon.com), [Pinecone](https://pinecone.io),
+1. Accounts: [Pinecone](https://pinecone.io),
    [OpenAI](https://platform.openai.com) (or the class proxy key),
-   [LangSmith](https://smith.langchain.com).
-2. `git clone` → `npm install` → `cp .env.example .env` → fill it in.
-3. `npm run setup` — generates the Prisma client, creates the tables in **your**
-   Neon database, loads the dataset, then runs the doctor.
-4. `npm run doctor` until it's green. Paste the output in Slack if it isn't.
+   [LangSmith](https://smith.langchain.com). **No Neon account needed** — your
+   database is provisioned for you.
+2. `git clone` → `npm install` → `cp .env.example .env`.
+3. Paste the `DATABASE_URL` from Slack. It points at your own private branch of
+   the course database, already carrying the schema and all ~21k notes.
+4. `npm run setup` → `npm run doctor` until it's green. Paste the output in Slack
+   if it isn't.
 
 **The bar for session 1:** `npm run doctor` prints green for node, .env,
-postgres and openai. Pinecone will warn that your index is empty — that's
-correct, you build it in class.
-
----
+postgres and openai, and reports the patient and note counts. Pinecone will warn
+that your index is empty — that's correct, you build it in class.
 
 ## Week 1 — Vector stores: embeddings, chunking, your own index
 
@@ -153,7 +156,7 @@ before it can change a patient record?
 |---|---|
 | 0:20 | Human-in-the-loop as a pattern. Where the confirm step goes, and why the model proposes rather than acts. |
 | 0:30 | Scheduling: intent extraction → a confirm card → the user clicks → `/api/schedule` calls Cal.com. A plain JSON response, no header smuggling. |
-| 0:45 | **Write tools.** `flag_patient_for_follow_up`, `soft_delete_note`, `update_patient_contact`. Every one: reversible, audited, confirmed. Nothing in this codebase issues a `DELETE`. |
+| 0:45 | **Write tools.** `flag_patient_for_follow_up`, `soft_delete_note`, `update_patient_contact`. Every one: reversible, audited, confirmed. Nothing in this codebase issues a `DELETE` — which is exactly why `npm run db:reset` can put your database back without a seed file. Run it and read what it prints. |
 | 0:20 | Why your database being writable moved the safety boundary into `lib/agents/read-only.ts`. Read the guard, then try to get past it. |
 | 0:20 | The two-write problem: retracting a note means Postgres **and** Pinecone. Do one and the note stays searchable. What order, and what happens when the second write fails? |
 | 0:15 | Capstone kickoff — the design doc, due end of week. |

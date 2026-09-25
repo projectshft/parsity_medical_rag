@@ -7,14 +7,11 @@
 		"build": "next build",
 		"start": "next start",
 		"lint": "next lint",
-		"setup": "npm run db:generate && npm run db:push && npm run db:seed && npm run doctor",
+		"setup": "npm run db:generate && npm run doctor",
 		"doctor": "tsx scripts/doctor.ts",
 		"db:generate": "prisma generate",
-		"db:push": "prisma db push",
-		"db:seed": "tsx scripts/db/seed.ts",
 		"db:reset": "tsx scripts/db/reset.ts",
 		"db:studio": "prisma studio",
-		"db:export-seed": "tsx scripts/db/export-seed.ts",
 		"vectorize": "tsx scripts/vectorize.ts",
 		"similarity": "tsx scripts/similarity.ts",
 		"test": "vitest",
@@ -24,7 +21,10 @@
 		"bible:fixed": "tsx scripts/bible/chunk-fixed.ts",
 		"bible:smart": "tsx scripts/bible/chunk-smart.ts",
 		"bible:audit": "tsx scripts/bible/audit.ts",
-		"security:poisoned": "tsx scripts/security/demo-poisoned-docs.ts"
+		"security:poisoned": "tsx scripts/security/demo-poisoned-docs.ts",
+		"db:push": "prisma db push",
+		"db:seed": "tsx scripts/db/seed.ts",
+		"db:export-seed": "tsx scripts/db/export-seed.ts"
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "^1.2.0",

@@ -3,8 +3,20 @@
 Everything the agent has done so far is read-only. This week it starts writing —
 carefully, reversibly, and never without a human clicking a button.
 
-The database is yours, so a mistake here is real. That's the point. `npm run
-db:reset` puts it back.
+The database is yours, so a mistake here is real. That's the point — and
+`npm run db:reset` puts it back.
+
+Look at *how* it puts it back, because it's the argument for this week's whole
+design. Your database arrived pre-loaded as a branch of the course database; you
+never ran a seed and you don't have the dataset on disk. So `db:reset` can't
+reload anything. Instead it walks `audit_log` backwards and restores each
+`before` value, then clears any soft deletes left behind. **The data needed to
+repair your database is already inside your database** — because nothing was
+destroyed and every change recorded what it overwrote.
+
+Try `npm run db:reset -- --dry-run` after your first write and read the output.
+If it ever says a change had "no audit trail", that's a bug in your write tool,
+and one of the tests below exists to catch it.
 
 ## The rule
 

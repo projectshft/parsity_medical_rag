@@ -24,23 +24,24 @@ acts on it.
 
 ## Setup
 
-You need **Node 20+** and accounts on [Neon](https://neon.com),
-[Pinecone](https://pinecone.io), [OpenAI](https://platform.openai.com) (or the
-class proxy key) and [LangSmith](https://smith.langchain.com).
+You need **Node 20+**, plus accounts on [Pinecone](https://pinecone.io),
+[OpenAI](https://platform.openai.com) (or the class proxy key) and
+[LangSmith](https://smith.langchain.com).
 
-**Everything is yours this cohort** — your own database, your own indexes. Break
-whatever you like; `npm run db:reset` puts it back.
+**We provide the database.** You get a connection string in Slack pointing at
+your own private Neon branch of the course database — schema and all ~21k
+clinical notes already in it. Nothing to create, nothing to load. It's yours and
+it's writable, so you can break it.
 
 ```bash
 git clone <repo-url> && cd parsity_medical_rag
 npm install
-cp .env.example .env      # then fill it in — see the comments in that file
-npm run setup             # creates your tables, loads the dataset, checks everything
+cp .env.example .env      # paste your DATABASE_URL and keys — see the comments in that file
+npm run setup             # builds the Prisma client, then checks every service
 ```
 
-`npm run setup` runs four things in order: `db:generate` (builds the Prisma
-client locally), `db:push` (creates the tables in **your** Neon database),
-`db:seed` (loads ~200 patients and ~21k notes), and `doctor`.
+That's it. `npm run setup` is short now: `db:generate` (local codegen — it does
+not touch the database) followed by `doctor`.
 
 When something's wrong:
 
@@ -53,7 +54,8 @@ optional services, and tells you which one is broken and how to fix it. Paste
 its output into Slack if you're still stuck — it's far more useful than
 "it doesn't work."
 
-Then:
+Expect one warning on day one: your Pinecone index is empty. That's correct —
+you build it in week 1.
 
 ```bash
 npm run dev               # http://localhost:3000
@@ -63,16 +65,24 @@ npm run dev               # http://localhost:3000
 
 | Command | What it does |
 |---|---|
-| `npm run setup` | The whole first-time path. Run this once. |
+| `npm run setup` | First-time path: Prisma client + health check. |
 | `npm run doctor` | Check every service; name what's broken. |
-| `npm run db:push` | Create/update tables in your database. |
-| `npm run db:seed` | Load the course dataset. Safe to re-run. |
-| `npm run db:reset` | Wipe and reseed. Your undo button. |
+| `npm run db:reset` | Undo every write the agent made. Your week 4 undo button. |
 | `npm run db:studio` | Browse your data in a UI. |
 | `npm run vectorize` | Build your Pinecone index from your Postgres. `-- --limit 200` for a cheap slice. |
 | `npm run similarity` | Embeddings playground — week 1. |
 | `npm run test:run` | Unit tests + fast evals. No network, no cost. |
 | `npm run test:evals` | LLM-as-judge evals. Real API calls. |
+
+`db:reset` works without a seed file: nothing in this codebase ever issues a
+`DELETE`, and every write records its previous value in `audit_log`, so the data
+needed to restore your database is already in your database. It'll also tell you
+if it finds a change with no audit trail — that's a bug in your write tool, and
+week 4 explains why.
+
+`db:push`, `db:seed` and `db:export-seed` also exist, but they're how *we* build
+the course branch — see [docs/INSTRUCTOR-DB.md](docs/INSTRUCTOR-DB.md). You
+won't need them unless your capstone uses its own data.
 
 Scripts run on [`tsx`](https://tsx.is), so they work on any Node 20+ without
 `ts-node` configuration.
@@ -98,7 +108,7 @@ to Slack. The code is the easy half — the reasoning is the assignment.
 ## Architecture
 
 - **Neon Postgres** — the system of record. Patients, conditions, observations,
-  medications, encounters, notes.
+  medications, encounters, notes. One branch per student, provided.
 - **Pinecone** — a *derived* index over the clinical notes. Rebuildable at any
   time with `npm run vectorize`.
 - **Prisma** — type-safe database access.
@@ -116,7 +126,7 @@ lib/
   security/       content validation
   pii.ts          de-identification (week 5 — currently stubs)
 scripts/
-  db/             seed, reset, export (your database)
+  db/             reset (yours), seed + export (how the course branch is built)
   bible/          the week 1 chunking lab
   security/       the poisoned-document demo
 docs/             the curriculum and the weekly challenges
@@ -129,7 +139,8 @@ visuals/          open visuals/index.html — vector search, chunking, reranking
 
 The [Synthea Coherent Dataset](https://synthea.mitre.org/) — statistically
 realistic and **fully synthetic**. Zero real people, zero PHI, so we get to
-practise on medical data that's safe to break.
+practise on medical data that's safe to break. ~200 patients and ~21k SOAP-style
+clinical notes, already loaded in your branch.
 
 ---
 

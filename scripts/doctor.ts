@@ -64,11 +64,11 @@ async function main() {
 		},
 	);
 
-	// --- Postgres: is it yours, does it have tables, does it have rows? -----
+	// --- Postgres: is it your branch, and does it have the data? ------------
 	const prisma = new PrismaClient();
 	await check(
 		'postgres',
-		'Check DATABASE_URL, then run `npm run db:push && npm run db:seed`.',
+		'Re-copy the DATABASE_URL your instructor posted in Slack — the whole string, including the ?sslmode=require at the end.',
 		async () => {
 			if (!process.env.DATABASE_URL) {
 				return { status: 'fail', detail: 'DATABASE_URL is not set' };
@@ -78,9 +78,12 @@ async function main() {
 			const patients = await prisma.patient.count();
 			const notes = await prisma.note.count();
 			if (patients === 0) {
+				// Your branch ships pre-loaded, so an empty database means the URL
+				// points somewhere else — usually a personal Neon project, or the
+				// default `neondb` on the right server instead of the course database.
 				return {
 					status: 'fail',
-					detail: `connected to ${host}, but it's empty — run \`npm run db:seed\``,
+					detail: `connected to ${host}, but there are no patients — this isn't your course branch`,
 				};
 			}
 			return {
