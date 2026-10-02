@@ -169,6 +169,45 @@ model Encounter {
 //   "how many patients had a heart attack?"                 -> ILIKE '%Myocardial Infarction%'      -> 25  (lay term -> SNOMED, from grounding)
 //   "count patients on a statin"                            -> ILIKE '%statin%' AND status='active' -> 93  (lay term -> drug, + active filter)
 // Skip lab-threshold queries (e.g. "glucose over 150") — the data is almost all normal readings, so they return ~1 row.
+/**
+ * Accept exactly one read-only SELECT, or throw.
+ *
+ * Comments are stripped first — otherwise `-- ` and block comments hide the
+ * payload from the keyword scan. The write-keyword check runs BEFORE the
+ * "starts with SELECT" check so the error names the real problem ("contains
+ * DELETE") rather than the symptom, and so a writing CTE —
+ * `WITH x AS (DELETE ... RETURNING *) SELECT * FROM x` — can't open innocently.
+ */
+export function assertReadOnly(sql: string): string {
+	const trimmed = sql.trim().replace(/;\s*$/, '');
+	if (!trimmed) throw new Error('Refused model SQL: the query was empty');
+
+	const bare = trimmed
+		.replace(/--[^\n]*/g, ' ')
+		.replace(/\/\*[\s\S]*?\*\//g, ' ');
+
+	// A stray `;` is how one SELECT becomes a SELECT and a DROP.
+	if (bare.includes(';')) {
+		throw new Error('Refused model SQL: more than one statement');
+	}
+
+	const write =
+		/\b(insert|update|delete|drop|truncate|alter|create|grant|revoke|copy|vacuum|call|do|merge|set|reindex|refresh|comment|listen|notify|lock)\b/i.exec(
+			bare,
+		);
+	if (write) {
+		throw new Error(
+			`Refused model SQL: contains the write keyword "${write[0].toUpperCase()}"`,
+		);
+	}
+
+	if (!/^\s*(select|with)\b/i.test(bare)) {
+		throw new Error('Refused model SQL: does not start with SELECT');
+	}
+
+	return trimmed;
+}
+
 export async function runSql(
 	query: string,
 	history: Message[] = [],
@@ -211,22 +250,18 @@ export async function runSql(
 	const { sql } = SqlSchema.parse(response.output_parsed);
 	console.log(`[sql agent] ${sql}`);
 
-	// TODO (guardrail) — write `assertReadOnly(sql)` and call it here.
+	// INSTRUCTOR SOLUTION to the week-3 guardrail TODO.
 	//
-	// Read the next line again: a string an LLM wrote, executed with
-	// $queryRawUnsafe. The prompt says "SELECT only" — a prompt is a request,
-	// not a constraint. Nothing on this path enforces it.
+	// The line below executes a string an LLM wrote, via $queryRawUnsafe. The
+	// prompt says "SELECT only" — but a prompt is a request, not a constraint.
 	//
-	// Accept exactly one statement, and only if it starts with SELECT: no
-	// semicolons (that's how you smuggle a second statement), no INSERT/UPDATE/
-	// DELETE/DROP/ALTER/TRUNCATE/GRANT, no CTE that hides a write. Throw
-	// otherwise — failing loudly beats running it.
-	//
-	// Then notice the guardrail that's ALREADY doing the real work: DATABASE_URL
-	// points at `student_ro`, a role with SELECT and nothing else. Even a perfect
-	// bypass of your validator hits a permission error. That ordering is the
-	// lesson — the database enforces, the validator explains.
-	const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(sql);
+	// Teach the ordering, because it's the actual lesson: DATABASE_URL points at
+	// `student_ro`, a role with SELECT and nothing else, so even a perfect bypass
+	// of this function hits a permission error. The DATABASE enforces; this
+	// validator explains. A validator alone would be security theatre.
+	const safeSql = assertReadOnly(sql);
+
+	const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(safeSql);
 	if (rows.length === 0) return 'SQL result: 0 rows — nothing matches.';
 
 	return (

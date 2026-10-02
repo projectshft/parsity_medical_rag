@@ -1,0 +1,144 @@
+# Chunking: Why Our Notes Don't Need It (and Most Text Does)
+
+**Needs: nothing new — a notes file and the intuition from this week**
+
+## Today you will
+
+- Name the one question chunking answers, and see why our notes already answer it
+- Understand why a giant document embedded whole "means everything and matches nothing"
+- Set up the homework: chunk the Bible and store it in your own Pinecone index
+
+## Concept
+
+Every meaning-based search operates on **pieces of text**. A question gets matched against stored pieces, and the best-matching pieces are what the system retrieves. That forces a question someone has to answer for every corpus:
+
+**What is one piece?**
+
+You already made this decision this week — without agonizing over it — when you vectorized. Each note became **one vector**. That was the right call, and here's why.
+
+A piece that's **too big** matches everything a little and nothing well: a 40-page document "mentions" diabetes, sleep, surgery, and billing, so it's a mediocre match for all of them. A piece that's **too small** is precise but useless on arrival: `"And he said unto them"` matches confidently and tells you nothing — said what? to whom?
+
+A clinical note sits in the sweet spot. It's one encounter, one date, one topic, ~940 characters, self-contained. Splitting it would only break it; padding several together would blur it. So **one note = one piece**, and the "chunking step" is a no-op. You proved that by measuring: the notes average ~940 characters — already the right size.
+
+**Chunking** is the act of splitting documents into retrieval-sized pieces. The part most tutorials skip: *whether you need it at all is a property of your corpus, not a mandatory pipeline step.* Our corpus is pre-jointed into notes, so we don't.
+
+### The opposite corpus
+
+To *learn* chunking you need a corpus that actually demands it — the opposite shape of our notes. The King James Bible is perfect:
+
+| | Our clinical notes | The King James Bible |
+|---|---|---|
+| Documents | ~21,090 separate notes | **1** document |
+| Size each | ~940 characters | **4.3 million** characters |
+| Natural piece | the whole note | ??? — that's the question |
+| Chunking needed? | **No** — already a piece | **Yes** — unavoidably |
+
+Embed the whole Bible as a single vector and it "means" the average of everything ever written in it — creation, law, poetry, genealogy, apocalypse. It matches *every* query weakly and *no* query strongly. Same failure as concatenating one patient's 113 notes into one blob. You must split it. But **where?** Every 500 characters (slicing words in half)? At every verse? Every chapter? That decision — where to cut, and what to carry with each piece — *is* chunking, and it's a craft with real trade-offs.
+
+That contrast is the whole point: **decide from the corpus in front of you, not from habit.** Our notes taught you "don't chunk." The Bible will teach you "how to chunk when you must."
+
+```visual
+chunking | Try the strategies on real text — watch what fixed-size cuts do to sentences, and what too-big and too-small pieces do to retrieval
+```
+
+## Implementation
+
+There's no build today — this lesson sets up the homework. Take five minutes to see the shape of the corpus you'll work with:
+
+```bash
+npm run bible:fetch
+head -120 data/bible/kjv.txt
+```
+
+Notice three things the homework will reckon with:
+
+- A Project Gutenberg license header before `*** START OF THE PROJECT GUTENBERG EBOOK ***` — not scripture; the provided parser strips it for you.
+- Book titles as plain lines: `The First Book of Moses: Called Genesis`.
+- Every verse prefixed `chapter:verse` — `1:1 In the beginning…` — built-in structure markers you can cut along, if you choose to.
+
+The scaffolding lives in `scripts/bible/`: the parser (`parse.ts` — `loadVerses()` hands you every verse as `{ book, chapter, verse, text }`), a deliberately naive fixed-size chunker (`npm run bible:fixed`) to learn from, an open stub where your chunker can go (`chunk-smart.ts`), and an optional measuring tool (`npm run bible:audit`). The strategy itself is yours to design — that's the assignment, not the scripts. For now, just skim what's there.
+
+### Common mistakes
+
+- **Chunking by habit.** "Step 2 of every RAG tutorial is chunking" — no. It's a *decision*. For short, self-contained documents the right chunk count is one. Blindly splitting 450-character notes into 200-character fragments destroys meaning for nothing.
+- **Trusting the average alone.** An average of 450 characters could hide a few 50,000-character monsters. You need the distribution — the *max*, not just the mean — before you decide.
+- **Thinking "bigger piece = more context = better."** A too-big piece matches everything weakly. Granularity is a trade-off with two bad ends, not a dial you turn up.
+
+## Your turn
+
+Spend **no more than 20 minutes** here — this is orientation, not the assignment.
+
+1. Run `npm run bible:fetch` and confirm the size (`wc -c data/bible/kjv.txt` — about 4.4 million bytes).
+2. In your notes, answer: our notes are ~940 chars and we made each one a piece. If a corpus averaged 80,000 characters per document, chunk or not? What if it averaged 300? State the rule you're using.
+3. Read the homework brief in `homework-bible-chunking.md` (the assignment of record is `docs/CHALLENGE-CHUNKING.md` in your repo) so you know what's coming.
+
+```quiz
+[
+  {
+    "q": "What goes wrong when a retrieval piece is too big — say, a 40-page document embedded as one vector?",
+    "options": [
+      "The embedding API rejects it for exceeding the token limit",
+      "It means the average of everything in it — matching every query a little and no query well",
+      "It costs too much to embed, so big pieces are a budget problem, not a quality one",
+      "Nothing — more context in a piece always makes retrieval better"
+    ],
+    "answer": 1,
+    "explain": "A document that mentions diabetes, sleep, surgery, and billing is a mediocre match for all of them. 'Bigger piece = more context = better' is the trap: granularity is a trade-off with two bad ends, not a dial you turn up."
+  },
+  {
+    "q": "Why is the chunking step a no-op for our clinical notes?",
+    "options": [
+      "Pinecone chunks documents automatically on upsert",
+      "Medical text is too sensitive to split legally",
+      "Each note is already one self-contained encounter at ~940 characters — the natural retrieval-sized piece; splitting would break it, merging would blur it",
+      "The notes are too short for the embedding model to split"
+    ],
+    "answer": 2,
+    "explain": "Whether you need chunking is a property of the corpus, not a mandatory pipeline step. 'Step 2 of every RAG tutorial is chunking' is habit, not analysis — our corpus arrived pre-jointed into pieces; the Bible is one 4.3M-character document and must be cut."
+  },
+  {
+    "q": "A corpus averages 450 characters per document. Safe to skip chunking?",
+    "options": [
+      "Yes — 450 is well inside the sweet spot, decision made",
+      "No — always chunk; every production RAG pipeline does",
+      "Not yet — an average can hide a few 50,000-character monsters; check the distribution (especially the max) before deciding",
+      "Yes, but only if the corpus is medical text"
+    ],
+    "answer": 2,
+    "explain": "Trusting the mean alone is the measurable version of chunking by habit. One outlier document that 'means everything and matches nothing' can poison retrieval — you decide from the distribution of the corpus in front of you, not from a single summary number."
+  }
+]
+```
+
+## Check yourself
+
+- In one sentence: what goes wrong when a piece is too big? Too small?
+- Why is "one note = one piece" correct for our notes but wrong for the whole Bible?
+- What decision, exactly, is "chunking"?
+
+<details>
+<summary>Solution / discussion</summary>
+
+**Too big** matches everything weakly (a 40-page doc is a mediocre match for each of its many topics). **Too small** matches precisely but delivers nothing usable (`"And he said unto them"`). Chunking is the search for the size in between — *for this corpus*.
+
+**One note vs the whole Bible:** a note is already one self-contained encounter at ~940 chars — the natural piece. The Bible is one 4.3-million-character document spanning every topic; as a single vector it means the average of all of them and matches nothing sharply. The corpus decides, and these two corpora decide oppositely.
+
+**Chunking** is deciding *where to split a document into retrieval-sized pieces* — and what metadata each piece carries so it can be cited, filtered, and traced. It's a set of trade-offs, not a default step.
+
+</details>
+
+## Deliverable 🎥 (end of week)
+
+Record **2–3 minutes** (phone is fine): explain, in your own words, **why keyword/SQL search isn't enough, and what a vector fixes.**
+
+A strong one uses this week's concrete case — *"a clinician searches 'shortness of breath'; the note says 'dyspnea on exertion'; `LIKE` returns 0 rows; the embedding puts them ~0.7 apart, so meaning-search finds it"* — and names the mental model: **Postgres is the source of truth, the vector store is a derived, searchable projection of it.** Bonus if you mention that cosine measures direction, not keyword overlap.
+
+Graded against one question: *can you explain the keyword-vs-meaning gap with a real example, not just repeat "vectors are numbers"?* A weak video defines an embedding as "a list of 1,536 numbers" and stops — that's a definition, not an understanding. A strong one shows the *miss* keyword search makes and *why* the vector doesn't.
+
+**Submit:** [Typeform — submission](https://form.typeform.com/to/PLACEHOLDER-W1) <!-- PLACEHOLDER: replace with real Typeform URL -->
+
+Your other deliverable this block is the chunking homework — chunk the Bible, store it in your own Pinecone index, and record its own short video; see `homework-bible-chunking.md`. (Searching what you stored comes next class.)
+
+## Further reading (optional)
+
+- [Pinecone: Chunking strategies](https://www.pinecone.io/learn/chunking-strategies/) — a map of the strategy space the homework walks through. (The homework brief carries the fuller reading list.)

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 
 import { buildGraph } from '@/lib/graph';
 
@@ -16,9 +17,9 @@ const ChatGraphRequestSchema = z.object({
 });
 
 /**
- * The tool-calling channel — YOUR TASK.
+ * The tool-calling channel — INSTRUCTOR REFERENCE SOLUTION.
  *
- * Week 4 · assignment: docs/CHALLENGE-LANGGRAPH.md
+ * Week 4 · student exercise: docs/CHALLENGE-LANGGRAPH.md
  *
  * Same contract as `/api/chat` (same body in, streamed text out) so you can
  * point the UI at either one and compare answers on the same question. The
@@ -26,11 +27,10 @@ const ChatGraphRequestSchema = z.object({
  * route orchestrates nothing. It hands the graph the conversation and gets an
  * answer back. The model chose what to call.
  *
- * Steps:
- *   1. accept the message + history   (done — parsed below)
- *   2. build the graph                (lib/graph.ts → buildGraph)
- *   3. turn `messages` + `query` into LangChain messages and invoke it
- *   4. stream the final answer back
+ * Building the graph per request is deliberate: it costs nothing (object wiring,
+ * no network) and it means editing a tool description shows up on the next
+ * request without a restart — which is exactly what the description set piece
+ * in the runbook needs. In production you'd compile once at module scope.
  */
 export async function POST(request: Request) {
 	try {
@@ -40,29 +40,61 @@ export async function POST(request: Request) {
 
 		const graph = buildGraph();
 
-		// TODO — run the graph and return its answer.
-		//
-		// Import `HumanMessage` / `AIMessage` from '@langchain/core/messages' and
-		// map `messages` onto them (role 'user' -> Human, 'assistant' -> AI),
-		// then append the new `query` as a HumanMessage.
-		//
-		// Start with the simple version and prove the loop works:
-		//
-		//   const result = await graph.invoke({ messages: [...history, new HumanMessage(query)] });
-		//   const answer = result.messages.at(-1)?.content;
-		//
-		// `result.messages` is the WHOLE trace — the model's tool requests, the
-		// tool results, and the final answer. Log it once and read it; that list
-		// is the clearest picture of tool-calling you will get, and it's what you
-		// compare against the selector's `{ useSql, useRag }` decision.
-		//
-		// Then make it stream, so this route behaves like the other one:
-		// `graph.stream(input, { streamMode: 'messages' })` yields message chunks
-		// you can pipe into a Response. (The AI SDK's `streamText` is not in play
-		// here — LangGraph does its own streaming.)
-		throw new Error(
-			'Not implemented — your turn! (app/api/chat-graph/route.ts)',
+		const history = messages.map((m) =>
+			m.role === 'user'
+				? new HumanMessage(m.content)
+				: new AIMessage(m.content),
 		);
+
+		// `streamMode: 'messages'` yields [chunk, metadata] as the model produces
+		// tokens. We forward only chunks from the `agent` node: tool output is
+		// intermediate reasoning, and streaming it would dump raw retrieved notes
+		// into the chat window.
+		//
+		// Teaching note: `graph.invoke()` + `result.messages.at(-1)` is the version
+		// to show FIRST. Get the loop working, log the whole trace, read it as a
+		// story. Streaming is polish and it hides the thing worth seeing.
+		const stream = await graph.stream(
+			{ messages: [...history, new HumanMessage(query)] },
+			{ streamMode: 'messages' },
+		);
+
+		const encoder = new TextEncoder();
+		const body = new ReadableStream<Uint8Array>({
+			async start(controller) {
+				try {
+					for await (const [chunk, metadata] of stream as AsyncIterable<
+						[{ content?: unknown }, { langgraph_node?: string }]
+					>) {
+						if (metadata?.langgraph_node !== 'agent') continue;
+						// Chunks emitted mid-tool-call carry no text.
+						const text =
+							typeof chunk?.content === 'string' ? chunk.content : '';
+						if (text) controller.enqueue(encoder.encode(text));
+					}
+					controller.close();
+				} catch (err) {
+					// Headers are already sent, so the status can't change. Surfacing
+					// the message beats a truncation that looks like the model just
+					// stopped talking mid-sentence.
+					controller.enqueue(
+						encoder.encode(
+							`\n\n[graph error: ${
+								err instanceof Error ? err.message : String(err)
+							}]`,
+						),
+					);
+					controller.close();
+				}
+			},
+		});
+
+		return new Response(body, {
+			headers: {
+				'Content-Type': 'text/plain; charset=utf-8',
+				'Cache-Control': 'no-cache',
+			},
+		});
 	} catch (error) {
 		if (error instanceof z.ZodError) {
 			return NextResponse.json({ error: error.message }, { status: 400 });

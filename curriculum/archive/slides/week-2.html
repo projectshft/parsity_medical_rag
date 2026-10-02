@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Week 2 — Retrieval, reranking &amp; your first agent · RAG &amp; AI Agents</title>
+<style>
+  :root {
+    --ink: #1b2330;
+    --muted: #5b6675;
+    --line: #e3e7ec;
+    --bg: #ffffff;
+    --panel: #f6f8fa;
+    --accent: #2563eb;       /* calm blue, no purple */
+    --code-bg: #f4f6f8;
+    /* engagement-mode accents, all muted */
+    --discuss: #b45309;      /* amber */
+    --code: #2563eb;         /* blue */
+    --challenge: #15803d;    /* green */
+    --research: #475569;     /* slate */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .deck { height: 100vh; position: relative; }
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 5vh 9vw 9vh;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .slide.active { display: flex; }
+  h1 { font-size: 2.6rem; line-height: 1.15; letter-spacing: -0.02em; }
+  h2 { font-size: 2rem; line-height: 1.2; letter-spacing: -0.01em; margin-bottom: 1.2rem; }
+  p, li { font-size: 1.25rem; line-height: 1.6; color: var(--ink); }
+  ul { padding-left: 1.3rem; }
+  li { margin: 0.5rem 0; }
+  .sub { color: var(--muted); font-size: 1.15rem; }
+  .lead { font-size: 1.45rem; color: var(--muted); margin-top: 0.8rem; }
+  strong { font-weight: 650; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.3rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: 1rem; line-height: 1.5; }
+
+  /* engagement-mode banner */
+  .mode { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.35rem 0.7rem; border-radius: 999px; margin-bottom: 1.4rem; align-self: flex-start; }
+  .mode.discuss { color: var(--discuss); background: #fef3e2; }
+  .mode.code { color: var(--code); background: #e8f0fe; }
+  .mode.challenge { color: var(--challenge); background: #e7f6ec; }
+  .mode.research { color: var(--research); background: #eef1f5; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 0.6rem; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem 1.4rem; background: var(--panel); }
+  .card h3 { font-size: 1.15rem; margin-bottom: 0.4rem; }
+  .card p { font-size: 1.05rem; color: var(--muted); }
+
+  /* instructor cue */
+  .cue { display: none; margin-top: 1.6rem; border-left: 3px solid var(--accent); padding: 0.5rem 0 0.5rem 1rem; color: var(--muted); font-size: 1.05rem; }
+  .cue b { color: var(--ink); }
+  .cue::before { content: "PRESENTER NOTE"; display: block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.35rem; }
+  .deck.notes .cue { display: block; background: #fbfbe8; }
+
+  .title-wrap { gap: 0.4rem; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.95rem; }
+
+  /* footer / nav */
+  .bar { position: fixed; bottom: 0; left: 0; right: 0; height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 1.2rem; border-top: 1px solid var(--line); background: var(--bg); font-size: 0.85rem; color: var(--muted); }
+  .bar .name { font-weight: 600; color: var(--ink); }
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); transition: width 0.2s ease; }
+  .hint { font-size: 0.8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+  <!-- 1 — Title -->
+  <section class="slide active title-wrap">
+    <div class="kicker">Week 2 of 5 — Retrieval, reranking &amp; your first agent</div>
+    <h1>Two indexes full of vectors — and not one search yet</h1>
+    <p class="lead">Last weekend you embedded all 21,090 clinical notes together, and chunked the entire Bible into an index of your own design. Both stores are loaded. Neither has ever answered a question. Today you write the search — then put a second opinion on top of it — then build your first agent.</p>
+  </section>
+
+  <!-- 2 — The week -->
+  <section class="slide">
+    <h2>This week</h2>
+    <ul>
+      <li>Implement <code>searchClinicalNotes</code> — the first production search code you write in this course</li>
+      <li>The metadata filter: why <code>patientId</code> is a privacy boundary, not decoration</li>
+      <li>The Bible debrief: same query, your index — what your chunking strategy decided for you</li>
+      <li>Reranking: the funnel — over-fetch broadly, re-judge carefully — and the fallback that fails silently</li>
+      <li>Structured outputs: making the LLM return data your code can <code>if</code> on</li>
+      <li>The <strong>selector</strong> — your first agent: it routes questions, and deliberately nothing more</li>
+    </ul>
+    <p class="sub" style="margin-top:1rem">This week's deliverable: a 2–3 min video — search + rerank your own Bible index, show one ordering the reranker changed, and explain why the funnel over-fetches.</p>
+  </section>
+
+  <!-- 3 — Problem statement -->
+  <section class="slide">
+    <h2>Where we left off</h2>
+    <pre><code>  medical-notes   21,090 note vectors        built live, together      never queried
+  bible-kjv       your chunks, your rules    your chunking strategy    never queried</code></pre>
+    <p>You can put text <em>into</em> a vector store. You cannot get anything back out. Open <code>lib/vector-search.ts</code>: <code>searchClinicalNotes</code> is still a skeleton — it throws <code>Not implemented - your turn!</code></p>
+    <p class="lead">One function stands between you and <em>"which patients are struggling to breathe?"</em> Let's write it.</p>
+    <div class="cue"><b>Sit in the cliffhanger:</b> ask "who has actually run a query against either index?" Nobody — that's by design. Last week ended with two loaded stores and no search. Today's whole arc: search → judge the results → route to the right engine. If anyone's <code>medical-notes</code> index looks empty, they missed the live vectorize — pair them with a neighbor; do not re-run 21k embeds now.</div>
+  </section>
+
+  <!-- 4 — Concept: metadata + in-query filter -->
+  <section class="slide">
+    <h2>Metadata: the jobs the text can't do</h2>
+    <p>The note's <em>text</em> is what gets matched by meaning. The metadata riding on each vector is everything else a real system must do with a match:</p>
+    <div class="two">
+      <div class="card">
+        <h3>Filter</h3>
+        <p>"Search only <strong>this patient's</strong> notes." One patient averages ~105 notes (the heaviest chart has 1,632) — without the filter you always search all 21,090.</p>
+      </div>
+      <div class="card">
+        <h3>Cite &amp; debug</h3>
+        <p>"Whose note is this, and why did it match?" Without metadata a hit is an anonymous fragment you can't trace back.</p>
+      </div>
+    </div>
+    <p class="sub" style="margin-top:1rem">The filter runs <strong>inside</strong> <code>index.query</code> — the index finds the top-K among <em>only</em> the matching vectors. Filtering afterward gives you "the global top 10 minus strangers" — often <em>zero</em> of the right patient's notes.</p>
+    <div class="cue"><b>Design point to land:</b> in-query vs post-filter is both a quality bug and a safety bug. Quality: post-filtering can return nothing relevant. Safety: post-filtering means strangers' note content leaves the database on every query. Foreshadow slide 7 — we'll make the leak visible. Filters are exact-match (<code>$in</code> compares whole strings); meaning lives in the text, facts in the metadata.</div>
+  </section>
+
+  <!-- 5 — Code together I: implement search -->
+  <section class="slide">
+    <span class="mode code">💻 Code together</span>
+    <h2>Implement <code>searchClinicalNotes</code></h2>
+    <p>You know every ingredient already. The recipe:</p>
+    <pre><code>1. Embed the query            — createEmbedding(query)  (already imported)
+2. Build the filter, only if patientIds was given:
+     one id   → { patientId: id }
+     several  → { patientId: { $in: ids } }
+     none     → no filter at all  (not an empty object!)
+3. Query the index            — index.query({ vector, topK,
+                                  includeMetadata: true, filter })
+4. Map each match             → { id, score, patientId,
+                                  patientName (firstName + lastName metadata),
+                                  contentPreview (truncated content) }</code></pre>
+    <p class="sub">Write it before peeking at any solution. <code>filter: {}</code> and <code>filter: undefined</code> are different things; forget <code>includeMetadata: true</code> and every field comes back <code>undefined</code>.</p>
+    <div class="cue"><b>Pace:</b> ~15 min heads-down, you live-code it last on screen. The two planted potholes are on the slide (empty filter object, missing includeMetadata) — let someone hit them before naming them. Project <code>visuals/vector-search.html</code> while people finish.</div>
+  </section>
+
+  <!-- 6 — The payoff -->
+  <section class="slide">
+    <h2>The payoff: meaning, from your own code</h2>
+    <pre><code>$ scripts/search.ts "patient struggling to breathe"
+
+0.57 · patient A   "…reports dyspnea on exertion, denies chest pain…"
+0.55 · patient B   "…shortness of breath when climbing stairs…"
+0.53 · patient C   "…respiratory distress noted on examination…"</code></pre>
+    <p>The query never says "dyspnea." The notes never say "struggling to breathe." <strong>Zero shared keywords — and the right notes came back.</strong> The promise from the very first lesson is now your code.</p>
+    <p class="sub">That <code>score</code> column is the cosine you computed by hand last week — now over the real corpus.</p>
+    <div class="cue"><b>Let it land.</b> This is the emotional peak of the block — the thing keyword search could not do, done by code they just wrote. Then run the synonym pair: <code>"shortness of breath"</code> and <code>"trouble breathing"</code> surface overlapping notes. Exact scores vary; the ranking and the gap are the point.</div>
+  </section>
+
+  <!-- 7 — Break it: the leak -->
+  <section class="slide">
+    <span class="mode challenge">🛠 Break it</span>
+    <h2>Drop the filter — and read whose charts came back</h2>
+    <p>Ask a question that should be about <em>one</em> chart — without the patient filter:</p>
+    <pre><code>search "chest pain"              →  hits from many different patients
+search "chest pain" &lt;patientId&gt;  →  every hit is the same person</code></pre>
+    <ul>
+      <li>Run the unfiltered version and read the <code>patientName</code> column out loud.</li>
+      <li>In a clinical product that's not a bad search result — it's a <strong>patient-privacy boundary violation</strong>.</li>
+      <li>The fix is one <code>filter</code> field — enforced <em>inside</em> <code>index.query</code>, so other patients' note content never even transits your app code.</li>
+    </ul>
+    <div class="cue"><b>The headliner.</b> Say the sentence: "you asked about one chart and got fragments of strangers' charts." This is why <code>patientId</code> had to be on the vector at vectorize time — metadata isn't decoration, it's the boundary. Foreshadow: the same filter, forgotten, reappears in a later week's hybrid path.</div>
+  </section>
+
+  <!-- 8 — Bible debrief breakout -->
+  <section class="slide">
+    <span class="mode discuss">💬 Breakout — the Bible debrief</span>
+    <h2>Same query, <em>your</em> index: what did your chunking decide?</h2>
+    <p>Everyone searches their <strong>own</strong> <code>bible-kjv</code> index with the <em>same</em> query:</p>
+    <pre><code>PINECONE_INDEX=bible-kjv …  "the world drowns and one family builds a boat to survive"</code></pre>
+    <ul>
+      <li>What came back — pinpoint verses? whole chapters? windows cut mid-story?</li>
+      <li>Would a reader get the flood story from your top 3 — or a fragment of it?</li>
+      <li>Compare with a neighbor who chunked differently: same query, same embedding model — different results. What made the difference?</li>
+    </ul>
+    <div class="cue"><b>The trick in the query:</b> the KJV never says <em>drown</em>, <em>boat</em>, or <em>world</em> here — it says <em>flood</em>, <em>ark</em>, <em>earth</em>. Zero-keyword again, on their own corpus. The room IS the experiment: N students, N chunking strategies, one query. Drive to "neither of us is wrong — we made different bets on who queries this index." Answer key in the runbook.</div>
+  </section>
+
+  <!-- 9 — Concept: when cosine lies -->
+  <section class="slide">
+    <h2>When cosine lies</h2>
+    <pre><code>query:  "the patient reports shortness of breath"
+
+0.61   "the patient reports knee pain"      ← template match wins
+0.58   "dyspnea on exertion"               ← the actual meaning, buried</code></pre>
+    <p>An embedding summarizes each text <strong>separately, before any query exists</strong>. At query time all you can do is compare two pre-made summaries — anything lost in compression is lost forever. Sentences that share a <em>template</em> can out-score sentences that share a <em>meaning</em>.</p>
+    <p class="lead">A <strong>reranker</strong> has the one luxury embeddings can't: it reads the query and the document <em>together, at query time</em>, and scores how well <em>this</em> document answers <em>this</em> query.</p>
+    <div class="cue"><b>Ask first:</b> "has anyone already seen a wrong note ranked #1?" Someone has — use their example. Then the precise version: pre-compression vs reading-the-pair. Project <code>visuals/reranking.html</code> here or on the next slide.</div>
+  </section>
+
+  <!-- 10 — Concept: the funnel -->
+  <section class="slide">
+    <h2>The funnel: cheap-and-broad, then expensive-and-careful</h2>
+    <pre><code>query ──▶  vector search   ── top 25 ──▶   reranker    ── top 5 ──▶  results
+           fast, broad                     slow, careful
+           scans ~21k vectors              full pass per query+doc pair</code></pre>
+    <ul>
+      <li>Why not rerank all 21,090? A reranker reads <em>every candidate against the query</em> — you can't afford that corpus-wide, per query.</li>
+      <li><strong>The over-fetch is the point:</strong> a great note ranked #19 by cosine is invisible unless the funnel mouth is wide enough to include it.</li>
+      <li>No new vendor: Pinecone hosts the reranker (<code>bge-reranker-v2-m3</code>) on the <strong>same <code>PINECONE_API_KEY</code></strong> you already have.</li>
+    </ul>
+    <p class="sub">Same logic as a recruiter skimming 200 résumés and carefully interviewing 6. You'll meet this funnel shape again and again.</p>
+    <div class="cue"><b>One more warning to plant now:</b> rerank scores are normalized 0–1 but they are <em>not</em> cosines — comparing a 0.91 rerank score to a 0.58 cosine is meaningless. Order within one list is all that transfers.</div>
+  </section>
+
+  <!-- 11 — Code: run the funnel + silent fallback -->
+  <section class="slide">
+    <span class="mode code">💻 Code together</span>
+    <h2>Run the funnel — then break it <em>quietly</em></h2>
+    <pre><code>const notes = await searchClinicalNotes(query, { topK: 25 });   // over-fetch
+const reranked = await rerankResults(query, candidates, 5);      // keep the best 5
+// print both top-5s side by side</code></pre>
+    <ul>
+      <li>On some queries the top 5 barely moves. On others, a <strong>#14 jumps to #1</strong>. Find one of each.</li>
+      <li><strong>Break it:</strong> typo the model name in <code>lib/reranker.ts</code> and re-run. Same order back. No error. One log line.</li>
+      <li>Degraded search beats no search — <em>if</em> you notice it degraded. If your two lists are always identical, suspect the fallback before concluding "reranking does nothing."</li>
+    </ul>
+    <div class="cue"><b>Second headliner.</b> After the sabotage, ask "did anything look wrong?" — nothing did, that's the lesson. The only witness is <code>Reranking failed, using original order</code> in the log. Also resist the victory lap: "the order changed" ≠ "the results got better" — that claim needs ground truth we don't have yet. No metric, no decision; evals are a later week.</div>
+  </section>
+
+  <!-- 12 — Concept: structured outputs -->
+  <section class="slide">
+    <h2>Code can't branch on prose</h2>
+    <p>Everything so far ends in text for a <em>human</em>. The next component's output is consumed by <em>code</em> — and if the model replies "this looks like a question about a specific patient…", what does your <code>if</code> statement test? You need:</p>
+    <pre><code>{ "requiresSQL": true, "requiresVector": false, "semanticQuery": null }
+
+1. Define a Zod schema        — .describe() on every field (descriptions ARE prompting)
+2. Infer the type             — z.infer&lt;typeof Schema&gt;
+3. openai.responses.parse()   — with zodTextFormat(Schema, 'name'), temperature 0
+4. Schema.parse(output_parsed) — trust, but parse</code></pre>
+    <p class="sub">"Please respond in JSON" is a request — fences, preambles, and invented enum values all show up eventually. A schema is a <strong>constraint</strong>: the model can't produce anything else.</p>
+    <div class="cue"><b>Keep this brisk (~7 min)</b> — it's a pattern, not a project, and it powers everything from here. Two beats to land: a required field on absent information doesn't error, it <em>fabricates</em> (make schemas match reality with <code>nullable()</code>); and step 4 isn't redundant — it turns SDK drift/refusals/truncation into one loud error at the call site.</div>
+  </section>
+
+  <!-- 13 — Code together II: the selector -->
+  <section class="slide">
+    <span class="mode code">💻 Code together</span>
+    <h2>The selector — your first agent</h2>
+    <p>It answers exactly one question: <strong>which store(s) does this question need?</strong> The whole schema:</p>
+    <pre><code>const PlanSchema = z.object({
+  requiresSQL:    z.boolean().describe('Structured data — counts, filters, a specific patient.'),
+  requiresVector: z.boolean().describe('The notes — what they say / describe / mention.'),
+  semanticQuery:  z.string().nullable()
+                   .describe('If requiresVector, an expanded clinical phrasing to embed.'),
+});
+// mapped to the Plan: useSql, useRag, needsSearch = useSql || useRag, semanticQuery</code></pre>
+    <ul>
+      <li>Four legal routes: <strong>SQL only</strong> · <strong>vector only</strong> · <strong>both</strong> · <strong>neither</strong></li>
+      <li>"Neither" is a real route, not an error — <em>"what's a normal A1C range?"</em> has no tie to these records, so retrieval is skipped on purpose.</li>
+    </ul>
+    <div class="cue"><b>Frame it:</b> yesterday's pattern pointed at a new target — instead of extracting urgency from an email, extract <em>retrieval strategy</em> from a question. The stub is in <code>lib/agents/selector.ts</code>; they write the system prompt + the <code>select</code> function (same four steps, <code>history.slice(-5)</code> so follow-ups like "what about her medications?" have a <em>her</em>).</div>
+  </section>
+
+  <!-- 14 — Concept: route, don't extract -->
+  <section class="slide">
+    <h2>Route, don't extract</h2>
+    <p>Tempting: have the selector pull out <code>"hypertension"</code> and <code>"under 50"</code> while it's reading the question anyway. Resist.</p>
+    <div class="two">
+      <div class="card">
+        <h3>A selector that only routes</h3>
+        <p>Can only <em>misroute</em>. One failure mode — easy to inspect, easy to fix with a sentence in the prompt.</p>
+      </div>
+      <div class="card">
+        <h3>A selector that also extracts</h3>
+        <p>A routing bug <em>and</em> an extraction bug per question. And the SQL specialist re-derives the entities <em>better</em> anyway — it holds the database schema; the selector extracts blind.</p>
+      </div>
+    </div>
+    <p class="sub" style="margin-top:1rem">The one artifact it does write: <code>semanticQuery</code> — an expanded clinical rephrasing ("trouble sleeping" → "insomnia, poor sleep, waking at night"). Nothing downstream re-derives that, and the selector is the last LLM to see the question before it becomes a vector.</p>
+    <div class="cue"><b>The test that separates the two:</b> does any downstream component re-derive it better? Entities — yes (the SQL agent, schema in hand, next weekend). The semantic expansion — no; it's the selector's only real product besides the booleans.</div>
+  </section>
+
+  <!-- 15 — Mini-challenge: routing battery -->
+  <section class="slide">
+    <span class="mode challenge">🛠 Mini-challenge</span>
+    <h2>The routing battery</h2>
+    <pre><code>'How many patients have diabetes?'                                 → SQL only
+'notes mentioning chest pain at night'                             → vector only
+'what do the notes say about sleep for patients with depression?'  → both
+"what's a normal A1C range?"                                       → neither</code></pre>
+    <ul>
+      <li>Run your selector over all four. Do all four routes land?</li>
+      <li>Add five queries of your own — including one follow-up that only works with history.</li>
+      <li>Misroute? <strong>The fix is a sentence in the system prompt, not code.</strong></li>
+    </ul>
+    <div class="cue"><b>Watch for:</b> everything routing to vector (prompt doesn't say counts/filters are SQL's job), and "neither" being treated as a bug. Both-false short-circuiting the pipeline is the system <em>working</em> — forcing every greeting into a store drags irrelevant patient records into answers that never needed them.</div>
+  </section>
+
+  <!-- 16 — Deliverable -->
+  <section class="slide">
+    <span class="mode research">🔍 Deliverable — record it 🎥</span>
+    <h2>Search + rerank your own Bible index</h2>
+    <ul>
+      <li>Run the funnel against <strong>your <code>bible-kjv</code> index</strong>: one query searched, then reranked (over-fetch ~25, keep 5) — side by side.</li>
+      <li>Show <strong>one query where the reranker changed the order</strong> — ideally a chunk promoted from deep in the pool — and say <em>why</em> the two models disagreed about it.</li>
+      <li>Explain <strong>why the funnel over-fetches</strong>: what happens to a relevant chunk cosine ranked #19 if stage 1 only fetched 5?</li>
+    </ul>
+    <p class="sub">2–3 minutes, phone camera is fine. If your two lists never differ: check the silent-fallback log line <em>on camera</em> and say so — catching the no-op is worth more than hiding it.</p>
+  </section>
+
+  <!-- 17 — Recap -->
+  <section class="slide">
+    <h2>Where you are</h2>
+    <ul>
+      <li>You wrote the search — <code>searchClinicalNotes</code>, with the filter that is also a <strong>privacy boundary</strong></li>
+      <li>You watched your own chunking decisions play out: same query, different indexes, different answers</li>
+      <li>You put a <strong>second opinion</strong> on top of cosine — and you know its silent failure mode</li>
+      <li>You built your <strong>first agent</strong>: a selector that routes, and refuses to do more</li>
+    </ul>
+    <p class="lead">Next weekend: the <strong>SQL agent</strong> — an LLM that writes real queries against the schema — and the full pipeline: selector → SQL ‖ vector → one synthesized answer.</p>
+  </section>
+
+</div>
+
+<div class="bar">
+  <span class="name">RAG &amp; AI Agents · Week 2 — Retrieval, reranking &amp; your first agent</span>
+  <span class="hint">← → navigate · N = presenter notes · <span id="counter">1 / 17</span></span>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let i = 0;
+  const counter = document.getElementById('counter');
+  const progress = document.getElementById('progress');
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+    counter.textContent = (i + 1) + ' / ' + slides.length;
+    progress.style.width = ((i + 1) / slides.length * 100) + '%';
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(i + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+    if (e.key === 'n' || e.key === 'N') document.getElementById('deck').classList.toggle('notes');
+  });
+  document.getElementById('deck').addEventListener('click', (e) => {
+    show(i + (e.clientX < window.innerWidth / 2 ? -1 : 1));
+  });
+  show(0);
+</script>
+</body>
+</html>
