@@ -137,6 +137,11 @@ match the six live sessions.
   `package.json` now declares `"engines": { "node": ">=20 <23" }` and there's a
   `.nvmrc`, so `nvm use` picks it up and npm warns on a bad version instead of
   letting someone discover it halfway through week 1.
+- The eval judge runs on **Jev** (TypeSafe AI), not OpenAI — the one deliberate
+  departure from the Responses-API pattern in `CLAUDE.md`. Typed questions in,
+  calibrated probabilities out, no text generation. `TYPESAFE_API_KEY` in
+  `.env.example`; rubrics cap at 10 levels; `noul` is a probability, not a
+  boolean. Week 5's guide and runbook carry the teaching argument.
 - npm scripts: `dev`, `build`, `start`, `lint`, `test`, `test:run`, `test:evals`,
   `db:generate`, `db:push`, `db:studio`, `vectorize`, `similarity`,
   `retell:deploy`, `bible:fetch`, `bible:fixed`, `bible:smart`, `bible:audit`,
@@ -163,7 +168,9 @@ it; don't repeat that.
 | The SQL tool in `lib/graph.ts` | a TODO next to the worked notes tool | implemented as `query_patient_records` |
 | `/api/chat-graph` | throws (the exercise) | implemented, streams from the `agent` node |
 | `lib/graph.test.ts` | absent | 9 specs — the loop, both routes, and the missing-edge bug |
-| Test count, fresh `npm run test:run` | **51** | **75** |
+| `lib/evals/llm-judge.ts` | three stubs that throw | implemented on **Jev** (`@typesafe-ai/sdk`) |
+| `lib/judge-contract.test.ts` | absent | 13 offline specs for the judge's mapping logic |
+| Test count, fresh `npm run test:run` | **51** | **88** |
 
 Both branches keep `ai` + `@ai-sdk/openai` — the aggregator streams with
 `streamText`. That's why the "don't mix the two libraries in one file" warning

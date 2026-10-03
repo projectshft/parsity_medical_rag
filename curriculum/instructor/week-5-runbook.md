@@ -101,6 +101,32 @@ Then make it concrete, because they already have the raw material:
    matched, you score it with a model. Be honest that this is a weaker
    instrument: the judge has its own failure modes, and you calibrate it by
    spot-checking its verdicts against your own.
+
+   **This one runs on Jev, not GPT** — the only place in the project that
+   doesn't call OpenAI. Reference solution is on `cohort-4-instructor`; the free
+   offline spec for its mapping logic is `lib/judge-contract.test.ts`.
+
+   The argument to make, in this order:
+   - *It can't rationalise.* GPT picks a score then writes the justification —
+     the same post-hoc story as the selector's `reason` field in week 3. Jev
+     generates no text, so the `reasoning` string is assembled from the rubric
+     level, its probability and the confidence. Callback to week 3; they'll get
+     it immediately.
+   - *It's calibrated.* `confidence` per answer, 0-1. "Audit your judge" becomes
+     "sort by confidence, start at the bottom." Much better exercise than
+     spot-checking at random.
+   - *It's nearly free.* $0.04/M input, output free. The point is behavioural:
+     an eval suite you can afford to run on every change is one you'll actually
+     run.
+
+   Two gotchas to say out loud before they hit them: `noul` returns a
+   PROBABILITY (thresholding it is their decision, not the model's), and there
+   are no string fields — asking for one escalates to an LLM.
+
+   Worth a minute on the limits too: weak at arithmetic, counting and dates,
+   reads negations literally. Which is the natural segue to *why the
+   exact-number evals stay assertion tests* — "hypertension → 63" never needed
+   a judge, and a judge is the wrong tool for it.
 4. **Run `npm run test:evals`** on screen.
 
 The line to land: **an eval is how you find out a change helped.** Without one,

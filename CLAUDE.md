@@ -130,6 +130,42 @@ const myTool = tool(async ({ arg }) => runSomething(arg), {
 - `ChatOpenAI` takes `apiKey` plus `configuration: { baseURL }` — same proxy as `lib/openai.ts`.
 - `buildGraph()` currently throws (student exercise). Leave it throwing unless asked; the instructor solution belongs on the `instructor` branch, never here.
 
+### Evals judge on Jev, not OpenAI
+
+`lib/evals/llm-judge.ts` uses `@typesafe-ai/sdk` (Jev), not the Responses API.
+It is the one place in this repo that deliberately departs from the
+`responses.parse()` + `zodTextFormat` pattern above, because Jev is not a chat
+model — it answers typed questions with calibrated probabilities and generates
+no text.
+
+```typescript
+import { TypeSafeClient, noul, score } from '@typesafe-ai/sdk';
+
+const { answers } = await client.systemOne({
+  state: { question, retrieved_documents },      // text, or a JSON object
+  questions: {
+    quality: score('How relevant…?', [...5 levels, lowest first]),
+    acceptable: noul('Is there enough to answer?'),
+  },
+});
+answers.quality.score        // expected value, may fall BETWEEN levels
+answers.quality.confidence   // 0-1
+answers.acceptable.noul      // PROBABILITY of yes, not a boolean — threshold it
+```
+
+- Rubrics cap at **10 levels**; we use 5 and scale onto the 0-10 the
+  `EvalResult` contract promises.
+- `noul` is a probability. `answers.x.noul >= 0.5` is a decision *you* are
+  making, not a boolean the model returned.
+- **No string fields.** Jev cannot generate prose, so `reasoning` is assembled
+  from the rubric level, its probability and the confidence. Don't add a string
+  field expecting the model to fill it — it escalates to an LLM.
+- Jev is weak at arithmetic, counting and dates, and reads negations literally.
+  Write rubric levels as descriptions of what good looks like, not instructions.
+- Keep `lib/evals/**` calling the real provider. The free, offline test of the
+  mapping logic is `lib/judge-contract.test.ts`, deliberately outside that
+  folder — see the comment at its top.
+
 ## Data Source
 
 Synthea Coherent Dataset — statistically realistic, **fully synthetic (zero PHI)**. The deployed/shared database is a **~200-patient subset** (fits the Neon free tier), ~21k SOAP-style clinical notes. Students connect **read-only**; nobody creates or seeds it.

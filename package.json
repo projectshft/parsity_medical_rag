@@ -30,6 +30,7 @@
 		"@neondatabase/serverless": "^0.10.0",
 		"@pinecone-database/pinecone": "^4.0.0",
 		"@prisma/client": "^6.0.0",
+		"@typesafe-ai/sdk": "0.6.0",
 		"ai": "^4.1.0",
 		"axios": "^1.7.9",
 		"langsmith": "^0.7.5",

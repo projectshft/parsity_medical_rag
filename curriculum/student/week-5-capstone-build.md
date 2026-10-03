@@ -48,6 +48,67 @@ the way you keep it honest is to spot-check its verdicts against your own on a
 handful of cases. A judge you've never audited is a number that makes you feel
 good.
 
+### The judge runs on Jev, not on GPT
+
+This is the one place in the project that doesn't call OpenAI. The judge uses
+[Jev](https://docs.typesafe.ai/) (`@typesafe-ai/sdk`), a decision model: you give
+it a block of state and typed questions, and it answers each one with a
+probability instead of prose.
+
+Three reasons it's the better tool here, and they're all worth understanding:
+
+**It can't rationalise.** Ask GPT for `{ score, reasoning }` and it picks the
+score, then writes the reasoning to justify it. That's the same post-hoc story
+your selector's `reason` field was telling in week 3. Jev generates no text at
+all — what you get back is the rubric level it landed on, the probability of each
+level, and a confidence. The `reasoning` string in the result is assembled from
+those, so every word of it is traceable to something that actually decided the
+answer.
+
+**It's calibrated, and it says so.** Every answer carries `confidence` between 0
+and 1. "Spot-check the judge against your own verdicts" stops being a gut feel —
+you can sort your cases by confidence and audit the ones it was least sure about
+first. That's where the disagreements live.
+
+**It's nearly free.** $0.04 per million input tokens, output free. Judging a
+30-case golden set costs a fraction of a cent, which means you can run the suite
+on every change rather than rationing it. An eval you can't afford to run is not
+an eval.
+
+The shape, once:
+
+```ts
+const { answers } = await client.systemOne({
+  state: { question, retrieved_documents },
+  questions: {
+    quality: score('How relevant are the documents to the question?', [
+      'None of them relate to the question',   // level 0
+      // ...five levels, worst first
+      'Every document is directly relevant',   // level 4
+    ]),
+    acceptable: noul('Is there enough here to answer the question?'),
+  },
+});
+
+answers.quality.score        // expected level — can land BETWEEN levels (2.4)
+answers.quality.confidence   // 0-1
+answers.acceptable.noul      // PROBABILITY of yes. Not a boolean.
+```
+
+Two things that will bite you:
+
+- **`noul` is a probability, not a yes/no.** `>= 0.5` is a threshold *you* chose.
+  Say so out loud, and consider whether a faithfulness check deserves a stricter
+  one than a completeness check.
+- **No string fields.** Jev cannot write prose. Ask it for a string and the
+  request escalates to a language model, which is not what you wanted.
+
+And know the limits: Jev is weak at arithmetic, counting and dates, and it reads
+questions literally — negations and scoping words land at face value. Write your
+rubric levels as plain descriptions of what good looks like, not as instructions.
+Your exact-number evals ("hypertension → 63") stay assertion tests; they never
+needed a judge.
+
 ```bash
 npm run test:evals
 ```

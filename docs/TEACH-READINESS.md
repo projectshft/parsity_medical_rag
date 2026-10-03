@@ -42,6 +42,16 @@ table exists to prevent, so the table now covers the graph and the guardrail too
 - [x] **`assertReadOnly` implemented** — the week-3 guardrail TODO, with 15
       specs in `lib/agents/sql.test.ts` covering the smuggling cases
       (second statement, writing CTE, comment-hidden writes).
+- [x] **The week-5 judge implemented, on Jev** — `lib/evals/llm-judge.ts` now
+      calls `@typesafe-ai/sdk` (pinned to `0.6.0`) instead of `gpt-4o-mini`: a
+      five-level rubric scaled onto the 0-10 the `EvalResult` contract promises,
+      and `pass` thresholded off `noul`, which is a probability rather than a
+      boolean. 13 offline specs in `lib/judge-contract.test.ts` — deliberately
+      outside `lib/evals/`, which the free run excludes — pin the mapping, so
+      `retrieval.test.ts` keeps passing whoever is underneath. **Nobody has made
+      a live Jev call yet:** those specs mock the SDK, so they prove the mapping
+      and not the wire format. One `npm run test:evals` with a real
+      `TYPESAFE_API_KEY` is still owed before week 5.
 - [x] **Node version enforced** — `engines: >=20 <23` and a `.nvmrc`. Node 21+
       breaks `ts-node` on every script in `scripts/`; a guide nobody reads was
       the only thing preventing it.
@@ -56,15 +66,16 @@ Run on this branch, 2026-10-02:
 | Check | Result |
 |---|---|
 | `npx tsc --noEmit` | clean |
-| `npm run test:run` | **75 passed** (4 files) |
+| `npm run test:run` | **88 passed** (5 files) |
 | `npm run build` | compiles; 6 routes |
 | Every `npm run …` named in live `curriculum/` | resolves |
 | Every repo path named in live `curriculum/` | resolves |
 | `AUTHORING.md` npm-script list vs `package.json` | exact match |
 
 Student-branch baseline, verified separately on a fresh clone of `cohort_4`:
-`tsc` clean, **51 passed**. The 24-test gap is the two solution specs, which is
-what you'd expect and is now written down in `AUTHORING.md`.
+`tsc` clean, **51 passed**. The 37-test gap is the three solution specs — the
+graph, the SQL guardrail, and the judge contract — which is what you'd expect and
+is now written down in `AUTHORING.md`.
 
 Three unresolved script references (`npm run ingest`, `mcp:inspect`,
 `test:selector`) live in `curriculum/archive/` only — the demoted self-paced
@@ -76,6 +87,11 @@ are not teach-blockers.
 - **Week 4 has never been delivered.** "Where it breaks" is mostly prediction.
   Fill in "Notes from cohort 4" the day you teach it; that section is
   unreconstructible a month later.
+- **One live Jev call before week 5.** The judge's offline specs mock the SDK,
+  so the 0-10 mapping and the threshold are proved and the wire format is not.
+  Put a `TYPESAFE_API_KEY` in `.env` and run `npm run test:evals` once; it is a
+  cent's worth of input tokens and it is the only thing standing between the
+  week-5 lab and a live surprise.
 - **The two rehearsal items** in the week-4 pre-flight: a question that routes
   wrong with a vague tool description, and a multi-hop follow-up the week-3
   selector handles badly. Both want verifying against live data before class —

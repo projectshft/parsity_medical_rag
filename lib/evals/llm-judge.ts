@@ -1,117 +1,221 @@
 /**
- * LLM-as-Judge Evaluator
+ * LLM-as-judge, on Jev — INSTRUCTOR REFERENCE SOLUTION.
  *
- * Week 5 · evals. Your week-3 query log is the eval set this scores against —
- * see lib/evals/retrieval.test.ts. Run them with `npm run test:evals`.
+ * Week 5 · student exercise: the stubs on `cohort_4`
+ * Spec it must satisfy: `lib/evals/retrieval.test.ts`
  *
- * Uses an LLM to evaluate RAG system outputs against quality criteria.
+ * These call a real provider on every run. That's the point — `npm run test:run`
+ * stays offline and free, and `npm run test:evals` costs money because judging
+ * is a model's job. Don't mock the provider here to make it cheap; mock it in a
+ * unit test (see `lib/judge-contract.test.ts`) and leave this path honest.
  *
- * Week 6: Implement these evaluators to measure your RAG system quality
+ * WHY JEV AND NOT gpt-4o
+ *
+ * A judge does not need to write prose. It needs to land on a level and tell you
+ * how sure it is. Jev (TypeSafe AI) is built for exactly that: typed questions
+ * in, calibrated probabilities out, no free-text generation. Three consequences
+ * worth teaching:
+ *
+ *   1. **Cost.** $0.04 per million input tokens, and output is free. A judging
+ *      pass over a 30-case golden set is effectively free, so students can run
+ *      the suite on every change instead of rationing it.
+ *   2. **Calibration you don't have to take on faith.** Every answer carries a
+ *      `confidence` and the full probability distribution over rubric levels.
+ *      Week 5's "calibrate the judge" exercise stops being a vibe check.
+ *   3. **No rationalisation.** An LLM judge writes its `reasoning` AFTER picking
+ *      a score, to justify it — the same post-hoc story the week-4 runbook warns
+ *      about with the selector's `reason` field. Jev can't do that, so the
+ *      `reasoning` below is assembled from what actually decided the answer:
+ *      the rubric level, its probability, and the confidence.
+ *
+ * The tradeoff, stated plainly: Jev is weak at arithmetic, counting and dates,
+ * and it reads questions literally — negations and scoping words land at face
+ * value. Write rubric levels as plain descriptions of what "good" looks like,
+ * not as instructions.
  */
 
+import { TypeSafeClient, noul, score } from '@typesafe-ai/sdk';
 import { z } from 'zod';
-import { zodTextFormat } from 'openai/helpers/zod';
-import { openai } from '../openai';
 
 /**
- * Schema for evaluation results
- *
- * TODO: Understand this schema - it's the same for all evaluators
+ * The contract the student spec asserts against. Unchanged from the OpenAI
+ * version, so `retrieval.test.ts` doesn't care which provider is underneath —
+ * which is the point of having a contract.
  */
 const EvalResultSchema = z.object({
-  score: z.number().min(0).max(10).describe('Score from 0-10'),
-  reasoning: z.string().describe('Brief explanation for the score'),
-  pass: z.boolean().describe('Whether this meets the quality threshold'),
+	score: z.number().min(0).max(10).describe('Score from 0-10'),
+	reasoning: z.string().describe('Brief explanation for the score'),
+	pass: z.boolean().describe('Whether this meets the quality threshold'),
+	/** 0-1, how sure the judge is. New with Jev; absent on an LLM judge. */
+	confidence: z.number().min(0).max(1).optional(),
 });
 
 export type EvalResult = z.infer<typeof EvalResultSchema>;
 
 /**
- * Evaluate retrieval relevance
+ * `TYPESAFE_API_KEY` is read from the environment by the client. Constructed
+ * lazily so importing this module never throws — the unit tests import it
+ * without a key.
+ */
+let client: TypeSafeClient | undefined;
+function getClient(): TypeSafeClient {
+	if (!client) {
+		client = new TypeSafeClient({
+			// `jev-latest` floats; pin when you want a result you can reproduce
+			// next month. An eval suite is exactly the place to pin.
+			defaultModel: process.env.TYPESAFE_DEFAULT_MODEL ?? 'jev-latest',
+			timeout: 30_000,
+		});
+	}
+	return client;
+}
+
+/**
+ * A five-level rubric, scaled onto the 0-10 the contract promises.
  *
- * TODO: Implement this evaluator
- * 1. Create a system prompt that explains the scoring criteria (0-10)
- * 2. Use openai.responses.parse() with zodTextFormat
- * 3. Pass the query and retrieved documents to evaluate
- * 4. Return the parsed EvalResult
+ * Jev caps rubrics at ten levels and returns an expected value that can fall
+ * BETWEEN levels (2.4 means "mostly level 2, some level 3"), so the scaled
+ * score is continuous — it just isn't a number the model invented.
+ */
+const LEVELS = 5;
+const toTen = (raw: number) => (raw / (LEVELS - 1)) * 10;
+
+/** Build the `reasoning` string out of what actually decided the answer. */
+function explain(
+	label: string,
+	raw: number,
+	legend: Record<string, unknown>,
+	probabilities: Record<string, number>,
+	confidence: number,
+	yesProbability: number,
+): string {
+	const nearest = String(Math.round(raw));
+	const level = legend[nearest];
+	const p = probabilities[nearest];
+	return [
+		`${label}: ${toTen(raw).toFixed(1)}/10`,
+		`(rubric level ${nearest}${level ? ` — "${level}"` : ''}`,
+		`p=${p !== undefined ? p.toFixed(2) : 'n/a'}, confidence=${confidence.toFixed(2)})`,
+		`· passes threshold with probability ${yesProbability.toFixed(2)}`,
+	].join(' ');
+}
+
+/**
+ * Ask Jev one score question and one pass/fail question about the same state,
+ * in a single request, and assemble the contract from the answers.
  *
- * Scoring guide:
- * - 9-10: All documents highly relevant
- * - 7-8: Most documents relevant
- * - 5-6: Mixed relevance
- * - 3-4: Mostly irrelevant
- * - 0-2: Doesn't address the query
+ * Both questions go in one call because Jev answers them in parallel against
+ * the same state — two round trips would cost twice the input tokens to learn
+ * the same thing.
+ */
+async function judge(
+	label: string,
+	state: unknown,
+	rubric: readonly [string, string, string, string, string],
+	scoreQuestion: string,
+	passQuestion: string,
+): Promise<EvalResult> {
+	const { answers } = await getClient().systemOne({
+		state: state as never,
+		questions: {
+			quality: score(scoreQuestion, rubric),
+			acceptable: noul(passQuestion),
+		},
+	});
+
+	const raw = answers.quality.score;
+	const confidence = answers.quality.confidence;
+	// `noul` is the PROBABILITY of yes, not a boolean. Thresholding it is a
+	// decision you are making; 0.5 is the obvious default and not the only one.
+	const yesProbability = answers.acceptable.noul;
+
+	return EvalResultSchema.parse({
+		score: toTen(raw),
+		pass: yesProbability >= 0.5,
+		confidence,
+		reasoning: explain(
+			label,
+			raw,
+			answers.quality.legend as Record<string, unknown>,
+			answers.quality.probabilities as Record<string, number>,
+			confidence,
+			yesProbability,
+		),
+	});
+}
+
+/**
+ * Did retrieval return the right documents?
+ *
+ * Judge this BEFORE blaming the answer. A wrong answer over the wrong documents
+ * is a retrieval bug, and no amount of prompt work on the aggregator fixes it.
  */
 export async function evaluateRetrievalRelevance(
-  query: string,
-  retrievedContent: string[]
+	query: string,
+	retrievedContent: string[],
 ): Promise<EvalResult> {
-  // TODO: Implement with structured outputs (Responses API + zodTextFormat —
-  // see the pattern in CLAUDE.md and lib/agents/sql.ts).
-  //
-  // Throwing, not returning a zero: a stub that hands back
-  // { score: 0, pass: false } makes the "scores irrelevant results below
-  // threshold" test pass for the wrong reason, and it stays green no matter
-  // what you write. A test that cannot fail is worse than no test.
-  throw new Error(
-    'Not implemented — your turn! (lib/evals/llm-judge.ts → evaluateRetrievalRelevance)',
-  );
+	return judge(
+		'Retrieval relevance',
+		{ question: query, retrieved_documents: retrievedContent },
+		[
+			'None of the documents relate to the question at all',
+			'One document is loosely on topic; the rest are unrelated',
+			'Some documents are relevant, mixed with clearly unrelated ones',
+			'Most documents are relevant to the question',
+			'Every document is directly relevant to the question',
+		],
+		'How relevant are `retrieved_documents` to `question`?',
+		'Do `retrieved_documents` contain enough relevant material to answer `question`?',
+	);
 }
 
 /**
- * Evaluate answer faithfulness (grounded in context)
+ * Is every claim in the answer supported by the context?
  *
- * TODO: Implement this evaluator
- * Checks if the answer is grounded in the provided context (no hallucination)
- *
- * Scoring guide:
- * - 9-10: Fully grounded, no hallucination
- * - 7-8: Mostly grounded, minor extrapolations
- * - 5-6: Some unsupported claims
- * - 3-4: Significant hallucinations
- * - 0-2: Contradicts context or entirely hallucinated
+ * This is the hallucination detector and the load-bearing one for medical data.
+ * Keep its threshold strict even when the others are lenient.
  */
 export async function evaluateAnswerFaithfulness(
-  context: string,
-  answer: string
+	context: string,
+	answer: string,
 ): Promise<EvalResult> {
-  // TODO: Implement with structured outputs (Responses API + zodTextFormat —
-  // see the pattern in CLAUDE.md and lib/agents/sql.ts).
-  //
-  // Throwing, not returning a zero: a stub that hands back
-  // { score: 0, pass: false } makes the "scores irrelevant results below
-  // threshold" test pass for the wrong reason, and it stays green no matter
-  // what you write. A test that cannot fail is worse than no test.
-  throw new Error(
-    'Not implemented — your turn! (lib/evals/llm-judge.ts → evaluateAnswerFaithfulness)',
-  );
+	return judge(
+		'Faithfulness',
+		{ context, answer },
+		[
+			'The answer contradicts the context or is entirely invented',
+			'The answer contains significant claims absent from the context',
+			'The answer contains some claims the context does not support',
+			'The answer is mostly supported, with minor extrapolation',
+			'Every claim in the answer is supported by the context',
+		],
+		'How well is `answer` supported by `context`?',
+		'Is every factual claim in `answer` supported by `context`?',
+	);
 }
 
 /**
- * Evaluate answer completeness
+ * Did the answer address the whole question?
  *
- * TODO: Implement this evaluator
- * Checks if the answer fully addresses all aspects of the query
- *
- * Scoring guide:
- * - 9-10: Fully addresses all aspects
- * - 7-8: Addresses main points, minor gaps
- * - 5-6: Partially addresses query
- * - 3-4: Only addresses small part
- * - 0-2: Doesn't address query
+ * The quiet failure: a faithful, well-grounded answer to half of what was
+ * asked. "What medication and what dose?" answered with just the drug name
+ * scores perfectly on faithfulness and is still wrong.
  */
 export async function evaluateAnswerCompleteness(
-  query: string,
-  answer: string
+	query: string,
+	answer: string,
 ): Promise<EvalResult> {
-  // TODO: Implement with structured outputs (Responses API + zodTextFormat —
-  // see the pattern in CLAUDE.md and lib/agents/sql.ts).
-  //
-  // Throwing, not returning a zero: a stub that hands back
-  // { score: 0, pass: false } makes the "scores irrelevant results below
-  // threshold" test pass for the wrong reason, and it stays green no matter
-  // what you write. A test that cannot fail is worse than no test.
-  throw new Error(
-    'Not implemented — your turn! (lib/evals/llm-judge.ts → evaluateAnswerCompleteness)',
-  );
+	return judge(
+		'Completeness',
+		{ question: query, answer },
+		[
+			'The answer does not address the question',
+			'The answer addresses a small part of the question',
+			'The answer addresses the question partially, leaving gaps',
+			'The answer addresses the main points, with minor gaps',
+			'The answer fully addresses every part of the question',
+		],
+		'How completely does `answer` address `question`?',
+		'Does `answer` address every part of `question`?',
+	);
 }
