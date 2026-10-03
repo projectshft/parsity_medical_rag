@@ -179,9 +179,29 @@ knows the flat figure above.
 Changing the route means a **rebuild**, because the config is baked into the image:
 
 ```bash
-fly secrets set TYPESAFE_API_KEY="..." -a parsity-litellm   # restart, no rebuild
+cd infra/litellm                                             # REQUIRED — see below
+fly secrets set TYPESAFE_API_KEY="..." -a parsity-litellm    # restart, no rebuild
 fly deploy -a parsity-litellm                                # config change
 ```
+
+**Run the deploy from `infra/litellm/`, on a branch that has this directory.**
+Two ways this bites, and the error names neither:
+
+```
+Error: failed to fetch an image or build from source:
+dockerfile '.../infra/litellm/Dockerfile' not found
+```
+
+- `infra/litellm/` lives on the **instructor branches only**. Deploying from a
+  checkout of `cohort_4` or `main` cannot work — there's nothing to build.
+- `fly.toml` here says `dockerfile = "Dockerfile"`, resolved relative to the
+  config file. Run `fly deploy` from the repo root and Fly falls back to the
+  app's saved config, resolves the Dockerfile against your *current* directory,
+  and reports it missing even when the file is right there on disk.
+
+A `fly secrets set` that prints `Machine ... update succeeded` has already
+worked, even if the `fly deploy` after it fails: setting a secret restarts the
+machine on its own. The secret is live; only the config change is still pending.
 
 Smoke test with a student key (not the master key — you want to prove the auth
 path a student actually takes):

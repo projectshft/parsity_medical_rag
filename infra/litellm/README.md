@@ -105,7 +105,10 @@ That public URL is your students' `OPENAI_BASE_URL`.
 > binds `:4000` → crash loop. The schema is applied once (the very first boot,
 > or run `prisma migrate deploy` manually), then this flag skips it. Re-enable
 > only when upgrading LiteLLM (schema changes). Health-check `grace_period` is
-> also set generously (180s) for first-boot migration.
+> `60s`, which is as high as Fly allows — it caps anything larger and warns on
+> every deploy. That's enough only because the migration above is skipped; if you
+> ever re-enable it, run `prisma migrate deploy` by hand rather than trying to
+> raise the grace period.
 
 ## Each cohort
 

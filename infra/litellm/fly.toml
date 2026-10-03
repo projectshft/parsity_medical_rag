@@ -31,9 +31,13 @@ primary_region = "iad"
     path = "/health/readiness"
     interval = "30s"
     timeout = "10s"
-    # Generous grace: first boot runs `prisma migrate deploy` against Neon before
-    # binding :4000. A short grace kills the machine mid-migration → crash loop.
-    grace_period = "180s"
+    # Fly CAPS this at 60s and says so on every deploy ("grace period greater
+    # than 1 minute; this will be lowered to 1 minute"), so asking for more only
+    # produces a warning. 60s is enough because DISABLE_SCHEMA_UPDATE=True above
+    # skips the boot-time `prisma migrate deploy` that originally needed the long
+    # grace. If a LiteLLM upgrade ever needs that migration, run
+    # `prisma migrate deploy` by hand once instead of raising this.
+    grace_period = "60s"
 
 [[vm]]
   size = "shared-cpu-1x"
