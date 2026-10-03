@@ -65,6 +65,20 @@ table exists to prevent, so the table now covers the graph and the guardrail too
       returned 422 on a route that was working fine. Fixed in both, with the
       status table that distinguishes 401 (guarded) from 422 (auth NOT enforced)
       from 2xx (open relay).
+- [x] **The config validated against a real LiteLLM instance** — short of the
+      Fly deploy itself, which needs credentials this environment doesn't have.
+      Ran LiteLLM with `infra/litellm/litellm-config.yaml` verbatim and confirmed:
+      it boots with no config errors, `/v1/systemone` registers as a route, and
+      **the header swap works** — a call with a valid proxy key came back with
+      TypeSafe's own 401 for the *injected* dummy key, proving the caller's key
+      was replaced rather than forwarded. Unauthenticated and bogus-key calls
+      died inside `user_api_key_auth` with zero requests reaching TypeSafe, so
+      `auth: true` is genuinely enforced and not an open relay.
+      This corrected a mistake in the checks: they asserted `401`, but without a
+      database attached an unauthenticated call surfaces as `500`. The property
+      worth asserting is *"the request never reached TypeSafe"*, so the canary
+      and runbook now separate a disclosure problem (2xx, 422) from an
+      availability one (5xx) instead of treating any non-401 as a leak.
 - [x] **Jev reaches students without a TypeSafe account** — Jev is early access
       with no free tier and signups may be closed, so a per-student key was never
       a safe plan. It now rides the LiteLLM proxy on a pass-through route
@@ -125,6 +139,11 @@ are not teach-blockers.
   `infra/litellm/RUNBOOK.md`: a student key gets `200` from `/v1/systemone`, an
   unauthenticated call gets `401`. Add `TYPESAFE_API_KEY` to
   `infra/litellm/.env` locally too, for `new-cohort.sh`.
+  Two things remain genuinely unverified until that deploy, and only these two:
+  that `main-stable` (the floating tag the Dockerfile pins — the local run was
+  1.103.2) behaves the same, and that a **minted virtual key** rather than the
+  master key passes the route. Both are exercised the moment the canary goes
+  green with `PROXY_CANARY_KEY`.
   Then point `TYPESAFE_BASE_URL` at the proxy and run `npm run test:evals` once.
   Expect the same numbers as the direct calls above; a 422 at that point means
   the body isn't arriving intact, and a 401 means the LiteLLM key is wrong.

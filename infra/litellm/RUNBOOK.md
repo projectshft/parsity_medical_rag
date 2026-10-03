@@ -216,12 +216,21 @@ the failure modes carefully, because they are not interchangeable:
 
 | Status | Means |
 |---|---|
-| `401`/`403` | correct — the route is guarded |
+| `401`/`403` | correct — the route is guarded and the database is healthy |
 | `422` | **auth is NOT enforced.** Only TypeSafe validates bodies, so a 422 proves LiteLLM forwarded an unauthenticated request. |
 | any `2xx` | **open relay**, and someone just spent our key |
+| `5xx` | the key is *not* leaking — nothing reached TypeSafe — but the proxy is unwell. Usually the database. Check `fly logs`. |
 
-A `422` or a `2xx` from that command both mean the same remediation: rotate
-`TYPESAFE_API_KEY` and restore `auth: true` before class.
+A `422` or a `2xx` mean the same remediation: rotate `TYPESAFE_API_KEY` and
+restore `auth: true` before class. A `5xx` is an availability problem, not a
+disclosure one — don't rotate the key over it.
+
+The thing being tested is **"the request never reached TypeSafe"**, not any
+particular number. Verified against a real LiteLLM instance running this exact
+config: with `auth: true`, an unauthenticated request dies inside
+`user_api_key_auth` and never leaves the proxy. Without a database attached it
+surfaces as a `500` rather than a `401`, which is why the table above reads the
+way it does.
 
 ---
 

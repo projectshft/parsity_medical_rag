@@ -64,13 +64,20 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' "$PROXY_URL/v1/systemone" \
             -H "Content-Type: application/json" -d '{}')
           echo "unauthenticated systemone -> $code (want 401/403)"
+          # The property that matters is "the request never reached TypeSafe",
+          # NOT any particular status code. Verified against a real LiteLLM
+          # instance: with auth enforced the request dies inside
+          # user_api_key_auth and never leaves the proxy. 401/403 is what that
+          # looks like with a healthy database; a 5xx means the proxy itself is
+          # unwell, which is a different problem from a key leak. Keep the two
+          # diagnoses apart so nobody rotates a key over a 500.
           case "$code" in
             401|403) ;;
-            # 422 means TypeSafe validated the body, i.e. LiteLLM forwarded an
-            # unauthenticated request. Only TypeSafe can produce it here.
-            422) echo "::error::auth NOT enforced on /v1/systemone (422 = request reached TypeSafe) — rotate TYPESAFE_API_KEY and restore 'auth: true'"; exit 1 ;;
+            # Only TypeSafe validates request bodies, so a 422 proves the
+            # unauthenticated request was forwarded: auth is NOT enforced.
+            422) echo "::error::auth NOT enforced on /v1/systemone (422 = the request reached TypeSafe) — rotate TYPESAFE_API_KEY and restore 'auth: true'"; exit 1 ;;
             2*) echo "::error::OPEN RELAY on /v1/systemone — rotate TYPESAFE_API_KEY and restore 'auth: true'"; exit 1 ;;
-            *) echo "::error::unexpected status $code from unauthenticated /v1/systemone"; exit 1 ;;
+            *) echo "::error::/v1/systemone returned $code unauthenticated. The key is NOT leaking (nothing reached TypeSafe), but the proxy is unhealthy — check 'fly logs' and the database."; exit 1 ;;
           esac
         env:
           PROXY_URL: ${{ secrets.PROXY_URL }}
