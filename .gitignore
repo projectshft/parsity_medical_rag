@@ -41,3 +41,6 @@ data/bible/
 
 # gstack browser session artifacts
 .gstack/
+
+# LiteLLM per-cohort student keys (secret)
+infra/litellm/keys-*.csv

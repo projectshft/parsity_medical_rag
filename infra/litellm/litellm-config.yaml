@@ -1,0 +1,102 @@
+# LiteLLM proxy config
+#
+# Students point the OpenAI SDK at this proxy and use ANY OpenAI model name.
+# The wildcard route passes every request through to OpenAI proper, so
+# "gpt-4o", "gpt-4o-mini", "gpt-4.1-nano", "text-embedding-3-small", the
+# o-series, etc. all just work — no per-model config needed.
+
+model_list:
+  # --- Anthropic (Claude) ---
+  # Students call these with the OpenAI SDK too — just pass the model name.
+  # Named routes for the two blessed models:
+  - model_name: claude-sonnet-4-6
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+  - model_name: claude-haiku-4-5
+    litellm_params:
+      model: anthropic/claude-haiku-4-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+  # Wildcard: any other claude-* name (e.g. a dated snapshot) passes through
+  # to Anthropic. Must come BEFORE the catch-all "*" so it wins the match.
+  - model_name: "claude-*"
+    litellm_params:
+      model: anthropic/*
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # --- OpenAI (everything else) ---
+  # Catch-all: gpt-4o, gpt-4o-mini, text-embedding-3-small, o-series, etc.
+  - model_name: "*"
+    litellm_params:
+      model: openai/*
+      api_key: os.environ/OPENAI_API_KEY
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+  # --- Jev (TypeSafe AI): the week-5 eval judge, as a PASS-THROUGH route ---
+  #
+  # NOTE: this lives INSIDE general_settings on purpose. YAML has no merging —
+  # a second top-level `general_settings:` block silently REPLACES this one and
+  # takes master_key with it, so the proxy boots with no admin key and
+  # new-cohort.sh can no longer mint. Add keys here, never in a new block.
+  #
+  # Jev is not a chat model, so it cannot be a `model_list` entry: the SDK
+  # posts `{state, questions}` to /v1/systemone and gets `{answers}` back.
+  # There is no /chat/completions to translate, which is also why LiteLLM ships
+  # no TypeSafe provider. A pass-through endpoint forwards the request untouched.
+  #
+  # Students set TWO env vars and never see a TypeSafe key:
+  #     TYPESAFE_BASE_URL=https://parsity-litellm.fly.dev
+  #     TYPESAFE_API_KEY=<their LiteLLM key — the same one as OPENAI_API_KEY>
+  # @typesafe-ai/sdk reads TYPESAFE_BASE_URL and appends /v1/systemone, which is
+  # exactly the path below. The real key is a Fly secret, injected here.
+  #
+  # `auth: true` IS LOAD-BEARING. Without it the route is unauthenticated and
+  # anyone who learns the URL can spend our TypeSafe key — an open relay. With
+  # it, LiteLLM runs its normal key auth first, so a student needs a valid
+  # virtual key and their per-key budget applies. Do not remove that line to
+  # "fix" a 401; a 401 here means the student's LiteLLM key is wrong.
+  #
+  # (LiteLLM's docs still label `auth` as Enterprise. That is stale — it was
+  # fixed precisely because it left OSS with no safe configuration. Verified in
+  # litellm/proxy/pass_through_endpoints/pass_through_endpoints.py, which
+  # attaches `user_api_key_auth` for `auth: true` with no license check.)
+  #
+  # Header precedence, since it is the thing people get wrong: the injected
+  # `headers` below WIN over anything the client sent, so a student's virtual
+  # key never reaches TypeSafe. `forward_headers` is deliberately omitted
+  # (defaults false) so nothing else leaks either.
+  #
+  # `cost_per_request` is a FLAT charge — pass-through routes have no token
+  # accounting, so it is an estimate, not a measurement. Jev is $0.042 per 1M
+  # input tokens with output free; an 8k-token judging call is ~$0.00034. The
+  # figure below rounds up on purpose: a slightly over-charged budget binds a
+  # little early, which is the harmless direction.
+  pass_through_endpoints:
+    - path: "/v1/systemone"
+      target: "https://api.typesafe.ai/v1/systemone"
+      auth: true
+      headers:
+        Authorization: "Bearer os.environ/TYPESAFE_API_KEY"
+        content-type: application/json
+      methods: ["POST"]
+      cost_per_request: 0.0005
+      timeout: 60
+
+litellm_settings:
+  # In-memory response cache — zero infra (single Fly machine). Identical
+  # requests (same model + input) return a cached response at $0, no provider
+  # call. Cache hits don't draw down per-key budgets. Cleared on restart and
+  # not shared across machines — fine for one always-on box. Swap type: local
+  # -> redis (+ REDIS_URL secret) if you ever want it durable / multi-machine.
+  cache: true
+  cache_params:
+    type: local
+    ttl: 3600 # seconds; identical repeats within the hour hit the cache
+    supported_call_types: ["completion", "acompletion", "embedding", "aembedding"]
+
+# NOTE: Budget enforcement is per-key (set by new-cohort.sh at mint time).
+# Do NOT set litellm_settings.max_budget here — that is a GLOBAL ceiling across
+# all keys, and setting it to 0 makes the proxy reject every request immediately.
+# (max_budget is a SEPARATE key from the cache settings above — don't merge them.)

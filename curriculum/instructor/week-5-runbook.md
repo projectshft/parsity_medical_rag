@@ -129,6 +129,26 @@ Then make it concrete, because they already have the raw material:
    a judge, and a judge is the wrong tool for it.
 4. **Run `npm run test:evals`** on screen.
 
+   **Before class, verify the proxy route.** Students have no TypeSafe account —
+   Jev is early access with no free tier, so one key sits on the proxy and they
+   reach it with the LiteLLM key they already have. Two things to check (both
+   commands are in `infra/litellm/RUNBOOK.md`): a student key gets a `200` from
+   `/v1/systemone`, and an unauthenticated call gets a `401`. The second matters
+   because the route injects our key — without `auth: true` it is an open relay.
+   The canary workflow checks both every 15 minutes, so a green canary is enough.
+
+   Expect the same confusion from several students at once: `TYPESAFE_API_KEY` is
+   the *same value* as `OPENAI_API_KEY`. It reads like a copy-paste error. Say it
+   before they hit it, and have the one-line explanation ready — the SDK sends
+   their key as a bearer token, the proxy authenticates it and swaps in the real
+   one. **Any 401 from the judge is a key problem, not a Jev outage.**
+
+   There's a free ten minutes in this if you want it: Jev is a live example of a
+   vendor whose API doesn't fit the gateway in front of it. No
+   `/chat/completions` means it cannot be a model route at all. That's why the
+   config has a pass-through block, and why pass-through spend is a flat
+   per-request estimate rather than real token accounting.
+
 The line to land: **an eval is how you find out a change helped.** Without one,
 every prompt edit is a vibe and every regression is a surprise from a user.
 

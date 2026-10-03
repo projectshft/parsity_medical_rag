@@ -53,9 +53,15 @@ const EvalResultSchema = z.object({
 export type EvalResult = z.infer<typeof EvalResultSchema>;
 
 /**
- * `TYPESAFE_API_KEY` is read from the environment by the client. Constructed
- * lazily so importing this module never throws — the unit tests import it
- * without a key.
+ * `TYPESAFE_API_KEY` and `TYPESAFE_BASE_URL` are both read from the environment
+ * by the SDK, so there is nothing to wire here. Constructed lazily so importing
+ * this module never throws — the contract tests import it without a key.
+ *
+ * In the classroom both point at the LiteLLM proxy, not at TypeSafe: students
+ * have no TypeSafe account (Jev is early access, no free tier), so the key they
+ * send is their LiteLLM key and the proxy swaps in the real one on a
+ * pass-through route. A 401 from here is a key/base-URL problem, not an outage.
+ * See `infra/litellm/litellm-config.yaml`.
  */
 let client: TypeSafeClient | undefined;
 function getClient(): TypeSafeClient {

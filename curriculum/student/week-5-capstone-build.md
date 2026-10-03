@@ -113,6 +113,27 @@ needed a judge.
 npm run test:evals
 ```
 
+This is the one suite that costs money, which is why it's excluded from
+`npm run test:run`. Two env vars have to be set or it fails at the first call:
+
+```
+TYPESAFE_API_KEY=<the same key you use for OPENAI_API_KEY>
+TYPESAFE_BASE_URL=https://parsity-litellm.fly.dev
+```
+
+Yes, the same key. You don't have a TypeSafe account and you don't need one —
+Jev is early access with no free tier, so we hold one key and route you through
+the same proxy that serves OpenAI. The SDK sends your key as a bearer token, the
+proxy checks it against your budget, swaps in the real TypeSafe key, and forwards
+the request. **A 401 here means your key or base URL is wrong, not that Jev is
+down.**
+
+That's also a worked example of something you'll meet again: a vendor whose API
+shape doesn't fit the gateway in front of it. Jev has no `/chat/completions`, so
+it can't be a model route at all — it's a pass-through, forwarded untouched. The
+configuration lives in `infra/litellm/litellm-config.yaml` if you're curious what
+that costs to set up.
+
 The line worth remembering: **an eval is how you find out whether a change
 helped.** Without one, every prompt edit is a vibe.
 

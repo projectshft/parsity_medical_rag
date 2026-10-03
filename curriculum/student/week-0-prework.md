@@ -26,10 +26,17 @@ You do not need every key on day one, but you need these before Saturday:
 | **[Pinecone](https://www.pinecone.io/)** | the vector store you'll build | free tier is plenty |
 | **[cal.com](https://cal.com/)** | appointment booking, from session 3 on | free |
 | **OpenAI** | embeddings + the models | **provided** — a key is emailed to you |
+| **TypeSafe / Jev** | the eval judge, week 5 | **provided** — same key, nothing to sign up for |
 
 The OpenAI key is ours, routed through a proxy, and capped. You'll get it, plus
 an `OPENAI_BASE_URL`, in an email before kickoff. Both go in your `.env`. If you'd
 rather use your own OpenAI account, you can — just leave `OPENAI_BASE_URL` unset.
+
+That same key also gets you Jev, the decision model the week-5 eval judge runs
+on. It rides the same proxy, so you'll set `TYPESAFE_API_KEY` to the *same value*
+as `OPENAI_API_KEY` and `TYPESAFE_BASE_URL` to the same host. Not a typo — see the
+comment in `.env.example`. Nothing to sign up for, which is deliberate: Jev is
+early access and has no free tier, so there may be no self-serve key to get.
 
 The database is **pre-loaded and read-only**. You'll get a `DATABASE_URL` in the
 first session. You never run an ingest, and you can't break it.

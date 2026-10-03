@@ -139,9 +139,23 @@ match the six live sessions.
   letting someone discover it halfway through week 1.
 - The eval judge runs on **Jev** (TypeSafe AI), not OpenAI — the one deliberate
   departure from the Responses-API pattern in `CLAUDE.md`. Typed questions in,
-  calibrated probabilities out, no text generation. `TYPESAFE_API_KEY` in
-  `.env.example`; rubrics cap at 10 levels; `noul` is a probability, not a
-  boolean. Week 5's guide and runbook carry the teaching argument.
+  calibrated probabilities out, no text generation. Rubrics cap at 10 levels;
+  `noul` is a probability, not a boolean. Week 5's guide and runbook carry the
+  teaching argument.
+- **Students do not have a TypeSafe account, and don't write as though they do.**
+  Jev is early access with no free tier, so one key lives on the LiteLLM proxy and
+  students reach it on a pass-through route: `TYPESAFE_API_KEY` is the *same value*
+  as `OPENAI_API_KEY`, plus `TYPESAFE_BASE_URL` pointed at the proxy. Never tell
+  them to get a key from `console.typesafe.ai`.
+- Jev cannot be a `model_list` entry — it has no `/chat/completions`, so there is
+  no model name for it. It is `general_settings.pass_through_endpoints` in
+  `infra/litellm/litellm-config.yaml`, and `auth: true` on that route is what
+  stops it being an open relay on our key. Pass-through spend is a flat
+  `cost_per_request` estimate, not token accounting; don't claim the dashboard
+  shows real Jev cost.
+- `infra/litellm/` is **instructor-only infra** (proxy config, key minting, the
+  operator runbook). It is not part of any student exercise, and `keys-*.csv`
+  holds raw student keys — it's gitignored, keep it that way.
 - npm scripts: `dev`, `build`, `start`, `lint`, `test`, `test:run`, `test:evals`,
   `db:generate`, `db:push`, `db:studio`, `vectorize`, `similarity`,
   `retell:deploy`, `bible:fetch`, `bible:fixed`, `bible:smart`, `bible:audit`,
@@ -170,6 +184,7 @@ it; don't repeat that.
 | `lib/graph.test.ts` | absent | 9 specs — the loop, both routes, and the missing-edge bug |
 | `lib/evals/llm-judge.ts` | three stubs that throw | implemented on **Jev** (`@typesafe-ai/sdk`) |
 | `lib/judge-contract.test.ts` | absent | 13 offline specs for the judge's mapping logic |
+| `infra/litellm/` + the proxy canary | absent | present — proxy config, key minting, operator runbook |
 | Test count, fresh `npm run test:run` | **51** | **88** |
 
 Both branches keep `ai` + `@ai-sdk/openai` — the aggregator streams with

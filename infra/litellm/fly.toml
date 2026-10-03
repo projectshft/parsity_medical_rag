@@ -1,0 +1,40 @@
+# Fly.io deploy for the LiteLLM proxy.
+# Change `app` to your chosen name (must be globally unique), then:
+#   fly launch --no-deploy --copy-config   # or `fly apps create <name>`
+#   fly postgres create --name <name>-db && fly postgres attach <name>-db
+#   fly secrets set OPENAI_API_KEY=sk-... LITELLM_MASTER_KEY=sk-...
+#   fly deploy
+app = "parsity-litellm"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  STORE_MODEL_IN_DB = "True"
+  # Skip the boot-time `prisma migrate deploy`. The schema is applied once (see
+  # README); leaving it on made LiteLLM hang on migrate against Neon and never
+  # bind :4000 -> crash loop. Re-enable only when upgrading LiteLLM's schema.
+  DISABLE_SCHEMA_UPDATE = "True"
+  # DATABASE_URL is a secret pointing at the Neon `litellm` database.
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  # Always-on for a live cohort — do NOT let Fly stop the machine.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/health/readiness"
+    interval = "30s"
+    timeout = "10s"
+    # Generous grace: first boot runs `prisma migrate deploy` against Neon before
+    # binding :4000. A short grace kills the machine mid-migration → crash loop.
+    grace_period = "180s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "2gb"   # LiteLLM RSS ~900MB; 1gb OOM-kills it
