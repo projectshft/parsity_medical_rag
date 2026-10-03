@@ -51,6 +51,20 @@ table exists to prevent, so the table now covers the graph and the guardrail too
       `retrieval.test.ts` keeps passing whoever is underneath. **Nobody has made
       a live Jev call yet:** those specs mock the SDK, so they prove the mapping
       and not the wire format.
+- [x] **The judge verified against the live Jev API** — this was the outstanding
+      caveat and it's now discharged for the direct path. The wire format matches
+      what `llm-judge.ts` assumes: a `score` answer returns `score`, `confidence`,
+      `legend` and `probabilities` keyed by level index, and `noul` returns a bare
+      probability. Observed on real calls — relevant retrieval 10.0/10 pass,
+      irrelevant 0.0/10 fail, an answer inventing a second medication 3.0/10
+      (confidence 0.83), and a half-answered question 4.8/10, which is the
+      between-levels behaviour the student guide describes. `jev-latest` resolves
+      to `jev-1.13.0` today.
+      One bug fell out: **`model` is a required body field**, so the hand-written
+      curl checks in the runbook and the canary were both wrong and would have
+      returned 422 on a route that was working fine. Fixed in both, with the
+      status table that distinguishes 401 (guarded) from 422 (auth NOT enforced)
+      from 2xx (open relay).
 - [x] **Jev reaches students without a TypeSafe account** — Jev is early access
       with no free tier and signups may be closed, so a per-student key was never
       a safe plan. It now rides the LiteLLM proxy on a pass-through route
@@ -101,17 +115,19 @@ are not teach-blockers.
 - **Week 4 has never been delivered.** "Where it breaks" is mostly prediction.
   Fill in "Notes from cohort 4" the day you teach it; that section is
   unreconstructible a month later.
-- **Deploy and verify the Jev pass-through route.** The config is written and
-  committed, but nothing has been deployed or called yet — the only remaining
-  step on the critical path for week 5. In order:
+- **Deploy and verify the Jev pass-through route.** The judge and the key are
+  now proven against TypeSafe directly (see above); what is *not* proven is the
+  proxy hop, because the config has never been deployed. That's the only
+  remaining step on the critical path for week 5. In order:
   `fly secrets set TYPESAFE_API_KEY=... -a parsity-litellm`, then
   `fly deploy -a parsity-litellm` (the config is baked into the image, so a
   secret alone won't pick it up), then the two curl checks in
   `infra/litellm/RUNBOOK.md`: a student key gets `200` from `/v1/systemone`, an
   unauthenticated call gets `401`. Add `TYPESAFE_API_KEY` to
   `infra/litellm/.env` locally too, for `new-cohort.sh`.
-  Then run `npm run test:evals` once against the proxy — the contract specs mock
-  the SDK, so they prove the mapping and not the wire format.
+  Then point `TYPESAFE_BASE_URL` at the proxy and run `npm run test:evals` once.
+  Expect the same numbers as the direct calls above; a 422 at that point means
+  the body isn't arriving intact, and a 401 means the LiteLLM key is wrong.
 - **The two rehearsal items** in the week-4 pre-flight: a question that routes
   wrong with a vague tool description, and a multi-hop follow-up the week-3
   selector handles badly. Both want verifying against live data before class —

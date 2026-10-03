@@ -45,7 +45,8 @@ jobs:
           resp=$(curl -s -w '\n%{http_code}' "$PROXY_URL/v1/systemone" \
             -H "Authorization: Bearer $PROXY_CANARY_KEY" \
             -H "Content-Type: application/json" \
-            -d '{"state":{"text":"The patient is doing well."},
+            -d '{"model":"jev-latest",
+                 "state":{"text":"The patient is doing well."},
                  "questions":{"positive":{"type":"noul","instructions":"Is the tone positive?"}}}')
           body=$(echo "$resp" | head -n -1); code=$(echo "$resp" | tail -n1)
           echo "systemone -> $code"
@@ -65,6 +66,9 @@ jobs:
           echo "unauthenticated systemone -> $code (want 401/403)"
           case "$code" in
             401|403) ;;
+            # 422 means TypeSafe validated the body, i.e. LiteLLM forwarded an
+            # unauthenticated request. Only TypeSafe can produce it here.
+            422) echo "::error::auth NOT enforced on /v1/systemone (422 = request reached TypeSafe) — rotate TYPESAFE_API_KEY and restore 'auth: true'"; exit 1 ;;
             2*) echo "::error::OPEN RELAY on /v1/systemone — rotate TYPESAFE_API_KEY and restore 'auth: true'"; exit 1 ;;
             *) echo "::error::unexpected status $code from unauthenticated /v1/systemone"; exit 1 ;;
           esac

@@ -190,20 +190,38 @@ path a student actually takes):
 curl -s -w '\n%{http_code}\n' https://parsity-litellm.fly.dev/v1/systemone \
   -H "Authorization: Bearer <a student key from the CSV>" \
   -H "Content-Type: application/json" \
-  -d '{"state":{"text":"The patient is doing well."},
+  -d '{"model":"jev-latest",
+       "state":{"text":"The patient is doing well."},
        "questions":{"positive":{"type":"noul","instructions":"Is the tone positive?"}}}'
 ```
 
-Expect `200` and an `answers.positive.noul` probability. Then confirm the guard
-actually guards — this must **fail**:
+Expect `200` and an `answers.positive.noul` probability (~0.95 for that text).
+
+**`model` is required in the body.** Leave it out and TypeSafe returns `422
+{"detail":[{"loc":["body","model"],"msg":"Field required"}]}`, not a 401 — so a
+422 here means your request is malformed, not that auth failed. The SDK always
+sends it (from `TYPESAFE_DEFAULT_MODEL`, default `jev-latest`); only hand-written
+curl can forget it. Verified against the live API: `jev-latest` currently
+resolves to `jev-1.13.0`, which is the value to pin if you want reproducibility.
+
+Then confirm the guard actually guards — this must **fail**:
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' https://parsity-litellm.fly.dev/v1/systemone \
-  -H "Content-Type: application/json" -d '{}'      # expect 401, NOT 200
+  -H "Content-Type: application/json" -d '{}'      # expect 401, NOT 200/422
 ```
 
-If that second command returns anything 2xx, the route is an open relay on our
-TypeSafe key — rotate the key and fix `auth` before class.
+`401` is right: LiteLLM's auth runs before the body ever reaches TypeSafe. Read
+the failure modes carefully, because they are not interchangeable:
+
+| Status | Means |
+|---|---|
+| `401`/`403` | correct — the route is guarded |
+| `422` | **auth is NOT enforced.** Only TypeSafe validates bodies, so a 422 proves LiteLLM forwarded an unauthenticated request. |
+| any `2xx` | **open relay**, and someone just spent our key |
+
+A `422` or a `2xx` from that command both mean the same remediation: rotate
+`TYPESAFE_API_KEY` and restore `auth: true` before class.
 
 ---
 
