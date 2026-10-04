@@ -199,6 +199,24 @@ dockerfile '.../infra/litellm/Dockerfile' not found
   app's saved config, resolves the Dockerfile against your *current* directory,
   and reports it missing even when the file is right there on disk.
 
+> **`-a` picks the TARGET app, not the source.** `fly deploy -a parsity-litellm`
+> from some other project's directory will happily build *that* project and push
+> it as the proxy, replacing LiteLLM with an unrelated application. Check your
+> shell is in `infra/litellm/` of this repo before deploying. `pwd` costs
+> nothing.
+
+**A deploy that "succeeded" is not proof the config shipped.** Ask the container:
+
+```bash
+fly ssh console -a parsity-litellm -C "grep -c pass_through_endpoints /app/config.yaml"
+```
+
+`0` means the image is carrying an older config — the file is there, our block
+isn't — and the route will 404 while the proxy looks perfectly healthy. Rebuild
+with `fly deploy --no-cache` from `infra/litellm/`. Distinguish the two failures
+by status: a **404** on `/v1/systemone` means the route was never registered
+(stale config), while a **401** means it registered and is guarded.
+
 A `fly secrets set` that prints `Machine ... update succeeded` has already
 worked, even if the `fly deploy` after it fails: setting a secret restarts the
 machine on its own. The secret is live; only the config change is still pending.
