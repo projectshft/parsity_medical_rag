@@ -129,10 +129,26 @@ are not teach-blockers.
 - **Week 4 has never been delivered.** "Where it breaks" is mostly prediction.
   Fill in "Notes from cohort 4" the day you teach it; that section is
   unreconstructible a month later.
-- **Deploy and verify the Jev pass-through route.** The judge and the key are
-  now proven against TypeSafe directly (see above); what is *not* proven is the
-  proxy hop, because the config has never been deployed. That's the only
-  remaining step on the critical path for week 5. In order:
+- **The Jev route is NOT live yet.** `TYPESAFE_API_KEY` is set as a Fly secret
+  and a `fly deploy` has run, but `POST /v1/systemone` returns **404** on
+  `parsity-litellm.fly.dev` and the path is absent from the proxy's served
+  OpenAPI (500 routes, no match). The proxy itself is healthy and
+  `"db": "connected"`, and the build does ship the pass-through *admin* routes
+  (`/config/pass_through_endpoint`), so the feature exists in the image — our
+  route specifically did not register. The config on this branch is correct
+  (verified: `general_settings.pass_through_endpoints` parses, `auth: true`,
+  Dockerfile copies it to `/app/config.yaml`), so the fault is between the
+  branch and the running container. Diagnose with one command:
+  `fly ssh console -a parsity-litellm -C "grep -c pass_through_endpoints /app/config.yaml"`.
+  A `0` means the image is stale — rebuild from `infra/litellm/` with
+  `fly deploy --no-cache`. A `1` means the file arrived and registration was
+  skipped; then check `fly logs -a parsity-litellm` for `pass.?through` or
+  `premium`, and note that `STORE_MODEL_IN_DB=True` means DB-stored settings can
+  shadow the YAML, in which case register it through
+  `POST /config/pass_through_endpoint` with the master key instead.
+  **Week 5 cannot run until this returns 200.** Everything else about the judge
+  is proven; this is the last link.
+  Original step order, for reference:
   `fly secrets set TYPESAFE_API_KEY=... -a parsity-litellm`, then
   `fly deploy -a parsity-litellm` (the config is baked into the image, so a
   secret alone won't pick it up), then the two curl checks in
