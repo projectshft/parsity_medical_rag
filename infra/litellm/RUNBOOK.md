@@ -27,6 +27,54 @@ cd infra/litellm
 
 ---
 
+## LiteLLM upgraded itself and now nothing authenticates
+
+Symptom: every keyed route returns
+
+```
+401 {"error":{"message":"Authentication Error, column t.<something> does not exist", ...}}
+```
+
+while `/health/readiness` returns `200 {"db":"connected"}` and unauthenticated
+requests still return a clean 401. Nobody in the cohort can make a single call.
+
+Cause: the Dockerfile's `main-stable` is a floating tag, so any `fly deploy`
+can move LiteLLM forward, and `DISABLE_SCHEMA_UPDATE=True` means the database
+schema never followed. The new code queries a column that isn't there. It
+presents as an authentication error because the failure happens inside the key
+lookup, before any key is compared — which is also why *un*authenticated
+requests look fine: they never reach the database.
+
+Fix — run the migration once, by hand. Prefer this over flipping
+`DISABLE_SCHEMA_UPDATE`, which runs the migration at boot where it has only Fly's
+60s grace period to finish and can leave you in a crash loop:
+
+```bash
+# 1. find prisma and the schema inside the running image
+fly ssh console -a parsity-litellm -C "sh -lc 'ls /app; command -v prisma; find / -name schema.prisma -maxdepth 6 2>/dev/null | head'"
+
+# 2. apply the migration (adjust the path to what step 1 printed)
+fly ssh console -a parsity-litellm -C "sh -lc 'cd /app && prisma migrate deploy --schema=./schema.prisma'"
+
+# 3. confirm a real student key works again
+curl -s -o /dev/null -w '%{http_code}\n' https://parsity-litellm.fly.dev/v1/chat/completions \
+  -H "Authorization: Bearer <a key from keys-*.csv>" -H "Content-Type: application/json" \
+  -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"ping"}],"max_tokens":1}'
+# want 200. A 401 naming a column means the migration did not apply.
+```
+
+Then stop it recurring: pin the image to a digest (`fly image show -a
+parsity-litellm`, then `FROM ghcr.io/berriai/litellm@sha256:<digest>`) so a
+config deploy can't move the version during a cohort, and upgrade deliberately
+between cohorts with the migration in the same change.
+
+**The canary catches this and the readiness check does not.** Its live model call
+uses a real key, so it fails the moment auth breaks. Make sure `PROXY_URL` and
+`PROXY_CANARY_KEY` are set as repo secrets — without them this class of outage is
+invisible until a student reports it.
+
+---
+
 ## Mint keys
 
 ### A whole cohort

@@ -110,6 +110,37 @@ That public URL is your students' `OPENAI_BASE_URL`.
 > ever re-enable it, run `prisma migrate deploy` by hand rather than trying to
 > raise the grace period.
 
+> ## ⚠️ Every rebuild upgrades LiteLLM. That can break ALL authentication.
+>
+> The Dockerfile says `FROM ghcr.io/berriai/litellm:main-stable` — a **floating
+> tag**. `fly deploy` (and especially `--no-cache`) re-pulls it, so a deploy you
+> made to change one config line can also move LiteLLM forward several versions.
+> Combined with `DISABLE_SCHEMA_UPDATE=True`, which skips migrations, the new
+> code then queries columns the database doesn't have.
+>
+> **This has happened.** The symptom, on EVERY keyed route — chat, embeddings and
+> the Jev pass-through alike:
+>
+> ```
+> 401 {"error":{"message":"Authentication Error, column t.tpd_limit does not exist", ...}}
+> ```
+>
+> It reads like an auth problem and it is a schema problem. The query fails before
+> any key is compared, so every student key fails at once while
+> `/health/readiness` still returns `200 {"db":"connected"}`. Unauthenticated
+> requests keep returning a clean 401, because they short-circuit before the
+> database — so the open-relay check stays green while nobody can log in.
+>
+> Fix: run the migration once (see RUNBOOK → "LiteLLM upgraded itself"). Then
+> consider pinning the image to a digest so a routine config deploy can never
+> move the version mid-cohort:
+>
+> ```
+> fly image show -a parsity-litellm        # read the current digest
+> # then in the Dockerfile:
+> # FROM ghcr.io/berriai/litellm@sha256:<digest>
+> ```
+
 ## Each cohort
 
 ```bash
