@@ -50,11 +50,16 @@ Fix — run the migration once, by hand. Prefer this over flipping
 60s grace period to finish and can leave you in a crash loop:
 
 ```bash
-# 1. find prisma and the schema inside the running image
-fly ssh console -a parsity-litellm -C "sh -lc 'ls /app; command -v prisma; find / -name schema.prisma -maxdepth 6 2>/dev/null | head'"
+# 0. FIRST: record the current image digest, so you can roll back if the
+#    migration fights you. Keep this output somewhere you can find it.
+fly image show -a parsity-litellm
 
-# 2. apply the migration (adjust the path to what step 1 printed)
-fly ssh console -a parsity-litellm -C "sh -lc 'cd /app && prisma migrate deploy --schema=./schema.prisma'"
+# 1. apply the migration. The migrations ship with litellm-proxy-extras, NOT
+#    next to /app/schema.prisma — use the extras copy or prisma finds no
+#    migrations to apply. Paths verified inside the image (prisma lives at
+#    /app/.venv/bin/prisma and is already on PATH; DATABASE_URL is a Fly secret
+#    so it's in the environment):
+fly ssh console -a parsity-litellm -C "sh -lc 'cd /app/litellm-proxy-extras/litellm_proxy_extras && prisma migrate deploy --schema=./schema.prisma'"
 
 # 3. confirm a real student key works again
 curl -s -o /dev/null -w '%{http_code}\n' https://parsity-litellm.fly.dev/v1/chat/completions \
@@ -62,6 +67,30 @@ curl -s -o /dev/null -w '%{http_code}\n' https://parsity-litellm.fly.dev/v1/chat
   -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"ping"}],"max_tokens":1}'
 # want 200. A 401 naming a column means the migration did not apply.
 ```
+
+If the migration refuses, it is almost always one of these:
+
+- **`P3005: database schema is not empty`** — the schema was created without
+  Prisma's migration history, so there is nothing recorded as applied. Mark the
+  existing migrations applied, then deploy again:
+  `prisma migrate resolve --applied <name> --schema=./schema.prisma` for each
+  one already in the database (`ls migrations` lists them in order).
+- **drift / "migration already applied"** — the database is ahead of or beside
+  the history. Treat `prisma db push` as a last resort: it syncs the schema with
+  no migration history and **can drop columns**. This database holds the student
+  keys and all spend history. Keys can be re-minted (and re-emailed); spend
+  cannot be recovered.
+
+**The reliable escape hatch is the image, not the database.** Rebuild pinned to
+the digest from step 0 — our config still applies, and the old code matches the
+old schema:
+
+```
+FROM ghcr.io/berriai/litellm@sha256:<digest from step 0>
+```
+
+That restores every student key immediately and lets the upgrade happen
+deliberately, with the migration, when there isn't a cohort waiting.
 
 Then stop it recurring: pin the image to a digest (`fly image show -a
 parsity-litellm`, then `FROM ghcr.io/berriai/litellm@sha256:<digest>`) so a
