@@ -104,6 +104,31 @@ invisible until a student reports it.
 
 ---
 
+## Start of cohort: one command
+
+```bash
+cd infra/litellm
+./bootstrap-cohort.sh cohort-4 roster-cohort4.txt
+./bootstrap-cohort.sh cohort-4 roster-cohort4.txt --rotate   # if the admin key is lost
+```
+
+It checks the branch has this folder and that `new-cohort.sh` is current, checks
+the admin key isn't the `.env.example` placeholder, checks the proxy is up and
+that `/v1/systemone` is guarded (distinguishing 404 / 422 / 2xx and naming the
+fix for each), mints the student and canary keys, then proves a real key gets
+`200` from chat, embeddings and Jev.
+
+Every check in it exists because that exact thing went wrong once: deploying
+from the wrong directory, running against a branch without this folder, a
+placeholder admin key that minted a CSV full of `ERROR` while exiting 0, and
+cohort-3 keys that had expired a month before anyone noticed. Re-runnable;
+nothing destructive except `--rotate`.
+
+The canary key it mints is deliberately longer-lived than the cohort (180d vs
+90d) — a monitor that expires with the thing it monitors is worse than none.
+
+---
+
 ## Mint keys
 
 ### A whole cohort
