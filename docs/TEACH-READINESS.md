@@ -129,13 +129,33 @@ are not teach-blockers.
 - **Week 4 has never been delivered.** "Where it breaks" is mostly prediction.
   Fill in "Notes from cohort 4" the day you teach it; that section is
   unreconstructible a month later.
+- **Mint cohort-4 keys — the existing ones are EXPIRED.** The key in hand
+  expired `2026-09-09`; cohort 3's were minted for 90 days and have run out.
+  Nothing works for any student until new ones exist, on any route. This is
+  independent of Jev and blocks week 1, not week 5:
+
+  ```bash
+  cd infra/litellm                     # needs .env with LITELLM_MASTER_KEY + PROXY_URL
+  printf "student1@example.com\nstudent2@example.com\n" > roster-cohort4.txt
+  ./new-cohort.sh cohort-4 roster-cohort4.txt 10 90
+  ```
+
+  Mint a canary key in the same pass and use it for `PROXY_CANARY_KEY`:
+  `echo canary > one.txt && ./new-cohort.sh canary one.txt 5 120`. Give it a
+  longer lifetime than the cohort so the monitor doesn't silently expire
+  mid-course — the way these did.
+  The onboarding email needs **four** lines now: `OPENAI_API_KEY`,
+  `OPENAI_BASE_URL`, `TYPESAFE_API_KEY` (same value as the first) and
+  `TYPESAFE_BASE_URL`.
 - **One keyed call left to confirm, then the Jev route is done.** The route is
   deployed and verified from outside: `POST /v1/systemone` returns `401`
   unauthenticated (registered and guarded — not an open relay), `GET` returns
   `405` (POST-only honored), and a bogus bearer token is rejected with
-  `Invalid proxy server token` rather than a schema error. What nobody has run is
-  a call with a **real minted student key**, which needs a key from
-  `keys-*.csv`:
+  `Invalid proxy server token` rather than a schema error. The migration is
+  positively confirmed, not merely assumed: a real (if expired) key was looked up
+  in the database and rejected with `expired_key` and its true expiry timestamp,
+  which means the lookup query now runs clean. What nobody has run is a call with
+  an **unexpired** minted key:
 
   ```bash
   curl -s -w '\n%{http_code}\n' https://parsity-litellm.fly.dev/v1/systemone \
