@@ -129,40 +129,41 @@ are not teach-blockers.
 - **Week 4 has never been delivered.** "Where it breaks" is mostly prediction.
   Fill in "Notes from cohort 4" the day you teach it; that section is
   unreconstructible a month later.
-- **The Jev route is NOT live yet.** `TYPESAFE_API_KEY` is set as a Fly secret
-  and a `fly deploy` has run, but `POST /v1/systemone` returns **404** on
-  `parsity-litellm.fly.dev` and the path is absent from the proxy's served
-  OpenAPI (500 routes, no match). The proxy itself is healthy and
-  `"db": "connected"`, and the build does ship the pass-through *admin* routes
-  (`/config/pass_through_endpoint`), so the feature exists in the image — our
-  route specifically did not register. The config on this branch is correct
-  (verified: `general_settings.pass_through_endpoints` parses, `auth: true`,
-  Dockerfile copies it to `/app/config.yaml`), so the fault is between the
-  branch and the running container. Diagnose with one command:
-  `fly ssh console -a parsity-litellm -C "grep -c pass_through_endpoints /app/config.yaml"`.
-  A `0` means the image is stale — rebuild from `infra/litellm/` with
-  `fly deploy --no-cache`. A `1` means the file arrived and registration was
-  skipped; then check `fly logs -a parsity-litellm` for `pass.?through` or
-  `premium`, and note that `STORE_MODEL_IN_DB=True` means DB-stored settings can
-  shadow the YAML, in which case register it through
-  `POST /config/pass_through_endpoint` with the master key instead.
-  **Week 5 cannot run until this returns 200.** Everything else about the judge
-  is proven; this is the last link.
-  Original step order, for reference:
-  `fly secrets set TYPESAFE_API_KEY=... -a parsity-litellm`, then
-  `fly deploy -a parsity-litellm` (the config is baked into the image, so a
-  secret alone won't pick it up), then the two curl checks in
-  `infra/litellm/RUNBOOK.md`: a student key gets `200` from `/v1/systemone`, an
-  unauthenticated call gets `401`. Add `TYPESAFE_API_KEY` to
-  `infra/litellm/.env` locally too, for `new-cohort.sh`.
-  Two things remain genuinely unverified until that deploy, and only these two:
-  that `main-stable` (the floating tag the Dockerfile pins — the local run was
-  1.103.2) behaves the same, and that a **minted virtual key** rather than the
-  master key passes the route. Both are exercised the moment the canary goes
-  green with `PROXY_CANARY_KEY`.
-  Then point `TYPESAFE_BASE_URL` at the proxy and run `npm run test:evals` once.
-  Expect the same numbers as the direct calls above; a 422 at that point means
-  the body isn't arriving intact, and a 401 means the LiteLLM key is wrong.
+- **One keyed call left to confirm, then the Jev route is done.** The route is
+  deployed and verified from outside: `POST /v1/systemone` returns `401`
+  unauthenticated (registered and guarded — not an open relay), `GET` returns
+  `405` (POST-only honored), and a bogus bearer token is rejected with
+  `Invalid proxy server token` rather than a schema error. What nobody has run is
+  a call with a **real minted student key**, which needs a key from
+  `keys-*.csv`:
+
+  ```bash
+  curl -s -w '\n%{http_code}\n' https://parsity-litellm.fly.dev/v1/systemone \
+    -H "Authorization: Bearer <a key from keys-*.csv>" \
+    -H "Content-Type: application/json" \
+    -d '{"model":"jev-latest","state":{"text":"The patient is doing well."},
+         "questions":{"positive":{"type":"noul","instructions":"Is the tone positive?"}}}'
+  ```
+
+  Want `200` and `answers.positive.noul` around 0.95. Then
+  `TYPESAFE_BASE_URL=https://parsity-litellm.fly.dev npm run test:evals` with the
+  same key as `TYPESAFE_API_KEY` should reproduce the scores recorded above.
+- **Pin the proxy image before the cohort starts.** The Dockerfile tracks
+  `main-stable`, a floating tag. Bringing this route up re-pulled it, LiteLLM
+  moved forward, and because `DISABLE_SCHEMA_UPDATE=True` had been skipping
+  migrations, **every keyed route broke at once** with
+  `401 Authentication Error, column t.tpd_limit does not exist` — chat,
+  embeddings and Jev together. `/health/readiness` stayed `200` with
+  `"db":"connected"` throughout, and unauthenticated requests kept returning a
+  clean 401, so nothing looked wrong. Fixed by running
+  `prisma migrate deploy` against the `litellm-proxy-extras` schema. To stop a
+  routine config deploy doing it again mid-cohort: `fly image show -a
+  parsity-litellm`, then pin `FROM ghcr.io/berriai/litellm@sha256:<digest>` and
+  upgrade deliberately between cohorts, with the migration in the same change.
+- **Set `PROXY_URL` and `PROXY_CANARY_KEY` as repo secrets.** The canary is the
+  only check that catches the outage above — its live call uses a real key, and
+  the readiness probe never will. Without those secrets the workflow runs and
+  proves nothing.
 - **The two rehearsal items** in the week-4 pre-flight: a question that routes
   wrong with a vague tool description, and a multi-hop follow-up the week-3
   selector handles badly. Both want verifying against live data before class —
