@@ -97,7 +97,7 @@ Two details worth keeping:
 
 The full run takes 15–25 minutes and costs a few cents.
 
-## Homework — chunk the Bible and store it in Pinecone
+## Homework — chunk the Bible and store it in Qdrant
 
 > Nothing religious about this. The KJV is a big, public-domain, heavily-quoted
 > text with deep structure (books → chapters → verses), which makes it a perfect
@@ -115,17 +115,35 @@ Downloads `kjv.txt` (~4.2 MB) into `data/bible/`.
 
 ### The assignment
 
-Write a script that **chunks the text and stores it in your own Pinecone index —
-with metadata.**
+Write a script that **chunks the text and stores it in Qdrant — with a payload.**
+
+**Qdrant, not Pinecone, on purpose.** If this ran on Pinecone you'd import
+`upsertChunks` from `lib/pinecone.ts` and the storage half would be one line.
+On Qdrant you write the client code, and the decisions we already made for you
+become yours: the collection doesn't exist until you create it, with a vector
+size and distance metric that can't be changed afterwards. Free tier, no credit
+card: [cloud.qdrant.io](https://cloud.qdrant.io).
 
 - **Chunking strategy is your call** — by verse, by chapter, packed passages,
   paragraphs, with or without overlap. Have a reason.
-- **Every chunk carries metadata** — at minimum a human-readable reference like
-  `Genesis 1:1-5`. (`scripts/bible/parse.ts` is provided: `loadVerses()` gives you
-  every verse as `{ book, chapter, verse, text }`. Nobody is grading your regex.)
-- **Use a different index** — not your medical one. Pick **512, 1536, or 3072
-  dimensions and explain why.**
-- **Verify in the Pinecone console** — vector count and metadata look right.
+- **Every chunk carries a payload** — at minimum a human-readable reference like
+  `Genesis 1:1-5`, plus `book` so you can filter. (`scripts/bible/parse.ts` is
+  provided: `loadVerses()` gives you every verse as
+  `{ book, chapter, verse, text }`. Nobody is grading your regex.)
+- **Two collections** — `bible_fixed` and `bible_smart`. The two strategies
+  produce different chunks, so they can't share points.
+- **Pick 512, 1536 or 3072 and explain why.** On Qdrant the number goes into
+  `createCollection` and is immutable — a decision, not a dropdown.
+- **Audit both** and read the gap. The naive chunker scores ~89% of chunks
+  starting mid-word; yours should be far better, and if it isn't, that's the
+  interesting result.
+
+Four things that cost an hour each if nobody warns you — **`client.search()` no
+longer exists** (it's `query()`, and it returns `{ points }`, not an array);
+**point ids must be an integer or UUID**, which TypeScript won't catch;
+**`wait` defaults to false**, so a query straight after an upsert can return
+nothing; and **filtering an unindexed payload field errors on Qdrant Cloud**.
+All four are explained in `docs/CHALLENGE-CHUNKING.md` — read it before you start.
 
 Storing it is the assignment. Searching it is next week.
 
@@ -173,9 +191,11 @@ Every one of these hit someone in cohort 3.
 - **The run dies partway with `ECONNRESET` / `fetch failed`.** Transient. Re-run
   it — ids make it idempotent. If it's persistent, delete the index and start
   clean; that fixed it for at least one person faster than debugging did.
-- **Bible verses in your medical index.** Someone did this. Set `PINECONE_INDEX`
-  deliberately before every run — and if it happens, writing the cleanup script is
-  a genuinely useful thirty minutes.
+- **Bible verses in your medical index.** Someone did this in cohort 3, back when
+  the Bible homework also ran on Pinecone. Moving it to Qdrant makes that
+  particular mistake impossible — different database, different client, no
+  shared `PINECONE_INDEX` to forget. The replacement mistake is writing both
+  chunk sets into one Qdrant collection; use `bible_fixed` and `bible_smart`.
 - **`Unknown file extension ".ts"`.** A Node version `ts-node` can't handle —
   `nvm use 20`. It would bite every `npx ts-node` script in the repo
   (`vectorize`, `similarity`, the Bible scripts), so it's all-or-nothing rather

@@ -34,7 +34,7 @@ You just created a note that exists **only in Pinecone**. Your database connecti
 
 ## Dig into reranking — on your own index
 
-Reranking was hard to *see* in class. Fix that yourself: run the funnel against your own `bible-kjv` index until you catch it working.
+Reranking was hard to *see* in class. Fix that yourself: run the funnel against your own Qdrant `bible_smart` collection until you catch it working (`npm run bible:search -- bible_smart "..."`). Note where the halves live — the vectors are in Qdrant, the reranker is Pinecone's, and it only ever sees the strings you hand it.
 
 - Search your index (plain cosine), then rerank the same candidates. Try several queries — at least one that shares **zero keywords** with the passage it finds.
 - Keep going until you find **one query where reranking visibly changed the ordering** — a passage promoted from deep in the candidate pool. That moment is the whole concept; hunt for it.

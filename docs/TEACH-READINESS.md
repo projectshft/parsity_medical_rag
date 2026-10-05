@@ -94,6 +94,31 @@ table exists to prevent, so the table now covers the graph and the guardrail too
       `infra/litellm/README.md`, a path that did not exist. Brought across with
       the proxy canary, and `.gitignore` now covers `keys-*.csv` (raw student
       keys) which it previously did not on this branch.
+- [x] **The Bible chunking lab moved to Qdrant** — a second vector database, so
+      the homework can't be solved by importing `lib/pinecone.ts`. Students now
+      create the collection themselves with an explicit, immutable vector size
+      and distance metric. `@qdrant/js-client-rest` pinned to `1.19.0`;
+      reference solutions in `scripts/bible/store.ts` and `search.ts`
+      (`bible:store`, `bible:search`); `docs/CHALLENGE-CHUNKING.md` rewritten.
+      Verified against the real client types: `tsc` passes on both scripts, and
+      `client.search(...)` is a **compile error** (`Property 'search' does not
+      exist on type 'QdrantClient'`) — that removal in 1.19.0 is the forcing
+      function, since every pre-Aug-2026 tutorial and most LLM answers still use
+      it. The other three landmines are documented with it: ids must be
+      integer/UUID (TypeScript won't catch a string), `wait` defaults to false
+      so a query straight after an upsert returns nothing, and filtering an
+      unindexed payload field errors on Cloud but not on Docker.
+      **Not run end to end** — no Qdrant server was reachable from the authoring
+      environment, so the ingest and search paths are typechecked and
+      argument-checked but never executed against a live cluster. First run
+      before week 1: `npm run bible:fetch && npm run bible:fixed && npm run
+      bible:store -- data/bible/chunks-fixed.jsonl bible_fixed`, then
+      `npm run bible:search -- bible_fixed "a question"`.
+- [x] **Node floor raised to 22** — `@qdrant/js-client-rest@1.19.0` declares
+      `engines: >=22.0.0`, so the `>=20 <23` added earlier in this pass would
+      have warned on every install. Now `>=22 <23` with `.nvmrc` pinning 22,
+      which is the version the whole suite, the build and every ts-node script
+      were verified on today.
 - [x] **Node version enforced** — `engines: >=20 <23` and a `.nvmrc` pinning 20.
       **This box was checked while both were absent.** Neither existed on any
       branch; the audit asserted an intention as a fact, which is the same error

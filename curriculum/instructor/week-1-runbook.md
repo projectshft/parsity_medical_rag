@@ -81,12 +81,31 @@ let's keep moving" and debug it later — don't let the room watch you retry.
 ## Homework to post
 
 Post the Slack message with: the `npm run bible:fetch` command, the assignment
-(chunk + store with metadata, own index, **pick dimensions and justify**), the
-four-part video brief, and the chunking reading list. Full text in the student
-guide.
+(chunk + store **in Qdrant** with a payload, two collections, **pick dimensions
+and justify**), the four-part video brief, and the chunking reading list. Full
+text in the student guide.
 
 **Say the framing out loud:** our notes don't need chunking — the Bible does. The
 contrast is the lesson.
+
+**And say why it's a second database.** On Pinecone this homework is one import
+from `lib/pinecone.ts`; on Qdrant they write the client code and have to decide
+the vector size and distance metric themselves, immutably, at collection
+creation. The honest second reason is worth saying too: they will inherit a
+system built on a vector DB they've never seen, and the skill is reading a
+client's types, not knowing Pinecone.
+
+**Warn them about `search()` before they start.** The client removed it in
+v1.19.0 in favour of `query()`, so every tutorial and basically every LLM answer
+is wrong. TypeScript catches it (`Property 'search' does not exist`), and the
+follow-on is that `query()` returns `{ points }` rather than an array. The other
+three landmines — integer/UUID ids, `wait: true`, payload indexes on Cloud — are
+in `docs/CHALLENGE-CHUNKING.md`. Point at that doc explicitly; it is the
+difference between a productive evening and four identical Slack messages.
+
+**Qdrant free clusters sleep after a week unused.** They build the collection
+this week and search it next week. Expect at least one "my collection is empty"
+on Saturday — the answer is the dashboard, not their code.
 
 ## Notes from cohort 3
 

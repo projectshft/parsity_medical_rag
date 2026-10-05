@@ -90,8 +90,8 @@ too. The reranker reads plain strings, so anything you want it to weigh has to b
 
 Honest note from the session: **reranking was hard to see working live.** The
 medical notes are long and similar to each other, and the score changes were
-muddy. That's why the homework moves it to your Bible index, where the chunks are
-short and distinct and the reordering is obvious.
+muddy. That's why the homework moves it to your Bible collection, where the
+chunks are short and distinct and the reordering is obvious.
 
 > **Postscript, found while writing this up: it also wasn't running.** In
 > `lib/vector-search.ts` the `{ topN: 10 }` object was passed as the *second
@@ -149,15 +149,35 @@ Keeping it small is the point.
 
 ## Homework
 
-### 1. See reranking work — on your own `bible-kjv` index
+### 1. See reranking work — on your Qdrant collection
 
-Reranking was hard to *see* in class. Fix that on your own index, where the chunks
-are short enough that reordering is visible.
+Reranking was hard to *see* in class. Fix that on your Bible collection, where
+the chunks are short enough that reordering is visible.
 
-Search `bible-kjv`, **over-fetch the candidates (grab ~25), then rerank and keep
-the top 5.** A quick script or an API endpoint — your call. Run a few queries,
-including **at least one that shares zero keywords with the passage it should
-find.**
+Search `bible_smart`, **over-fetch the candidates (grab ~25), then rerank and
+keep the top 5.** Run a few queries, including **at least one that shares zero
+keywords with the passage it should find.**
+
+```bash
+npm run bible:search -- bible_smart "what does it say about forgiving enemies"
+```
+
+**Notice where the two halves live.** The vectors are in Qdrant. The reranker is
+Pinecone's hosted cross-encoder, on the `PINECONE_API_KEY` you already have, and
+it takes a query and a list of **strings** — it has no idea where they came from
+and no access to your payloads. That's the point worth taking away: reranking is
+a *stage in a pipeline*, not a feature of your database. You can put any two
+providers on either side of it.
+
+A corollary that bites: the reranker only sees the text you hand it. Anything you
+want it to weigh has to be *in that string*. Pass just the verse text and it
+cannot rank on the book or the reference, however neatly those sit in your
+payload.
+
+Worth also running the same query against `bible_fixed` — the chunker that
+shreds verses mid-sentence — and watching what reranking can and cannot rescue.
+A reranker cannot promote a passage that retrieval never returned, and it cannot
+repair a chunk that was cut in half.
 
 > **Hint:** rerank the *same number* you retrieved to see how the order changes.
 > You don't need a dramatic result — you need to watch the funnel work.
@@ -177,8 +197,9 @@ Pay attention to:
 ### 3. The video
 
 **Part 1 — Reranking, explained by you.** What it is, how it differs from
-embedding search, and why you over-fetch before it. Use what you saw on your Bible
-index as the example.
+embedding search, and why you over-fetch before it. Use what you saw on your
+Bible collection as the example — and mention that the vectors were in one
+provider and the reranker in another.
 
 **Part 2 — Your opinion: what pattern should THIS project use?** Using the paper's
 vocabulary: which named pattern(s) is our pipeline (selector → SQL ‖ RAG in
@@ -208,8 +229,10 @@ between an opinion and a defended one.
 
 ## Check yourself
 
-- On your Bible index, you can show a query with **zero keyword overlap** with the
-  passage it correctly retrieves.
+- On your Bible collection, you can show a query with **zero keyword overlap**
+  with the passage it correctly retrieves.
+- You can say why the reranker lives outside the vector database, and what it
+  does and doesn't get to see.
 - You can explain why over-fetching is required for reranking to help at all.
 - Your selector returns a typed object, and you can point at the `.describe()`
   string that drove one specific routing decision.

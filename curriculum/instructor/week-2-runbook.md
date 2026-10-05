@@ -76,7 +76,7 @@ visibly better and it mostly wasn't.
 > and a write-up. "It ran and the output looked reasonable" is not evidence.
 
 Don't fight it if it's still muddy. Say plainly: *"this is hard to see here, and that's why the
-homework moves it to your Bible index where the chunks are short and distinct."*
+homework moves it to your Bible collection where the chunks are short and distinct."*
 Being honest about a weak demo costs nothing and buys credibility. Trying to sell
 a result the room can see isn't there costs a lot.
 
@@ -97,11 +97,17 @@ watch date-relevant notes move up.
 
 ## Homework to post
 
-Three parts: rerank on their own `bible-kjv` index (over-fetch ~25 → top 5,
-including a zero-keyword-overlap query), read
+Three parts: rerank on their Qdrant `bible_smart` collection (over-fetch ~25 →
+top 5, including a zero-keyword-overlap query), read
 [Building Effective Agents](https://www.anthropic.com/research/building-effective-agents),
 and a two-part video (reranking explained + which pattern should this project use,
 defended with a tradeoff).
+
+**The free lesson in the homework's shape:** their vectors are in Qdrant and the
+reranker is Pinecone's, on the key they already have. Reranking is a pipeline
+stage, not a database feature — it takes a query and a list of strings and knows
+nothing else. Draw that on the board; it pays off in week 3, when the aggregator
+can only see what the retrieval stage hands it.
 
 **The paper is the setup for weeks 3 and 4.** Say that. It gives them the
 vocabulary — routing, parallelization, prompt chaining — that the whole rest of the

@@ -24,6 +24,7 @@ You do not need every key on day one, but you need these before Saturday:
 | Service | What for | Cost |
 |---|---|---|
 | **[Pinecone](https://www.pinecone.io/)** | the vector store you'll build | free tier is plenty |
+| **[Qdrant Cloud](https://cloud.qdrant.io)** | a *second* vector DB, for the chunking lab | free tier, **no credit card** |
 | **[cal.com](https://cal.com/)** | appointment booking, from session 3 on | free |
 | **OpenAI** | embeddings + the models | **provided** — a key is emailed to you |
 | **TypeSafe / Jev** | the eval judge, week 5 | **provided** — same key, nothing to sign up for |
@@ -37,6 +38,12 @@ on. It rides the same proxy, so you'll set `TYPESAFE_API_KEY` to the *same value
 as `OPENAI_API_KEY` and `TYPESAFE_BASE_URL` to the same host. Not a typo — see the
 comment in `.env.example`. Nothing to sign up for, which is deliberate: Jev is
 early access and has no free tier, so there may be no self-serve key to get.
+
+Two vector databases is not an accident. The medical notes live in Pinecone;
+the Bible chunking lab runs on Qdrant, so you meet a second API instead of
+reusing ours. Grab the Qdrant **URL and API key** at cluster creation — the key
+is shown once. Free clusters also sleep after a week unused, so if yours looks
+empty in week 2, wake it in the dashboard before debugging your code.
 
 The database is **pre-loaded and read-only**. You'll get a `DATABASE_URL` in the
 first session. You never run an ingest, and you can't break it.

@@ -131,6 +131,24 @@ match the six live sessions.
   read-only. Students never run an ingest.
 - One note = one vector. The medical corpus is **not** chunked. The Bible homework
   exists to teach chunking on a corpus that needs it.
+- **Two vector databases, deliberately.** Medical notes → Pinecone. The Bible
+  chunking lab → **Qdrant** (`@qdrant/js-client-rest`, pinned `1.19.0`), on
+  Qdrant Cloud's free tier (no credit card). The point is that students can't
+  reuse `lib/pinecone.ts`: they write the client code and own the vector size
+  and distance metric, which Qdrant fixes immutably at collection creation.
+  Collections are `bible_fixed` and `bible_smart` — two, because the strategies
+  produce different chunks and can't share points. Don't write "store it in
+  Pinecone" for the Bible anywhere; that was cohort 3.
+- The Qdrant client is pinned EXACTLY because `1.19.0` removed `.search()` in a
+  minor release. `query()` replaces it and returns `{ points }`, not an array.
+  That break is load-bearing teaching material — every pre-Aug-2026 tutorial and
+  most LLM answers are wrong, and TypeScript catches it — so don't "upgrade" it
+  casually or paper over it.
+- Qdrant free clusters **suspend after a week idle, delete after four**. The
+  collection is built in week 1 and searched in week 2. Say so in both.
+- Reranking is Pinecone's hosted cross-encoder even for the Qdrant lab: it takes
+  a query and a list of strings and is decoupled from storage. That's the week-2
+  lesson, not an inconsistency — don't "fix" it by looking for a Qdrant reranker.
 - Pinecone: `text-embedding-3-small`, 1536 dims, cosine. Reranker is
   `bge-reranker-v2-m3` via `pinecone.inference.rerank` (hosted, free).
 - Node **20 or 22** — both verified running `npx ts-node` against `scripts/`,
@@ -161,7 +179,7 @@ match the six live sessions.
 - npm scripts: `dev`, `build`, `start`, `lint`, `test`, `test:run`, `test:evals`,
   `db:generate`, `db:push`, `db:studio`, `vectorize`, `similarity`,
   `retell:deploy`, `bible:fetch`, `bible:fixed`, `bible:smart`, `bible:audit`,
-  `security:poisoned`.
+  `bible:store`, `bible:search`, `security:poisoned`.
 - Agent pipeline files: `lib/agents/{selector,sql,rag,aggregator}.ts`, orchestrated
   by `app/api/chat/route.ts`. Tool calling is `lib/graph.ts` +
   `app/api/chat-graph/route.ts` (LangGraph v1 — `schema:` on `tool()`, **not** the
@@ -186,6 +204,7 @@ it; don't repeat that.
 | `lib/graph.test.ts` | absent | 9 specs — the loop, both routes, and the missing-edge bug |
 | `lib/evals/llm-judge.ts` | three stubs that throw | implemented on **Jev** (`@typesafe-ai/sdk`) |
 | `lib/judge-contract.test.ts` | absent | 13 offline specs for the judge's mapping logic |
+| `scripts/bible/store.ts` + `search.ts` | the exercise (throws) | implemented against Qdrant 1.19 |
 | `infra/litellm/` + the proxy canary | absent | present — proxy config, key minting, operator runbook |
 | Test count, fresh `npm run test:run` | **51** | **88** |
 
