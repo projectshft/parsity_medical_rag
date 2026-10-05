@@ -44,3 +44,7 @@ data/bible/
 
 # LiteLLM per-cohort student keys (secret)
 infra/litellm/keys-*.csv
+# Rosters hold student email addresses — they're inputs to new-cohort.sh, not
+# source. Keep them out of the repo.
+infra/litellm/roster*.txt
+infra/litellm/one.txt
