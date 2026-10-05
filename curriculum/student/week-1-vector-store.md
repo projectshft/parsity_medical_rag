@@ -176,9 +176,12 @@ Every one of these hit someone in cohort 3.
 - **Bible verses in your medical index.** Someone did this. Set `PINECONE_INDEX`
   deliberately before every run — and if it happens, writing the cleanup script is
   a genuinely useful thirty minutes.
-- **`Unknown file extension ".ts"`.** You're on Node 22 or 24. `nvm use 20`. This
-  bites every `npx ts-node` script in the repo — `vectorize`, `similarity`, the
-  Bible scripts.
+- **`Unknown file extension ".ts"`.** A Node version `ts-node` can't handle —
+  `nvm use 20`. It would bite every `npx ts-node` script in the repo
+  (`vectorize`, `similarity`, the Bible scripts), so it's all-or-nothing rather
+  than one broken script. Verified working on Node **20 and 22**; `package.json`
+  declares `>=20 <23` and `.nvmrc` pins 20, so `nvm use` picks a good one and
+  npm warns you off a bad one.
 
 ## Check yourself
 

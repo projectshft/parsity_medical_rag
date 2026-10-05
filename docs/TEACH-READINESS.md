@@ -94,9 +94,14 @@ table exists to prevent, so the table now covers the graph and the guardrail too
       `infra/litellm/README.md`, a path that did not exist. Brought across with
       the proxy canary, and `.gitignore` now covers `keys-*.csv` (raw student
       keys) which it previously did not on this branch.
-- [x] **Node version enforced** — `engines: >=20 <23` and a `.nvmrc`. Node 21+
-      breaks `ts-node` on every script in `scripts/`; a guide nobody reads was
-      the only thing preventing it.
+- [x] **Node version enforced** — `engines: >=20 <23` and a `.nvmrc` pinning 20.
+      **This box was checked while both were absent.** Neither existed on any
+      branch; the audit asserted an intention as a fact, which is the same error
+      the branch-divergent-facts table exists to prevent, committed by this
+      document. Both now exist and were verified after adding. The claim they
+      carried was also wrong: `npx ts-node` runs fine on Node **22** here,
+      including scripts importing from `lib/`, so the range admits it and the
+      week-1 troubleshooting note no longer blames 22.
 - [x] **Week-4 runbook pre-flight discharged** — deps confirmed with versions,
       solution located, and the missing-edge failure marked **Verified** rather
       than predicted.
