@@ -214,6 +214,13 @@ are not teach-blockers.
   only check that catches the outage above — its live call uses a real key, and
   the readiness probe never will. Without those secrets the workflow runs and
   proves nothing.
+- **Model migration, after the cohort — not before.** Cohort 4 stays on
+  `gpt-4o` / `gpt-4o-mini` on purpose. GPT-5 is already end-of-life (shutdown
+  2026-12-11, which a cohort starting in October would cross) and the current
+  GPT-6 line rejects `temperature`, which `CLAUDE.md` mandates and students copy
+  into their own agents. Research, call sites and the ordered migration steps are
+  in `docs/MODEL-MIGRATION.md`. Embeddings are unaffected —
+  `text-embedding-3-small` is still current, so nothing needs re-vectorizing.
 - **The two rehearsal items** in the week-4 pre-flight: a question that routes
   wrong with a vague tool description, and a multi-hop follow-up the week-3
   selector handles badly. Both want verifying against live data before class —

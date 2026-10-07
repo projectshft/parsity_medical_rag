@@ -149,6 +149,15 @@ match the six live sessions.
 - Reranking is Pinecone's hosted cross-encoder even for the Qdrant lab: it takes
   a query and a list of strings and is decoupled from storage. That's the week-2
   lesson, not an inconsistency — don't "fix" it by looking for a Qdrant reranker.
+- **Models: `gpt-4o` / `gpt-4o-mini`, deliberately, for cohort 4.** Not an
+  oversight and not laziness — checked on 2026-10-07. GPT-5 is end-of-life
+  (`gpt-5-2025-08-07` shuts down 2026-12-11, inside a cohort starting in
+  October), and the current GPT-6 line are reasoning models that **reject
+  `temperature`** with a 400, which `CLAUDE.md` mandates and students copy. The
+  migration is six call sites, three SDKs and the pattern we teach — see
+  `docs/MODEL-MIGRATION.md`. Do it between cohorts, with a live call first.
+- Use the **bare aliases**, never a dated snapshot. `gpt-4o-2024-05-13` shuts
+  down 2026-10-23; the alias is the only reason that isn't our problem.
 - Pinecone: `text-embedding-3-small`, 1536 dims, cosine. Reranker is
   `bge-reranker-v2-m3` via `pinecone.inference.rerank` (hosted, free).
 - Node **20 or 22** — both verified running `npx ts-node` against `scripts/`,
