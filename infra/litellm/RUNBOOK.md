@@ -104,6 +104,24 @@ invisible until a student reports it.
 
 ---
 
+## Is the proxy working right now? (read-only)
+
+```bash
+cd infra/litellm
+./verify-proxy.sh                 # uses the canary key from keys-canary.csv
+./verify-proxy.sh sk-abc123...    # or check one student's key
+```
+
+Checks liveness, that `/v1/systemone` still rejects unauthenticated callers, and
+that a real key gets `200` from chat, embeddings and Jev. Each failure names its
+own fix. **Mints nothing and changes nothing** — this is the one to run
+mid-cohort, or when a student says "it stopped working".
+
+Use this and NOT `bootstrap-cohort.sh` once keys exist: bootstrap mints, so
+re-running it leaves you with a second set of keys and a CSV you can't trust.
+
+---
+
 ## Start of cohort: one command
 
 ```bash
