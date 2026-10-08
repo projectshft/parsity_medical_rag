@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Before / After · why semantic search</title>
+<style>
+  :root{--ink:#1b2330;--muted:#5b6675;--line:#e3e7ec;--bg:#fff;--panel:#f6f8fa;--accent:#2563eb;
+        --win:#15803d;--bad:#b42318;--badbg:#fef3f2;--okbg:#ecfdf3;--code-bg:#f4f6f8;--sheet:#217346;}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg);margin:0;padding:2rem;line-height:1.5}
+  .wrap{max-width:74rem;margin:0 auto}
+  h1{font-size:1.8rem;margin:0 0 .3rem}
+  h2{font-size:1.25rem;margin:2.2rem 0 .6rem}
+  .lead{color:var(--muted);font-size:1.15rem;margin:0 0 1.2rem;max-width:56rem}
+  .goal{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:12px;padding:1rem 1.3rem;font-size:1.1rem}
+  .goal b{color:var(--accent)}
+  .three{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:1rem}
+  .three div{border:1px solid var(--line);border-radius:12px;padding:.9rem 1.1rem;background:#fff}
+  .three h3{margin:0 0 .25rem;font-size:1.02rem}
+  .three p{margin:0;color:var(--muted);font-size:.96rem}
+  .presets{display:flex;flex-wrap:wrap;gap:.5rem;margin:.4rem 0 1rem}
+  button{font:inherit;font-size:.95rem;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);padding:.45rem .85rem;border-radius:999px}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;align-items:start}
+  @media(max-width:900px){.cols{grid-template-columns:1fr}body{padding:1rem}}
+  .pane{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+  .pane-h{padding:.55rem .9rem;font-weight:600;font-size:.92rem;display:flex;justify-content:space-between;align-items:center}
+  .pane-h.before{background:var(--badbg);color:var(--bad)}
+  .pane-h.after{background:var(--okbg);color:var(--win)}
+  /* spreadsheet */
+  .find{display:flex;gap:.5rem;align-items:center;padding:.5rem .7rem;border-bottom:1px solid var(--line);background:#fafafa}
+  .find input{flex:1;font:inherit;font-size:.92rem;padding:.35rem .6rem;border:1px solid #cfd6de;border-radius:4px}
+  .find span{font-size:.82rem;color:var(--muted);white-space:nowrap}
+  .grid-scroll{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:.8rem;font-family:Calibri,"Segoe UI",Arial,sans-serif;min-width:560px}
+  th{background:#e9ecef;border:1px solid #cfd6de;padding:.25rem .45rem;text-align:left;font-weight:600;position:sticky;top:0}
+  td{border:1px solid #dde2e8;padding:.22rem .45rem;white-space:nowrap}
+  td.n{color:#6b7683}
+  td.rn,th.rn{background:#e9ecef;text-align:center;color:#6b7683;width:1.8rem}
+  tr.hit td{background:#fff8c5}
+  .badge{font-size:.7rem;background:#fde68a;border-radius:3px;padding:0 .3rem;margin-left:.3rem}
+  .empty{padding:1.6rem 1rem;text-align:center;color:var(--bad);font-size:.95rem}
+  .tabs{display:flex;gap:2px;background:#e9ecef;padding:.25rem .5rem 0;font-size:.78rem;border-top:1px solid #cfd6de}
+  .tabs span{padding:.25rem .8rem;border-radius:0 0 4px 4px;color:#444}
+  .tabs span.cur{background:#fff;color:var(--sheet);font-weight:600;border-bottom:2px solid var(--sheet)}
+  .sheet-cost{padding:.6rem .9rem;border-top:1px solid var(--line);font-size:.9rem;color:var(--muted);background:#fff}
+  /* chat */
+  .chat{padding:.9rem 1rem;min-height:21rem;font-size:.95rem}
+  .q{background:var(--accent);color:#fff;border-radius:14px 14px 3px 14px;padding:.5rem .8rem;margin:0 0 .8rem auto;width:fit-content;max-width:90%}
+  .a{background:var(--panel);border:1px solid var(--line);border-radius:14px 14px 14px 3px;padding:.7rem .9rem;max-width:100%}
+  .a p{margin:.1rem 0 .5rem}
+  .hitrow{border-top:1px solid var(--line);padding:.5rem 0}
+  .hitrow:first-of-type{border-top:0}
+  .hitrow .who{font-weight:600}
+  .hitrow .meta{color:var(--muted);font-size:.82rem;margin-left:.4rem}
+  .hitrow q{display:block;color:#334155;font-size:.88rem;margin-top:.15rem;quotes:"“" "”"}
+  .hitrow mark{background:#d1fadf;padding:0 .15em;border-radius:3px}
+  .why{font-size:.8rem;color:var(--win);margin-top:.15rem}
+  .cite{font-size:.78rem;color:var(--muted);margin-top:.5rem}
+  .hint{color:var(--accent);font-size:.92rem;margin:.7rem 0 0}
+  .note{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;padding:.8rem 1rem;color:var(--muted);font-size:.96rem;margin-top:1rem}
+  .note b{color:var(--ink)}
+  table.cmp{width:100%;font-family:inherit;font-size:.95rem;min-width:0}
+  table.cmp th{position:static;background:var(--panel)}
+  table.cmp td{white-space:normal;vertical-align:top;padding:.5rem .7rem}
+  .say{background:#fff;border:1px dashed #b6c2d1;border-radius:12px;padding:1rem 1.3rem}
+  .say p{margin:.3rem 0}
+  code{font-family:ui-monospace,"SF Mono",Menlo,monospace;background:var(--code-bg);padding:.1em .35em;border-radius:4px;font-size:.9em}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>What are we actually improving?</h1>
+  <p class="lead">Same clinic, same 200 patients, same 21,000 notes. The only thing that changes is whether the notes are <i>reachable</i>.</p>
+
+  <div class="goal">
+    <b>The goal:</b> today a clinic worker can filter the <i>structured</i> columns, but the <i>story</i> of every visit is locked in free-text notes that only match on exact letters.
+    We make those notes searchable <b>by meaning</b> (vector search), so people can ask plain-English questions across patients and get a summarized, cited answer instead of a pile of rows.
+  </div>
+
+  <div class="three">
+    <div><h3>1 · Find by meaning</h3><p>“Struggling to breathe” finds notes that say <i>dyspnea on exertion</i> or <i>winded at the mailbox</i>. No shared words needed.</p></div>
+    <div><h3>2 · Summarize across patients</h3><p>“What’s the pattern?” is answered in one paragraph, not 40 notes opened one at a time.</p></div>
+    <div><h3>3 · Show the source</h3><p>Every claim links back to the note it came from, so a clinician can verify it.</p></div>
+  </div>
+
+  <h2>Try it: pick a question</h2>
+  <div class="presets" id="presets"></div>
+
+  <div class="cols">
+    <div class="pane">
+      <div class="pane-h before"><span>BEFORE · how most clinics work today (spreadsheet / EHR grid)</span></div>
+      <div class="find"><span>🔍 Find</span><input id="find" placeholder="type a keyword…" autocomplete="off" /><span id="count"></span></div>
+      <div class="grid-scroll"><table id="sheet"></table></div>
+      <div class="tabs"><span class="cur">Patients</span><span>Labs</span><span>Medications</span><span>Notes (21,000 rows)</span></div>
+      <div class="sheet-cost" id="cost"></div>
+    </div>
+
+    <div class="pane">
+      <div class="pane-h after"><span>AFTER · ask the assistant (SQL + vector search + LLM)</span></div>
+      <div class="chat" id="chat"></div>
+    </div>
+  </div>
+  <p class="hint">Now try typing <code>dyspnea</code> or <code>lives alone</code> in the Find box on the left. It works, but only if you already knew the exact words the doctor used.</p>
+
+  <h2>Side by side</h2>
+  <table class="cmp">
+    <tr><th></th><th>Before (filters + Ctrl+F)</th><th>After (SQL + vector search)</th></tr>
+    <tr><td><b>“Who is struggling to breathe?”</b></td><td>0 rows unless you guess the doctor’s wording</td><td>Matches by meaning: dyspnea, winded, air hunger, PND</td></tr>
+    <tr><td><b>“What have we said about Maria’s sugar?”</b></td><td>Open her notes tab and read ~30 notes</td><td>One summary of the trend, citing 3 notes</td></tr>
+    <tr><td><b>“How many patients have diabetes?”</b></td><td>Filter the Dx column. Works fine.</td><td>Text-to-SQL. Same answer, so SQL stays in charge here.</td></tr>
+    <tr><td><b>Where the answer comes from</b></td><td>Whatever you clicked</td><td>Cited note excerpts you can verify</td></tr>
+  </table>
+
+  <div class="note"><b>What we are not claiming.</b> Structured questions (counts, dates, lab values) were never the problem, and SQL still answers them exactly. Vector search is the missing half, not a replacement. It can also be fooled (negations, near-misses), which is why we cover re-ranking, evals, and citations later in the course.</div>
+
+  <h2>30-second talk track for class</h2>
+  <div class="say">
+    <p>“Our clinic’s database has two halves. The <b>structured half</b> (diagnoses, meds, labs) is easy: SQL answers it in milliseconds. The <b>story half</b> (21,000 visit notes) is where the doctor writes <i>why</i> the patient came in and what they saw.”</p>
+    <p>“Search that half the old way and you only match <b>letters</b>. Ask for ‘short of breath’ and get nothing, because the note says ‘dyspnea.’ Same fact, zero shared words.”</p>
+    <p>“So we turn every note into a vector, a point in meaning-space, and search by <b>meaning</b>. Then an LLM reads the best matches and writes the answer, with sources. That’s the entire project: <b>make the other half of the data reachable.</b>”</p>
+  </div>
+
+  <div class="note" style="margin-top:1.2rem">The patients, notes, and numbers here are <b>hand-authored to make the idea obvious</b>. They are illustrations, not live model output (same as the other visuals). Every patient is synthetic.</div>
+</div>
+
+<script>
+const PATIENTS = [
+  {n:"Maria Alvarez",   age:67, sex:"F", dx:"Type 2 diabetes",   rx:"Metformin",   visit:"2026-08-14", notes:31, text:["Winded after walking to the mailbox, dyspnea on exertion x2 wks. Lungs clear.","A1c 8.9. Glucose logs 180-220. Metformin increased. Stress at home."]},
+  {n:"James Whitaker",  age:72, sex:"M", dx:"COPD",              rx:"Albuterol",   visit:"2026-09-02", notes:44, text:["Increased air hunger on stairs. Sleeps propped on two pillows."]},
+  {n:"Linda Chen",      age:58, sex:"F", dx:"Hypertension",      rx:"Lisinopril",  visit:"2026-07-21", notes:27, text:["Lives alone since husband passed. Rarely leaves the house. Son out of state."]},
+  {n:"Robert Okafor",   age:61, sex:"M", dx:"Heart failure",     rx:"Furosemide",  visit:"2026-09-18", notes:52, text:["Cannot lie flat, wakes at night gasping (PND). 3 lb weight gain this week."]},
+  {n:"Susan Patel",     age:45, sex:"F", dx:"Asthma",            rx:"Albuterol",   visit:"2026-06-30", notes:19, text:["Chest tight and wheezy in cold air. Using rescue inhaler 4x per week."]},
+  {n:"David Kim",       age:53, sex:"M", dx:"Hyperlipidemia",    rx:"Atorvastatin",visit:"2026-05-12", notes:14, text:["Routine follow-up. Doing well, no complaints."]},
+  {n:"Patricia Nguyen", age:79, sex:"F", dx:"Osteoporosis",      rx:"Alendronate", visit:"2026-04-03", notes:33, text:["Missed last three appointments. Daughter says no transportation. Flat affect, declined to discuss mood."]},
+  {n:"Thomas Becker",   age:66, sex:"M", dx:"Type 2 diabetes",   rx:"Metformin",   visit:"2026-08-29", notes:38, text:["Lost wife in March. Skipping meals, little appetite. Neighbor checks in."]},
+  {n:"Angela Rivera",   age:34, sex:"F", dx:"Migraine",          rx:"Sumatriptan", visit:"2026-09-09", notes:12, text:["Aura before headaches. Sumatriptan effective."]},
+  {n:"Marcus Johnson",  age:49, sex:"M", dx:"Hypertension",      rx:"Amlodipine",  visit:"2026-07-07", notes:22, text:["BP 150/94. Forgot meds while traveling for work."]},
+  {n:"Helen Foster",    age:81, sex:"F", dx:"Atrial fibrillation",rx:"Apixaban",   visit:"2026-08-05", notes:47, text:["Breathless climbing one flight of stairs. Palpitations at night."]},
+  {n:"Carlos Mendez",   age:57, sex:"M", dx:"GERD",              rx:"Omeprazole",  visit:"2026-03-18", notes:16, text:["Burning after large meals. Improved on omeprazole."]},
+];
+
+const SCENARIOS = [
+  { label:"Who is struggling to breathe?",
+    q:"short of breath",
+    ask:"Which of my patients are struggling to breathe?",
+    cost:"Typing the question into Find returns nothing. To find them by hand you would open ~12 patients' notes tabs and read ~350 notes.",
+    answer:`<p><b>5 patients</b> have notes describing breathing difficulty, none using the phrase “short of breath”:</p>
+      ${hit("Robert Okafor","Heart failure","Cannot lie flat, wakes at night <mark>gasping (PND)</mark>. 3 lb weight gain.","Orthopnea/PND, with weight gain: possible fluid overload. Highest priority.")}
+      ${hit("James Whitaker","COPD","Increased <mark>air hunger on stairs</mark>. Sleeps propped on two pillows.","Worsening exertional breathing in known COPD.")}
+      ${hit("Helen Foster","Atrial fibrillation","<mark>Breathless climbing one flight</mark> of stairs. Palpitations at night.","Exertional breathlessness plus palpitations.")}
+      ${hit("Maria Alvarez","Type 2 diabetes","Winded after walking to the mailbox, <mark>dyspnea on exertion</mark> x2 wks.","New symptom, no respiratory diagnosis on file.")}
+      ${hit("Susan Patel","Asthma","<mark>Chest tight and wheezy</mark> in cold air. Rescue inhaler 4x/week.","Weaker match: asthma symptoms.")}
+      <div class="cite">Sources: 5 notes (cited). Ranked by semantic similarity.</div>`},
+  { label:"Who seems isolated or struggling at home?",
+    q:"isolated",
+    ask:"Which patients seem isolated or struggling at home?",
+    cost:"Find returns nothing: no note contains the word “isolated.” Social context is only ever written in passing, in free text.",
+    answer:`<p><b>3 patients</b> show social-isolation or access-to-care signals:</p>
+      ${hit("Linda Chen","Hypertension","<mark>Lives alone since husband passed. Rarely leaves the house.</mark> Son out of state.","Isolation, no nearby family.")}
+      ${hit("Patricia Nguyen","Osteoporosis","<mark>Missed last three appointments</mark>. No transportation. Flat affect, declined to discuss mood.","Access barrier, possible low mood.")}
+      ${hit("Thomas Becker","Type 2 diabetes","<mark>Lost wife in March. Skipping meals</mark>, little appetite.","Recent bereavement affecting self-care.")}
+      <div class="cite">Sources: 3 notes (cited). Candidates for a social-work referral. A clinician decides.</div>`},
+  { label:"Summarize what we've said about Maria's blood sugar",
+    q:"Maria blood sugar summary",
+    ask:"Summarize what the notes say about Maria Alvarez's blood sugar over time.",
+    cost:"Filtering on the name gives one row. Her ~31 notes live on another tab; you open and read them in order, then write your own summary.",
+    answer:`<p><b>Maria Alvarez's glucose control has worsened over ~9 months.</b></p>
+      <div class="hitrow"><span class="who">Nov 2025</span><span class="meta">A1c 7.2</span><q>“Doing well, taking metformin as directed.”</q></div>
+      <div class="hitrow"><span class="who">Feb 2026</span><span class="meta">A1c 8.1</span><q>“<mark>Skipping evening dose</mark>, caregiving for her mother.”</q></div>
+      <div class="hitrow"><span class="who">Aug 2026</span><span class="meta">A1c 8.9</span><q>“Glucose logs 180-220. Metformin increased. <mark>Stress at home.</mark>”</q></div>
+      <p style="margin-top:.5rem">The notes tie the rise to missed doses and caregiver stress. The A1c values come from SQL (exact); the reasons come from the notes (semantic).</p>
+      <div class="cite">Sources: 3 notes + 3 lab rows (cited).</div>`},
+];
+
+function hit(who, dx, quote, why){
+  return `<div class="hitrow"><span class="who">${who}</span><span class="meta">${dx}</span><q>${quote}</q><div class="why">↳ ${why}</div></div>`;
+}
+
+const $ = id => document.getElementById(id);
+let current = 0;
+
+function renderSheet(){
+  const term = $("find").value.trim().toLowerCase();
+  const rows = PATIENTS.map((p,i)=>{
+    const rowText = [p.n,p.age,p.sex,p.dx,p.rx,p.visit].join(" ").toLowerCase();
+    const inRow = term && rowText.includes(term);
+    const inNotes = term && p.text.some(t=>t.toLowerCase().includes(term));
+    return {p,i,show:!term||inRow||inNotes,hit:!!term&&(inRow||inNotes),inNotes:inNotes&&!inRow};
+  }).filter(r=>r.show);
+  let h = `<tr><th class="rn"></th><th>Patient</th><th>Age</th><th>Sex</th><th>Primary Dx</th><th>Medication</th><th>Last visit</th><th>Notes</th></tr>`;
+  h += rows.map(r=>`<tr class="${r.hit?'hit':''}"><td class="rn">${r.i+2}</td><td>${r.p.n}${r.inNotes?'<span class="badge">in notes</span>':''}</td><td>${r.p.age}</td><td>${r.p.sex}</td><td>${r.p.dx}</td><td>${r.p.rx}</td><td>${r.p.visit}</td><td class="n">${r.p.notes} notes ▸</td></tr>`).join("");
+  $("sheet").innerHTML = h;
+  const empty = document.getElementById("emptyMsg");
+  if(empty) empty.remove();
+  if(term && !rows.length){
+    const d=document.createElement("div"); d.id="emptyMsg"; d.className="empty";
+    d.innerHTML=`No results found for “${term.replace(/</g,'&lt;')}”.`;
+    $("sheet").parentNode.appendChild(d);
+  }
+  $("count").textContent = term ? `${rows.length} of ${PATIENTS.length} rows` : `${PATIENTS.length} rows shown (of 200)`;
+}
+
+function pick(i){
+  current = i;
+  const s = SCENARIOS[i];
+  [...$("presets").children].forEach((b,j)=>b.classList.toggle("on",j===i));
+  $("find").value = s.q;
+  $("cost").textContent = s.cost;
+  $("chat").innerHTML = `<div class="q">${s.ask}</div><div class="a">${s.answer}</div>`;
+  renderSheet();
+}
+
+SCENARIOS.forEach((s,i)=>{
+  const b=document.createElement("button"); b.textContent=s.label; b.onclick=()=>pick(i); $("presets").appendChild(b);
+});
+$("find").addEventListener("input",()=>{
+  [...$("presets").children].forEach(b=>b.classList.remove("on"));
+  renderSheet();
+});
+pick(0);
+</script>
+</body>
+</html>
