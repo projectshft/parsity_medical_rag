@@ -18,8 +18,8 @@ same day.
 - [ ] **Have `DATABASE_URL` ready to paste** — the read-only role. Never commit it.
 - [ ] **Verify the proxy has budget** and per-student caps are set.
 - [ ] **Post the repo link + branch** in the channel before you start.
-- [ ] **Ask about Node versions in the first five minutes.** `node -v`. Anyone on
-      22 or 24 gets sent to `nvm use 20` immediately, not at minute 90.
+- [ ] **Ask about Node versions in the first five minutes.** `node -v`. Anyone
+      below 22 gets sent to `nvm use 22` immediately, not at minute 90.
 - [ ] Open in tabs: Pinecone console, the database browser, `scripts/similarity.ts`,
       `scripts/vectorize.ts`, `lib/pinecone.ts`.
 
@@ -56,7 +56,6 @@ Ranked by how many people it hit in cohort 3:
 | Symptom | Cause | Fix |
 |---|---|---|
 | `401`/`403` from OpenAI | `OPENAI_BASE_URL` commented out in `.env` | Uncomment it. **This was the single most common failure.** |
-| `Unknown file extension ".ts"` | Node 22/24 | `nvm use 20` |
 | Pinecone 404 | `PINECONE_INDEX` ≠ the console name | Copy the name exactly |
 | `Can't reach database server` | wrong/pooled `DATABASE_URL` | Repaste; script prefers `DIRECT_URL` |
 | Run dies at ~100–2000 vectors, `ECONNRESET` | flaky network | Re-run (ids make it idempotent). If persistent: **delete the index and start over** — that fixed it fastest for one student |

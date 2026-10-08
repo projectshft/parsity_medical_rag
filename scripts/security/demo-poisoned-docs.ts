@@ -1,4 +1,4 @@
-#!/usr/bin/env npx ts-node
+#!/usr/bin/env npx tsx
 
 /**
  * Demo: Poisoned Documents Attack (step-by-step)

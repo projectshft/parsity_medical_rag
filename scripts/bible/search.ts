@@ -88,12 +88,12 @@ async function main() {
 
 	// ---- stage 2: rerank ----------------------------------------------------
 	const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY! });
-	const reranked = await pinecone.inference.rerank(
-		RERANK_MODEL,
-		question,
-		texts,
-		{ topN: TOP },
-	);
+	const reranked = await pinecone.inference.rerank({
+		model: RERANK_MODEL,
+		query: question,
+		documents: texts,
+		topN: TOP,
+	});
 
 	console.log(`\n--- stage 2: reranked, top ${TOP} ---`);
 	reranked.data.forEach((row, i) => {

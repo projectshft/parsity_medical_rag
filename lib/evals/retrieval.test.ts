@@ -36,7 +36,7 @@ describe('retrieval relevance evaluation', () => {
       expect(result.pass).toBe(true);
       expect(result.reasoning).toBeDefined();
     },
-    { timeout: 30000 }
+    30000
   );
 
   it(
@@ -54,7 +54,7 @@ describe('retrieval relevance evaluation', () => {
       expect(result.score).toBeLessThan(5);
       expect(result.pass).toBe(false);
     },
-    { timeout: 30000 }
+    30000
   );
 });
 

@@ -72,15 +72,12 @@ export async function rerankResults(
 	if (results.length === 1) return results;
 
 	try {
-		const reranked = await pinecone.inference.rerank(
-			RERANK_MODEL,
+		const reranked = await pinecone.inference.rerank({
+			model: RERANK_MODEL,
 			query,
-			results.map(toRerankText),
-			// topN is an option on rerank(), NOT an argument to .map() above —
-			// put it there and it becomes the callback's `thisArg` and is
-			// silently ignored, which is a very quiet way to disable reranking.
-			{ topN },
-		);
+			documents: results.map(toRerankText),
+			topN,
+		});
 
 		// `data[i].index` points back at the position in what we sent, which is
 		// how we recover the original object (the reranker only returns text).

@@ -17,15 +17,13 @@
  */
 
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
+import { createPrisma } from '../lib/prisma';
 import { ensureIndexExists, upsertChunks, MedicalChunk } from '../lib/pinecone';
 
 const directUrl =
 	process.env.DIRECT_URL ??
 	process.env.DATABASE_URL?.replace('-pooler.', '.');
-const prisma = new PrismaClient(
-	directUrl ? { datasources: { db: { url: directUrl } } } : undefined,
-);
+const prisma = createPrisma(directUrl);
 
 async function main() {
 	const args = process.argv.slice(2);

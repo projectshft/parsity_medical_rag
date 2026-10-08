@@ -196,12 +196,6 @@ Every one of these hit someone in cohort 3.
   particular mistake impossible — different database, different client, no
   shared `PINECONE_INDEX` to forget. The replacement mistake is writing both
   chunk sets into one Qdrant collection; use `bible_fixed` and `bible_smart`.
-- **`Unknown file extension ".ts"`.** A Node version `ts-node` can't handle —
-  `nvm use 20`. It would bite every `npx ts-node` script in the repo
-  (`vectorize`, `similarity`, the Bible scripts), so it's all-or-nothing rather
-  than one broken script. Verified working on Node **20 and 22**; `package.json`
-  declares `>=20 <23` and `.nvmrc` pins 20, so `nvm use` picks a good one and
-  npm warns you off a bad one.
 
 ## Check yourself
 

@@ -62,12 +62,8 @@ every database call fails at import. `npm run dev` should give you a chat
 interface at `localhost:3000` that doesn't work yet. That's correct; it's what
 you're building.
 
-> **Node 20.** Not 22, not 24. Later versions handle TypeScript files differently
-> and every script in `scripts/` — `vectorize` and `similarity` on day one — will
-> fail with `Unknown file extension ".ts"`. If you don't have a version manager, install
-> [nvm](https://github.com/nvm-sh/nvm) and run `nvm install 20 && nvm use 20`.
-> This bit multiple people in cohort 3 and it is a five-minute fix now versus a
-> lost hour later.
+> **Node 22 or newer.** Check with `node -v`. If you're older, install
+> [nvm](https://github.com/nvm-sh/nvm) and run `nvm install 22 && nvm use 22`.
 
 ## What you're walking into
 
