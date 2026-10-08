@@ -118,7 +118,7 @@ export async function upsertChunks(chunks: MedicalChunk[]): Promise<number> {
 			},
 		}));
 
-		await withPineconeRetry(() => index.upsert({ records: vectors }));
+		await withPineconeRetry(() => index.upsert(vectors));
 		totalUpserted += vectors.length;
 		console.log(`  upserted ${totalUpserted}/${chunks.length}`);
 
