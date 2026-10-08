@@ -16,8 +16,7 @@
 		"vectorize": "npx ts-node scripts/vectorize.ts",
 		"similarity": "npx ts-node scripts/similarity.ts",
 		"retell:deploy": "npx ts-node scripts/retell/deploy-agent.ts",
-		"bible:fetch": "npx ts-node scripts/bible/fetch.ts",
-		"security:poisoned": "npx ts-node scripts/security/demo-poisoned-docs.ts"
+		"bible:fetch": "npx ts-node scripts/bible/fetch.ts"
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "^1.2.0",

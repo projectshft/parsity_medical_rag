@@ -66,7 +66,7 @@ questions.
 | 2 | **Retrieval & reranking** | `searchClinicalNotes`, `/api/search`, two-stage retrieval | [CHALLENGE-NOTE-INGEST.md](docs/CHALLENGE-NOTE-INGEST.md) |
 | 3 | **The agent pipeline** | selector → SQL ‖ RAG → aggregator, plus human-confirmed scheduling | [CHALLENGE-TOOL-CALLING.md](docs/CHALLENGE-TOOL-CALLING.md) |
 | 4 | **Tool-calling & LangGraph** | The model picks the tools instead of your `if` statements | [CHALLENGE-LANGGRAPH.md](docs/CHALLENGE-LANGGRAPH.md) |
-| 5 | **Evals, security & capstone build** | Your query log becomes a test suite; then break the system with a poisoned document and defend it | [CHALLENGE-POISONED-DOCS.md](docs/CHALLENGE-POISONED-DOCS.md) |
+| 5 | **Evals, security & capstone build** | Your query log becomes a test suite; then break the system with a poisoned document and defend it | Announced in class |
 | 6 | **Demo day** | Present what you built — 5 minutes, one decision defended with a number | — |
 
 Your capstone runs alongside weeks 5–6: you pick the data, scope it down, and build it. The plan is due in week 4.
@@ -130,7 +130,7 @@ medical-rag/
 │   ├── calendar.ts               # W3: Cal.com adapter
 │   ├── patients.ts               # findPatientByName — scheduling's one exact lookup
 │   ├── langsmith.ts              # W3: tracing config (the switch is in openai.ts)
-│   ├── security/                 # W5: poisoned-document detection + defenses
+│   ├── security/                 # W5: poisoned-document defense (built in class)
 │   ├── evals/                    # W5: retrieval + LLM-judge evals
 │   └── prisma.ts                 # database client
 ├── prisma/schema.prisma          # the schema of the read-only database
@@ -138,7 +138,6 @@ medical-rag/
 │   ├── vectorize.ts              # W1: Postgres notes → Pinecone
 │   ├── similarity.ts             # W1: cosine-similarity playground
 │   ├── bible/fetch.ts            # npm run bible:fetch — downloads the KJV text
-│   ├── security/                 # W5: the poisoned-document demo
 │   └── retell/                   # ⭐ bonus: voice confirmation call
 ├── visuals/                      # in-class explainers (open visuals/index.html)
 ├── data/                         # Synthea source data + security fixtures

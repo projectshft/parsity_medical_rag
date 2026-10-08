@@ -14,7 +14,7 @@ Requirements:
 
 1. **Validate the body** with a Zod schema (`.parse()`, let the catch map `ZodError` → 400 — same pattern as every route in this repo).
 2. **Look up the patient** in Postgres (`prisma.patient.findUnique`, include their **active** medications — `where: { status: 'active' }`). If the patient doesn't exist → **404**. This lookup is the point of the exercise: **the metadata comes from the system of record, not from the request.** A caller who could supply their own metadata could tag a note onto anyone.
-3. **Build the chunk** exactly the shape `vectorize` writes (`MedicalChunk` in `lib/pinecone.ts`): a fresh id (`uuid` is already installed), the note text as `content`, and metadata — `patientId`, `firstName`, `lastName`, `age` (derive it), `gender`, `race`, `city`, `state`, `currentMedications`, and `source: 'api'` so you can tell hand-written notes from the bulk ingest later.
+3. **Build the chunk** exactly the shape `vectorize` writes (`MedicalChunk` in `lib/pinecone.ts`): a fresh id (`uuid` is already installed), the note text as `content`, and the same metadata fields we chose in class for `vectorize`, plus `source: 'api'` so you can tell hand-written notes from the bulk ingest later.
 4. **Store it**: `upsertChunks([chunk])` — embedding + upsert in one call.
 5. **Respond** with the new note's id and the metadata you stored.
 
@@ -34,10 +34,10 @@ You just created a note that exists **only in Pinecone**. Your database connecti
 
 ## Dig into reranking — on your own index
 
-Reranking was hard to *see* in class. Fix that yourself: run the funnel against your own `bible-kjv` index until you catch it working.
+Reranking was hard to *see* in class. Fix that yourself: run the funnel (`searchClinicalNotes` returns both the cosine list and the reranked list) against your notes index until you catch it working.
 
-- Search your index (plain cosine), then rerank the same candidates. Try several queries — at least one that shares **zero keywords** with the passage it finds.
-- Keep going until you find **one query where reranking visibly changed the ordering** — a passage promoted from deep in the candidate pool. That moment is the whole concept; hunt for it.
+- Search your index (plain cosine), then rerank the same candidates. Try several queries — at least one that shares **zero keywords** with the note it finds.
+- Keep going until you find **one query where reranking visibly changed the ordering** — a note promoted from deep in the candidate pool. That moment is the whole concept; hunt for it.
 - While you're at it, read up on *why*: what does a reranker do differently from embedding search (hint: it reads the query and the document **together**, at query time — embeddings compressed each side **separately**, before any query existed), and why must you **over-fetch** (fetch 25 to keep 5) for reranking to do anything at all?
 
 Nothing to submit from this section — it feeds your video.
@@ -52,7 +52,7 @@ Pay attention to the distinction between **workflows** (LLM calls orchestrated t
 
 Two parts:
 
-**Part 1 — Reranking, explained by you.** What is reranking, how is it different from embedding search, and why do you over-fetch before it? Use what you saw on your own bible index as the example — show or describe the query where the ordering changed.
+**Part 1 — Reranking, explained by you.** What is reranking, how is it different from embedding search, and why do you over-fetch before it? Use what you saw on your own index as the example — show or describe the query where the ordering changed.
 
 **Part 2 — Your opinion: what pattern should THIS project use?** Using the paper's vocabulary:
 
