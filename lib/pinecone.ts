@@ -83,20 +83,12 @@ export async function ensureIndexExists(): Promise<void> {
 
 export interface MedicalChunk {
 	id: string;
-	content: string; // the note content
-	metadata: {
-		patientId?: string;
-		firstName?: string;
-		lastName?: string;
-		age?: number;
-		gender?: string;
-		race?: string;
-		city?: string;
-		state?: string;
-		source: string;
-		currentMedications?: string[];
-		[key: string]: unknown;
-	};
+	content: string; // the note text — the only part that gets embedded
+	// TODO (Week 1, in class): decide the metadata fields together. What would
+	// a clinic actually FILTER on? Every key rides along with the vector and
+	// can be filtered exactly; none of it is embedded. Pinecone accepts
+	// string | number | boolean | string[] values.
+	metadata: Record<string, string | number | boolean | string[]>;
 }
 
 export interface SearchResult {
@@ -128,6 +120,7 @@ export async function upsertChunks(chunks: MedicalChunk[]): Promise<number> {
 
 		await withPineconeRetry(() => index.upsert(vectors));
 		totalUpserted += vectors.length;
+		console.log(`  upserted ${totalUpserted}/${chunks.length}`);
 
 		// Small breather between batches — keeps us clear of rate limits and
 		// gives flaky networks a moment to recover. Skipped after the last batch.

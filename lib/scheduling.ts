@@ -7,100 +7,40 @@
  * This is the LLM component of the human-in-the-loop pattern.
  */
 
-import { z } from 'zod';
-import { zodTextFormat } from 'openai/helpers/zod';
-import { openai } from './openai';
 import type { Message } from './agent';
 
 /**
- * Schema for scheduling intent detection
- *
- * TODO: Define the Zod schema for scheduling intent
- * Fields needed:
- * - isSchedulingRequest: boolean - Whether this is a scheduling request
+ * TODO: Define a Zod schema for the scheduling intent and infer this type
+ * from it (`z.infer<typeof SchedulingIntentSchema>`). Fields:
  * - patientName: string | null - Name of the patient to schedule
  * - suggestedDate: string | null - Date in YYYY-MM-DD format
  * - suggestedTime: string | null - Time in HH:MM 24h format
  * - reason: string | null - Appointment reason if mentioned
  */
-const SchedulingIntentSchema = z.object({
-	patientName: z
-		.string()
-		.nullable()
-		.describe(
-			'Name of the patient to schedule (from the message or conversation history)',
-		),
-	suggestedDate: z
-		.string()
-		.nullable()
-		.describe(
-			'Requested date in YYYY-MM-DD (resolve "tomorrow", "next Tuesday" from today)',
-		),
-	suggestedTime: z
-		.string()
-		.nullable()
-		.describe(
-			'Requested time in HH:MM 24-hour format; null if not mentioned',
-		),
-	reason: z
-		.string()
-		.nullable()
-		.describe('Reason for the appointment if mentioned'),
-});
-
-export type SchedulingIntent = z.infer<typeof SchedulingIntentSchema>;
+export type SchedulingIntent = {
+	patientName: string | null;
+	suggestedDate: string | null;
+	suggestedTime: string | null;
+	reason: string | null;
+};
 
 /**
  * Analyze a query for scheduling intent
  *
  * TODO: Implement this function
- * 1. Use openai.responses.parse() with zodTextFormat
+ * 1. Use openai.responses.parse() with zodTextFormat (see CLAUDE.md)
  * 2. System prompt should:
  *    - Explain the task (detect appointment scheduling requests)
  *    - Include today's date for relative date parsing
  *    - Explain how to parse "next Tuesday", "tomorrow", etc.
- *    - Default to 09:00 if no time specified
- * 3. Return parsed scheduling intent
+ *    - Use the history to resolve "her" / "that patient" to a name
+ * 3. Return the parsed scheduling intent
  */
 export async function detectSchedulingIntent(
 	query: string,
 	history: Message[] = [],
 ): Promise<SchedulingIntent> {
-	const todayStr = new Date().toISOString().split('T')[0];
-	const dayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-
-	const response = await openai.responses.parse({
-		model: 'gpt-4o-mini',
-		input: [
-			{
-				role: 'system',
-				content: `You analyze user queries to detect appointment scheduling requests.
-Today is ${dayName}, ${todayStr}.
-
-If the user wants to schedule/book an appointment:
-- Set isSchedulingRequest to true
-- Extract the patient name if given
-- Resolve relative dates to YYYY-MM-DD from today's date: "tomorrow" = the next
-  day, "next Tuesday" = the Tuesday of NEXT week, "Friday" = the coming Friday.
-- Parse times to HH:MM 24-hour ("2pm" -> "14:00"); leave null if not mentioned.
-- Extract the appointment reason if mentioned.
-
-Use the conversation history to resolve references like "him", "her", or
-"that patient" to the actual patient name.
-
-If it is not a scheduling request, set isSchedulingRequest to false and all
-other fields to null.`,
-			},
-			...history.slice(-5),
-			{ role: 'user', content: query },
-		],
-		temperature: 0,
-		text: {
-			format: zodTextFormat(SchedulingIntentSchema, 'scheduling_intent'),
-		},
-	});
-
-	return SchedulingIntentSchema.parse(response.output_parsed);
+	throw new Error('Not built yet — Week 3 (lib/scheduling.ts)');
 }
 
 /**
