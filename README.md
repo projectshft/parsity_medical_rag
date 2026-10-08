@@ -98,7 +98,7 @@ npm run db:generate   # builds the DB client (local codegen — does NOT touch t
 npm run dev           # open http://localhost:3000
 ```
 
-That's it. The Postgres database is read-only and already loaded, so **don't** run `db:push` (it'll fail, and there's nothing to load). Browse the tables anytime with `npm run db:studio`.
+That's it. The Postgres database is read-only and already loaded, so there's nothing to load or migrate. Browse the tables anytime with `npm run db:studio`.
 
 Your **Pinecone** index is yours, though — `npm run vectorize` builds it from the notes in Postgres. That's week 1.
 
@@ -137,8 +137,7 @@ medical-rag/
 ├── scripts/
 │   ├── vectorize.ts              # W1: Postgres notes → Pinecone
 │   ├── similarity.ts             # W1: cosine-similarity playground
-│   ├── bible/fetch.ts            # npm run bible:fetch — downloads the KJV text
-│   └── retell/                   # ⭐ bonus: voice confirmation call
+│   └── bible/fetch.ts            # npm run bible:fetch — downloads the KJV text
 ├── visuals/                      # in-class explainers (open visuals/index.html)
 ├── data/                         # Synthea source data + security fixtures
 └── docs/                         # challenge specs, one per week

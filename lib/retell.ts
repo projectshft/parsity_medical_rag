@@ -6,14 +6,14 @@
  * After Cal.com books an appointment, place an automated voice call to confirm
  * the patient can attend — wiring a voice agent into an action flow.
  *
- * 👉 YOUR JOB: implement callToConfirmAppointment below, and deploy the agent it
- *    calls in scripts/retell/deploy-agent.ts. The schedule route already calls
+ * 👉 YOUR JOB: implement callToConfirmAppointment below, and deploy a Retell
+ *    agent for it to call (dashboard or SDK). The schedule route already calls
  *    this function; until you finish it, the booking still succeeds and the call
  *    just no-ops. Reference: ../voice_ai/agents for the pattern and
  *    https://docs.retellai.com.
  *
  * Setup you'll need:
- * 1. Deploy an agent (npm run retell:deploy) whose prompt uses {{patient_name}}
+ * 1. Deploy an agent whose prompt uses {{patient_name}}
  *    and {{appointment_time}}.
  * 2. A Retell phone number you own → RETELL_FROM_NUMBER.
  * 3. Env: RETELL_API_KEY, RETELL_FROM_NUMBER, RETELL_AGENT_ID.
