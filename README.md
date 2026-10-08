@@ -75,7 +75,7 @@ Your capstone runs alongside weeks 5–6: you pick the data, scope it down, and 
 
 ## Quick Start
 
-You need **Node 20** (not 22 or 24 — later versions break `ts-node` on the scripts in `scripts/`) and your own free [OpenAI](https://platform.openai.com) and [Pinecone](https://pinecone.io) keys. The database is **provided, read-only** — already loaded, you just connect to it.
+You need **Node 22 or newer** and your own free [OpenAI](https://platform.openai.com) and [Pinecone](https://pinecone.io) keys. The database is **provided, read-only** — already loaded, you just connect to it.
 
 ```bash
 git clone <repo-url> && cd medical-rag

@@ -16,7 +16,7 @@
  */
 
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
+import { createPrisma } from '../lib/prisma';
 import { ensureIndexExists, upsertChunks, MedicalChunk } from '../lib/pinecone';
 
 // The long read over ~21k notes times out on Neon's POOLED host, so prefer the
@@ -24,9 +24,7 @@ import { ensureIndexExists, upsertChunks, MedicalChunk } from '../lib/pinecone';
 const directUrl =
 	process.env.DIRECT_URL ??
 	process.env.DATABASE_URL?.replace('-pooler.', '.');
-const prisma = new PrismaClient(
-	directUrl ? { datasources: { db: { url: directUrl } } } : undefined,
-);
+const prisma = createPrisma(directUrl);
 
 // `--limit 5` → 5. No flag → undefined (all notes).
 const limitIdx = process.argv.indexOf('--limit');
