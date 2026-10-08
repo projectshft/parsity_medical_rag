@@ -160,12 +160,13 @@ match the six live sessions.
   down 2026-10-23; the alias is the only reason that isn't our problem.
 - Pinecone: `text-embedding-3-small`, 1536 dims, cosine. Reranker is
   `bge-reranker-v2-m3` via `pinecone.inference.rerank` (hosted, free).
-- Node **20 or 22** — both verified running `npx ts-node` against `scripts/`,
-  including scripts that import from `lib/`. `package.json` declares
-  `"engines": { "node": ">=20 <23" }` and `.nvmrc` pins 20, so `nvm use` picks a
-  good one and npm warns on a bad one instead of letting someone discover it
-  halfway through week 1. Don't write "Node 20 only" — that was asserted for a
-  while and is not what the repo does.
+- Node **22**. `package.json` declares `"engines": { "node": ">=22" }` and
+  `.nvmrc` pins 22, so `nvm use` picks it up and npm warns on a bad version
+  instead of letting someone discover it halfway through week 1. The floor is 22
+  because `@qdrant/js-client-rest` requires it, not by preference. Don't write
+  "Node 20 only" (asserted for a while, never true) and don't write "20 or 22" —
+  20 no longer satisfies the Qdrant client. **Check `package.json` before
+  quoting a range here; this bullet has drifted from it twice.**
 - The eval judge runs on **Jev** (TypeSafe AI), not OpenAI — the one deliberate
   departure from the Responses-API pattern in `CLAUDE.md`. Typed questions in,
   calibrated probabilities out, no text generation. Rubrics cap at 10 levels;

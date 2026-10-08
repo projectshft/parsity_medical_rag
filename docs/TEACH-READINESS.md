@@ -116,10 +116,13 @@ table exists to prevent, so the table now covers the graph and the guardrail too
       `npm run bible:search -- bible_fixed "a question"`.
 - [x] **Node floor raised to 22** — `@qdrant/js-client-rest@1.19.0` declares
       `engines: >=22.0.0`, so the `>=20 <23` added earlier in this pass would
-      have warned on every install. Now `>=22 <23` with `.nvmrc` pinning 22,
-      which is the version the whole suite, the build and every ts-node script
-      were verified on today.
-- [x] **Node version enforced** — `engines: >=20 <23` and a `.nvmrc` pinning 20.
+      have warned on every install. Now `>=22` with `.nvmrc` pinning 22. The
+      upper bound was dropped by the dependency-majors upgrade (`cb6b2fd`),
+      which is fine, but it means **the range is whatever `package.json` says —
+      read it rather than trusting a number quoted in prose**. This pair of docs
+      has now drifted from it twice.
+- [x] **Node version enforced** — an `engines` field and a `.nvmrc` now exist
+      (see the entry above for their current values).
       **This box was checked while both were absent.** Neither existed on any
       branch; the audit asserted an intention as a fact, which is the same error
       the branch-divergent-facts table exists to prevent, committed by this

@@ -100,6 +100,14 @@ chunks are short and distinct and the reordering is obvious.
 > warning, and `topN` never reached Pinecone. Every rerank returned the provider
 > default.
 >
+> **Postscript to the postscript:** the Pinecone SDK has since moved `rerank()`
+> from positional arguments to a single options object, so that exact mistake is
+> now impossible to make — the code in `lib/reranker.ts` reads
+> `rerank({ model, query, documents, topN })`. The bug is still worth your time,
+> because the *shape* of it recurs everywhere: a misplaced argument that is
+> silently accepted, changes behaviour, and raises nothing. An API that can only
+> be called one way is a real fix; remembering to be careful is not.
+>
 > Fixed now (`topN` is a real `VectorSearchOptions` field). Keep the bug in mind
 > as a shape, though, because it's the kind that survives code review: a
 > misplaced argument in a call that still returns plausible data. "It ran and the
