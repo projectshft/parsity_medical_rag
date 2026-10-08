@@ -75,7 +75,7 @@
 (() => {
   // Each note has: vec = stage-1 vector score (surface similarity),
   //                rel = true relevance a cross-encoder would assign,
-  //                why = the teaching reason the two disagree.
+  //                why = the reason the two disagree.
   const QUERIES = {
     'why is the patient short of breath?': [
       {lab:'Echo: reduced ejection fraction — heart failure', vec:.62, rel:.95, why:'Real cause, but worded nothing like the query → vector ranked it mid. Cross-encoder sees the causal link.'},
