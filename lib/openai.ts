@@ -19,11 +19,15 @@ export const openaiProvider = createOpenAI({
 	baseURL: process.env.OPENAI_BASE_URL,
 });
 
+// The embedding size. A one-way door: every vector in an index must have this
+// many dimensions, so changing it means a new index and re-embedding everything.
+export const EMBEDDING_DIMENSIONS = 1536;
+
 export async function createEmbedding(text: string): Promise<number[]> {
 	const response = await openai.embeddings.create({
 		model: 'text-embedding-3-small',
 		input: text,
-		dimensions: 1536,
+		dimensions: EMBEDDING_DIMENSIONS,
 	});
 	return response.data[0].embedding;
 }
@@ -32,7 +36,7 @@ export async function createEmbeddings(texts: string[]): Promise<number[][]> {
 	const response = await openai.embeddings.create({
 		model: 'text-embedding-3-small',
 		input: texts,
-		dimensions: 1536,
+		dimensions: EMBEDDING_DIMENSIONS,
 	});
 	return response.data.map((d) => d.embedding);
 }

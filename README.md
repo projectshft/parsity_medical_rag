@@ -62,7 +62,7 @@ questions.
 
 | Week | Topic | What You'll Build | Homework |
 |------|-------|-------------------|----------|
-| 1 | **Intro to RAG + ingestion** | Embeddings, metadata design, vectorize the 21k notes into Pinecone | [CHALLENGE-CHUNKING.md](docs/CHALLENGE-CHUNKING.md) |
+| 1 | **Intro to RAG + ingestion** | Embeddings, metadata design, vectorize the 21k notes into Pinecone | Chunking project (announced in class) |
 | 2 | **Retrieval & reranking** | `searchClinicalNotes`, `/api/search`, two-stage retrieval | [CHALLENGE-NOTE-INGEST.md](docs/CHALLENGE-NOTE-INGEST.md) |
 | 3 | **The agent pipeline** | selector → SQL ‖ RAG → aggregator, plus human-confirmed scheduling | [CHALLENGE-TOOL-CALLING.md](docs/CHALLENGE-TOOL-CALLING.md) |
 | 4 | **Tool-calling & LangGraph** | The model picks the tools instead of your `if` statements | [CHALLENGE-LANGGRAPH.md](docs/CHALLENGE-LANGGRAPH.md) |
@@ -137,7 +137,7 @@ medical-rag/
 ├── scripts/
 │   ├── vectorize.ts              # W1: Postgres notes → Pinecone
 │   ├── similarity.ts             # W1: cosine-similarity playground
-│   ├── bible/                    # chunking homework helpers
+│   ├── bible/fetch.ts            # npm run bible:fetch — downloads the KJV text
 │   ├── security/                 # W5: the poisoned-document demo
 │   └── retell/                   # ⭐ bonus: voice confirmation call
 ├── visuals/                      # in-class explainers (open visuals/index.html)

@@ -1,12 +1,10 @@
 /**
  * Fetch the King James Bible plain text from Project Gutenberg into
- * data/bible/kjv.txt — the corpus for the chunking homework.
+ * data/bible/kjv.txt — the corpus for your chunking project.
  *
  *   npm run bible:fetch
  *
- * data/bible/ is gitignored (neither the source text nor your generated chunk
- * files get committed), so run this once before bible:fixed / bible:smart /
- * bible:audit. Re-running is a no-op if the file is already there.
+ * data/bible/ is gitignored. Re-running is a no-op if the file is already there.
  */
 
 import * as fs from 'fs';
@@ -34,7 +32,6 @@ async function main() {
 
   const mb = (text.length / 1e6).toFixed(1);
   console.log(`Wrote ${OUT} (${mb} MB, ${text.split('\n').length.toLocaleString()} lines).`);
-  console.log(`Next: npm run bible:fixed  and  npm run bible:smart`);
 }
 
 main().catch((err) => {

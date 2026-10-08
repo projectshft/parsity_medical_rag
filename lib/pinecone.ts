@@ -1,6 +1,6 @@
 import { setDefaultResultOrder } from 'node:dns';
 import { Pinecone } from '@pinecone-database/pinecone';
-import { createEmbeddings } from './openai';
+import { createEmbeddings, EMBEDDING_DIMENSIONS } from './openai';
 
 // Prefer IPv4. On many home/office networks Node's fetch tries a broken IPv6
 // route first, which shows up as endless ECONNRESET / EPIPE / "fetch failed"
@@ -64,7 +64,7 @@ export async function ensureIndexExists(): Promise<void> {
 		await withPineconeRetry(() =>
 			pinecone.createIndex({
 				name: INDEX_NAME,
-				dimension: 1536,
+				dimension: EMBEDDING_DIMENSIONS,
 				metric: 'cosine',
 				spec: {
 					serverless: {

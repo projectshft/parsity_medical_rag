@@ -17,9 +17,6 @@
 		"similarity": "npx ts-node scripts/similarity.ts",
 		"retell:deploy": "npx ts-node scripts/retell/deploy-agent.ts",
 		"bible:fetch": "npx ts-node scripts/bible/fetch.ts",
-		"bible:fixed": "npx ts-node scripts/bible/chunk-fixed.ts",
-		"bible:smart": "npx ts-node scripts/bible/chunk-smart.ts",
-		"bible:audit": "npx ts-node scripts/bible/audit.ts",
 		"security:poisoned": "npx ts-node scripts/security/demo-poisoned-docs.ts"
 	},
 	"dependencies": {
