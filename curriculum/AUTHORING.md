@@ -160,13 +160,17 @@ match the six live sessions.
   down 2026-10-23; the alias is the only reason that isn't our problem.
 - Pinecone: `text-embedding-3-small`, 1536 dims, cosine. Reranker is
   `bge-reranker-v2-m3` via `pinecone.inference.rerank` (hosted, free).
-- Node **22**. `package.json` declares `"engines": { "node": ">=22" }` and
-  `.nvmrc` pins 22, so `nvm use` picks it up and npm warns on a bad version
-  instead of letting someone discover it halfway through week 1. The floor is 22
-  because `@qdrant/js-client-rest` requires it, not by preference. Don't write
-  "Node 20 only" (asserted for a while, never true) and don't write "20 or 22" —
-  20 no longer satisfies the Qdrant client. **Check `package.json` before
-  quoting a range here; this bullet has drifted from it twice.**
+- Node **22.12+, 24.x, or 26+** — `engines` is `^22.12 || ^24 || >=26` and
+  `.nvmrc` pins 22.12. That range is not a preference, it is the intersection of
+  what the dependencies demand: **vitest** is the binding constraint
+  (`^22.12.0 || ^24.0.0 || >=26.0.0`), which rules out Node 20 entirely as well
+  as 22.0–22.11, 23 and 25. Prisma wants `^20.19 || ^22.12 || >=24.0`; qdrant,
+  pinecone, the AI SDK and LangChain want `>=22`.
+  A plain `>=22` was wrong — it admitted 22.0, 23 and 25, where vitest fails.
+  Students run `npm run doctor` (`scripts/doctor.mjs`), which encodes the same
+  rule and prints per-OS install instructions.
+  **Check `package.json` before quoting a range here; this bullet has drifted
+  from it twice, and both times the docs were the thing that was wrong.**
 - The eval judge runs on **Jev** (TypeSafe AI), not OpenAI — the one deliberate
   departure from the Responses-API pattern in `CLAUDE.md`. Typed questions in,
   calibrated probabilities out, no text generation. Rubrics cap at 10 levels;

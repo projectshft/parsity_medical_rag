@@ -54,6 +54,7 @@ first session. You never run an ingest, and you can't break it.
 git clone <repo-url> && cd parsity_medical_rag
 npm install
 npm run db:generate
+npm run doctor
 npm run dev
 ```
 
@@ -62,8 +63,49 @@ every database call fails at import. `npm run dev` should give you a chat
 interface at `localhost:3000` that doesn't work yet. That's correct; it's what
 you're building.
 
-> **Node 22 or newer.** Check with `node -v`. If you're older, install
-> [nvm](https://github.com/nvm-sh/nvm) and run `nvm install 22 && nvm use 22`.
+### `npm run doctor` — run this before asking for help
+
+It checks your Node version, your `.env`, and whether the Prisma client was
+generated, and for anything wrong it prints the fix. **It works on any Node
+version**, including one too old to run the project — that's the point, since
+"your Node is too old" is the single most common thing it has to tell you.
+
+Run it whenever something stops working. If it's all green and you're still
+stuck, post its output in Slack; that's much faster than describing the symptom.
+
+### Node version
+
+**You need Node 22.12 or newer** (22.12+, any 24.x, or 26+). Check with
+`node -v`.
+
+Odd-numbered releases like 23 and 25 are *not* supported — several dependencies
+skip them deliberately — and **Node 20 will not work**: our test runner excludes
+it outright. If you're on 20 and everything seems fine until `npm test`
+mysteriously fails, this is why.
+
+**macOS / Linux:**
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+# close and reopen your terminal, then, inside the project folder:
+nvm install 22
+nvm use          # reads .nvmrc, so you get the right version automatically
+```
+
+**Windows:** install [nvm-windows](https://github.com/coreybutler/nvm-windows/releases)
+(`nvm-setup.exe`), then in a **new** terminal:
+
+```
+nvm install 22.12.0
+nvm use 22.12.0
+```
+
+If you upgrade Node *after* already running `npm install`, reinstall — native
+packages built against the old version stay broken otherwise:
+
+```bash
+rm -rf node_modules package-lock.json && npm install
+```
 
 ## What you're walking into
 

@@ -3,12 +3,13 @@
 	"version": "0.1.0",
 	"private": true,
 	"engines": {
-		"node": ">=22"
+		"node": "^22.12 || ^24 || >=26"
 	},
 	"scripts": {
 		"dev": "next dev --turbopack",
 		"build": "next build",
 		"start": "next start",
+		"doctor": "node scripts/doctor.mjs",
 		"test": "vitest",
 		"test:run": "vitest run",
 		"test:evals": "RUN_EVALS=1 vitest run lib/evals",
