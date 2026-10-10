@@ -40,7 +40,9 @@ async function main() {
 		take: limit,
 		orderBy: { id: 'asc' },
 	});
-	console.log(`Read ${notes.length} notes from Postgres. Embedding + upserting…`);
+	console.log(
+		`Read ${notes.length} notes from Postgres. Embedding + upserting…`,
+	);
 
 	const chunks: MedicalChunk[] = notes.map((note) => ({
 		id: note.id,
