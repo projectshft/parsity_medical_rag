@@ -41,3 +41,12 @@ data/bible/
 
 # gstack browser session artifacts
 .gstack/
+
+# LiteLLM keys and student rosters: secrets / PII. Never commit.
+# (instructor-only infra lives on the instructor branches, but the files get
+# generated in the working tree and a stray `git add -A` swept them in once.)
+infra/litellm/keys-*.csv
+infra/litellm/roster*.txt
+infra/litellm/one.txt
+infra/litellm/.env
+.env
