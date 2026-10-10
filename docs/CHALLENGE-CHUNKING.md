@@ -16,7 +16,7 @@ Write a script that **chunks the text and stores it in your own Pinecone index �
 
 - **Chunking strategy is your call**: by verse, by chapter, packed passages, paragraphs, with or without overlap. Have a reason.
 - **Every chunk carries metadata** — at minimum a human-readable reference like `"Genesis 1:1-5"`. (`scripts/bible/parse.ts` is provided: `loadVerses()` gives you every verse as `{ book, chapter, verse, text }`.)
-- **Store it**: reuse `upsertChunks` + `ensureIndexExists` from `lib/pinecone.ts` with `PINECONE_INDEX=bible-kjv` so you don't write into your medical index. The whole book is ~1M embedding tokens ≈ **$0.02**, and it fits your Pinecone free tier.
+- **Store it**: reuse `ensureIndexExists('bible-kjv')` + `upsertChunks(chunks, 'bible-kjv')` from `lib/pinecone.ts` — pass the index name so you don't write into your medical index. Each chunk needs a string `id`, `content` (the text that gets embedded), and `metadata` that includes `source` (e.g. `'kjv'`). The whole book is ~1M embedding tokens ≈ **$0.02**, and it fits your Pinecone free tier.
 - **Verify** in the Pinecone console: the vector count and your metadata look right.
 
 Searching the index comes next class — this week is chunk + store.

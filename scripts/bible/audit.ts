@@ -5,7 +5,7 @@
  *
  * Usage:
  *   npm run bible:audit -- data/bible/chunks-fixed.jsonl
- *   npm run bible:audit -- data/bible/chunks-smart.jsonl
+ *   npm run bible:audit -- data/bible/<your-chunks>.jsonl
  */
 
 import * as fs from 'fs';

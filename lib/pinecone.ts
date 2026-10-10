@@ -49,21 +49,24 @@ async function withPineconeRetry<T>(
 }
 
 /**
- * Ensure the Pinecone index exists, create if not
+ * Ensure the Pinecone index exists, create if not. Pass `indexName` to target
+ * an index other than PINECONE_INDEX (e.g. 'bible-kjv' for the chunking homework).
  */
-export async function ensureIndexExists(): Promise<void> {
+export async function ensureIndexExists(
+	indexName: string = INDEX_NAME,
+): Promise<void> {
 	const existingIndexes = await withPineconeRetry(() =>
 		pinecone.listIndexes(),
 	);
 	const indexExists = existingIndexes.indexes?.some(
-		(idx) => idx.name === INDEX_NAME,
+		(idx) => idx.name === indexName,
 	);
 
 	if (!indexExists) {
-		console.log(`Creating Pinecone index: ${INDEX_NAME}`);
+		console.log(`Creating Pinecone index: ${indexName}`);
 		await withPineconeRetry(() =>
 			pinecone.createIndex({
-				name: INDEX_NAME,
+				name: indexName,
 				dimension: 1536,
 				metric: 'cosine',
 				spec: {
@@ -75,9 +78,9 @@ export async function ensureIndexExists(): Promise<void> {
 				waitUntilReady: true,
 			}),
 		);
-		console.log(`Index ${INDEX_NAME} created successfully`);
+		console.log(`Index ${indexName} created successfully`);
 	} else {
-		console.log(`Index ${INDEX_NAME} already exists`);
+		console.log(`Index ${indexName} already exists`);
 	}
 }
 
@@ -106,8 +109,11 @@ export interface SearchResult {
 	metadata: MedicalChunk['metadata'];
 }
 
-export async function upsertChunks(chunks: MedicalChunk[]): Promise<number> {
-	const index = pinecone.Index(INDEX_NAME);
+export async function upsertChunks(
+	chunks: MedicalChunk[],
+	indexName: string = INDEX_NAME,
+): Promise<number> {
+	const index = pinecone.Index(indexName);
 
 	const batchSize = 100;
 	let totalUpserted = 0;
