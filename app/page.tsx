@@ -154,7 +154,10 @@ export default function Home() {
 					...prev,
 					{
 						role: 'assistant',
-						content: `Appointment scheduled for **${scheduling.action.patientName}** on ${scheduling.date} at ${scheduling.time}.`,
+						content:
+							`Appointment scheduled for **${scheduling.action.patientName}** on ${scheduling.date} at ${scheduling.time}.` +
+							// Only when Retell is set up (lib/retell.ts) — otherwise nothing changes.
+							(result.confirmationCall?.called ? ' 📞 Calling to confirm.' : ''),
 					},
 				]);
 			}
