@@ -16,7 +16,8 @@
 		"bible:fetch": "tsx scripts/bible/fetch.ts",
 		"bible:teach": "tsx scripts/bible/teach-rerank.ts",
 		"retell:setup": "tsx scripts/retell-setup.ts",
-		"retell:call": "tsx scripts/retell-call.ts"
+		"retell:call": "tsx scripts/retell-call.ts",
+		"cal:book": "tsx scripts/cal-book.ts"
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "^4.0.91",
