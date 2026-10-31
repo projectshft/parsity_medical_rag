@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tool calling walkthrough · RAG &amp; AI Agents</title>
+<style>
+/* Layout: question tabs on top, then a vertical 5-step trace; the active step is expanded. */
+:root{
+  --bg:#f5f6f8; --surface:#fff; --fg:#14171c; --muted:#5d6672; --line:#dde1e7; --code:#eef0f4;
+  --model:#5b4bc4; --code-c:#0b7a75; --tool:#b45a0a;
+  --display:system-ui,-apple-system,'Segoe UI',sans-serif;
+  --body:system-ui,-apple-system,'Segoe UI',sans-serif; --mono:ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1317; --surface:#171c22; --fg:#e8ebef; --muted:#97a1ad; --line:#2a323b; --code:#1d242b;
+  --model:#a99bff; --code-c:#3fc4bc; --tool:#f0a050; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1317; --surface:#171c22; --fg:#e8ebef; --muted:#97a1ad; --line:#2a323b; --code:#1d242b;
+  --model:#a99bff; --code-c:#3fc4bc; --tool:#f0a050; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.5 var(--body);padding-block:32px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+h1{font:800 clamp(30px,5.5vw,48px)/1.08 var(--display);margin:0;text-wrap:balance}
+.lede{color:var(--muted);max-width:62ch;margin:8px 0 0}
+.tabs{display:flex;flex-wrap:wrap;gap:8px}
+.tabs button{font:500 14px var(--body);background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.steps{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 18px;min-width:0}
+.step.on{border-color:var(--c)}
+.head{display:flex;gap:12px;align-items:baseline;cursor:pointer;background:none;border:0;padding:0;width:100%;text-align:left;color:inherit;font:inherit}
+.who{font:500 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--c);min-width:58px}
+.t{font-weight:500}
+.body{display:none;margin-top:12px;flex-direction:column;gap:10px}
+.step.on .body{display:flex}
+.body p{margin:0;color:var(--muted);font-size:15px}
+pre{background:var(--code);border-radius:8px;padding:14px;overflow-x:auto;font:400 13px/1.55 var(--mono);margin:0}
+.nav{display:flex;gap:8px}
+.nav button{font:500 14px var(--body);background:var(--fg);color:var(--bg);border:0;border-radius:8px;padding:9px 16px;cursor:pointer}
+.nav button.alt{background:var(--surface);color:var(--fg);border:1px solid var(--line)}
+.nav button:disabled{opacity:.4;cursor:default}
+.m{--c:var(--model)} .c{--c:var(--code-c)} .x{--c:var(--tool)}
+:focus-visible{outline:2px solid var(--model);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>How the model discovers and calls tools</h1>
+    <p class="lede">There is no selector. Your route hands the model a list of tools with descriptions, and the model decides what to call. Pick a question and step through the trace.</p>
+  </header>
+  <div class="tabs" id="tabs" role="group" aria-label="Question"></div>
+  <ol class="steps" id="steps"></ol>
+  <div class="nav"><button class="alt" id="prev">Back</button><button id="next">Next step</button></div>
+</main>
+<script>
+const TOOLS = `tools: {
+  query_patient_database:  "Structured facts: counts, lists, filters by age,
+                            gender, city, diagnosis. NOT for what a note says."
+  search_clinical_notes:   "Meaning-based search over free-text notes: symptoms,
+                            history, treatment. NOT for counts."
+  schedule_appointment:    "Propose an appointment. ONLY with name, date, time."
+}`;
+const CASES = [
+ {tab:'How many patients are over 60?', q:'How many patients are over 60?', call:'query_patient_database({ question: "How many patients are over 60?" })',
+  run:'runSql(question)  →  model writes SQL, read-only role runs it', result:'"Count: 71"', ans:'- 71 patients are over 60.', why:'The description says "counts … filters by age", so the model matches it.'},
+ {tab:'What do the notes say about chest pain?', q:'What do the notes say about chest pain?', call:'search_clinical_notes({ query: "chest pain" })',
+  run:'runRag(query)  →  embed, search Pinecone, return note excerpts', result:'"Patient reports chest tightness on exertion…"', ans:'- Notes describe exertional chest tightness…', why:'The description says "meaning-based search over free-text notes", so the model matches it.'},
+ {tab:'Schedule Abe Frami on 2030-01-07 at 14:00', q:'Schedule Abe Frami on 2030-01-07 at 14:00', call:'schedule_appointment({ patientName: "Abe Frami", date: "2030-01-07", time: "14:00", reason: null })',
+  run:'Books nothing. The route returns these args as schedulingAction.', result:'"Confirmation card shown. Not booked until they confirm."', ans:'- I\'ve prepared the appointment. Please confirm.', why:'All three required fields are present, so the model calls it. With a field missing it would ask instead.'},
+ {tab:'What is the capital of Germany?', q:'What is the capital of Germany?', call:null,
+  run:'No tool runs.', result:'', ans:'- I can help with patient information, but not general-knowledge questions.', why:'No description fits, and the system prompt says to decline. The model answers directly.'}
+];
+const $ = id => document.getElementById(id);
+let ci = 0, si = 0;
+const esc = s => s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function steps(c){
+  const s = [
+   {k:'c',who:'Your code',t:'Send the question plus the tool list',p:'The tool names, descriptions and input schemas travel with every request. This is how the model "discovers" what it can do. Nothing else is registered anywhere.',pre:`generateText({\n  messages: [{ role: "user", content: "${c.q}" }],\n  ${TOOLS.replace(/\n/g,'\n  ')}\n})`},
+   {k:'m',who:'Model',t:c.call?'Reads the descriptions and picks a tool':'Reads the descriptions and picks none',p:c.why,pre:c.call?`tool_call: ${c.call}`:'(no tool_call, answers directly)'}
+  ];
+  if(c.call) s.push(
+   {k:'x',who:'Tool',t:'Your function runs',p:'The model never touches the database. It only asks; your execute() function does the work.',pre:c.run},
+   {k:'c',who:'Your code',t:'Result goes back to the model',p:'The loop repeats until the model stops calling tools or hits stepCountIs(6). It can chain several tools in one question.',pre:`tool_result: ${c.result}`});
+  else s.push({k:'x',who:'Tool',t:'Nothing to run',p:'The loop ends after one step.',pre:c.run});
+  s.push({k:'m',who:'Model',t:'Writes the final answer',p:'The route returns { message, schedulingAction, toolsCalled }. The page shows toolsCalled under the reply.',pre:`message: "${c.ans}"\ntoolsCalled: ${JSON.stringify(c.call?[c.call.split('(')[0]]:[])}`});
+  return s;
+}
+function render(){
+  const c = CASES[ci], st = steps(c);
+  si = Math.min(si, st.length-1);
+  $('tabs').innerHTML = CASES.map((x,i)=>`<button data-i="${i}" aria-pressed="${i===ci}">${esc(x.tab)}</button>`).join('');
+  $('steps').innerHTML = st.map((s,i)=>`<li class="step ${s.k} ${i===si?'on':''}"><button class="head" data-s="${i}"><span class="who">${s.who}</span><span class="t">${i+1}. ${esc(s.t)}</span></button><div class="body"><p>${esc(s.p)}</p><pre>${esc(s.pre)}</pre></div></li>`).join('');
+  $('prev').disabled = si===0; $('next').disabled = si===st.length-1;
+}
+$('tabs').onclick = e => { const b=e.target.closest('button'); if(b){ci=+b.dataset.i;si=0;render()} };
+$('steps').onclick = e => { const b=e.target.closest('.head'); if(b){si=+b.dataset.s;render()} };
+$('prev').onclick = () => {si--;render()}; $('next').onclick = () => {si++;render()};
+render();
+</script>
+</body>
+</html>

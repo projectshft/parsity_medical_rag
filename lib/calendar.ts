@@ -1,10 +1,6 @@
 /**
  * Cal.com Integration
  *
- * Week 3 · YOUR TASK. Prove a booking works with STATIC test data before you
- * wire the agent to it — cohort 3 lost an hour to a v1-vs-v2 API mismatch that
- * had nothing to do with the LLM.
- *
  * Provides appointment scheduling via Cal.com API.
  * This is the "action" part of the human-in-the-loop pattern.
  *
@@ -16,7 +12,10 @@
  * 5. Add to .env: CAL_API_KEY and CAL_EVENT_TYPE_ID
  */
 
-const CAL_API_BASE = 'https://api.cal.com/v1';
+// Cal.com API v2 (v1 is decommissioned): Bearer auth header, a dated
+// `cal-api-version` header on every request, responses wrapped in { status, data }.
+const CAL_API_BASE = 'https://api.cal.com/v2';
+const CAL_API_VERSION_BOOKINGS = '2024-08-13';
 
 export interface ScheduleRequest {
   patientName: string;
@@ -41,22 +40,10 @@ export function isCalConfigured(): boolean {
 
 /**
  * Schedule an appointment via Cal.com API
- *
- * TODO: Implement this function
- * 1. Check if Cal.com is configured
- * 2. Make POST request to Cal.com bookings API
- *    - Endpoint: ${CAL_API_BASE}/bookings?apiKey=${apiKey}
- *    - Body: { eventTypeId, start, responses: { name, email }, metadata }
- * 3. Handle response and errors appropriately
- * 4. Return ScheduleResult with booking details
- *
- * Cal.com API docs: https://cal.com/docs/api-reference/v1/bookings
  */
 export async function scheduleAppointment(
   request: ScheduleRequest
 ): Promise<ScheduleResult> {
-  // TODO: Implement Cal.com booking API call
-
   if (!isCalConfigured()) {
     return {
       success: false,
@@ -64,14 +51,55 @@ export async function scheduleAppointment(
     };
   }
 
-  // TODO: Make the API call to Cal.com
-  // const apiKey = process.env.CAL_API_KEY;
-  // const eventTypeId = parseInt(process.env.CAL_EVENT_TYPE_ID || '0', 10);
+  try {
+    const response = await fetch(`${CAL_API_BASE}/bookings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.CAL_API_KEY}`,
+        'cal-api-version': CAL_API_VERSION_BOOKINGS,
+      },
+      body: JSON.stringify({
+        eventTypeId: parseInt(process.env.CAL_EVENT_TYPE_ID!, 10),
+        start: new Date(request.dateTime).toISOString(), // v2 wants UTC
+        attendee: {
+          name: request.patientName,
+          email: request.patientEmail || process.env.DEMO_EMAIL || 'patient@example.com',
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          language: 'en',
+          // Required when the event type has SMS reminders on. Must be E.164 (+15551234567).
+          ...(process.env.DEMO_PHONE_NUMBER
+            ? { phoneNumber: process.env.DEMO_PHONE_NUMBER }
+            : {}),
+        },
+        bookingFieldsResponses: {
+          notes: request.notes || `Appointment for ${request.patientName}`,
+        },
+        metadata: { source: 'medical-rag', patientName: request.patientName },
+      }),
+    });
 
-  return {
-    success: false,
-    error: 'Not implemented - your turn!',
-  };
+    if (!response.ok) {
+      // v2 errors: { status: "error", error: { message } }
+      const err = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: err?.error?.message || err?.message || `Cal.com API error: ${response.status}`,
+      };
+    }
+
+    const { data } = await response.json();
+    return {
+      success: true,
+      bookingId: (data?.id ?? data?.uid)?.toString(),
+      bookingUrl: data?.uid ? `https://app.cal.com/booking/${data.uid}` : undefined,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
 }
 
 /**

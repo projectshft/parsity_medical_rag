@@ -16,11 +16,15 @@ type SchedulingAction = z.infer<typeof SchedulingActionSchema>;
 const ChatResponseSchema = z.object({
 	message: z.string(),
 	schedulingAction: SchedulingActionSchema.nullish(),
+	// only /api/chat-tools sends these
+	availableTools: z.array(z.object({ name: z.string(), description: z.string() })).optional(),
+	trace: z.array(z.object({ tool: z.string(), input: z.unknown(), output: z.unknown() })).optional(),
 });
 
 interface Message {
 	role: 'user' | 'assistant';
 	content: string;
+	toolTrace?: Pick<z.infer<typeof ChatResponseSchema>, 'availableTools' | 'trace'>;
 }
 
 interface SchedulingState {
@@ -44,6 +48,7 @@ export default function Home() {
 	const [input, setInput] = useState('');
 	const [messages, setMessages] = useState<Message[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
+	const [useTools, setUseTools] = useState(false); // false = selector pipeline, true = model picks tools
 	const [scheduling, setScheduling] = useState<SchedulingState | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -67,7 +72,7 @@ export default function Home() {
 		setScheduling(null);
 
 		try {
-			const response = await fetch('/api/chat', {
+			const response = await fetch(useTools ? '/api/chat-tools' : '/api/chat', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -78,12 +83,12 @@ export default function Home() {
 
 			if (!response.ok) throw new Error('Failed to get response');
 
-			const { message, schedulingAction } = ChatResponseSchema.parse(
+			const { message, schedulingAction, availableTools, trace } = ChatResponseSchema.parse(
 				await response.json(),
 			);
 			setMessages((prev) => [
 				...prev,
-				{ role: 'assistant', content: message },
+				{ role: 'assistant', content: message, toolTrace: { availableTools, trace } },
 			]);
 
 			if (schedulingAction) {
@@ -198,6 +203,16 @@ export default function Home() {
 						Medical Records Assistant
 					</h1>
 				</div>
+				<button
+					onClick={() => setUseTools((v) => !v)}
+					className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+						useTools
+							? 'bg-copilot-accent border-copilot-accent text-white'
+							: 'border-copilot-border text-copilot-text hover:border-copilot-accent'
+					}`}
+				>
+					{useTools ? 'Tool calling: on' : 'Tool calling: off'}
+				</button>
 			</header>
 
 			{/* Messages */}
@@ -270,6 +285,31 @@ export default function Home() {
 										</div>
 									) : (
 										<p>{message.content}</p>
+									)}
+									{message.toolTrace?.availableTools && (
+										<div className='mt-3 space-y-2 border-t border-copilot-border pt-3 text-xs'>
+											<p className='uppercase tracking-wide opacity-60'>Tools the model could see</p>
+											{message.toolTrace.availableTools.map((t) => {
+												const calls = message.toolTrace?.trace?.filter((c) => c.tool === t.name) ?? [];
+												return (
+													<div
+														key={t.name}
+														className={`rounded border px-2 py-1.5 ${calls.length ? 'border-copilot-accent' : 'border-copilot-border opacity-60'}`}
+													>
+														<p className='font-mono'>
+															{calls.length ? '● called ' : '○ skipped '}
+															{t.name}
+														</p>
+														<p className='opacity-70'>{t.description}</p>
+														{calls.map((c, i) => (
+															<pre key={i} className='mt-1 overflow-x-auto whitespace-pre-wrap font-mono'>
+																{`in:  ${JSON.stringify(c.input)}\nout: ${String(typeof c.output === 'string' ? c.output : JSON.stringify(c.output)).slice(0, 200)}`}
+															</pre>
+														))}
+													</div>
+												);
+											})}
+										</div>
 									)}
 								</div>
 							</div>
