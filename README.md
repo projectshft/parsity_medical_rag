@@ -53,7 +53,7 @@ Traditional search fails because:
 ```
 
 In week 4 you build the same thing a second way: hand the model the tools and
-let *it* choose, on `/api/chat-graph`, then compare the two on your own
+let *it* choose, on `/api/chat-tools`, then compare the two on your own
 questions.
 
 ---
@@ -65,7 +65,7 @@ questions.
 | 1 | **Intro to RAG + ingestion** | Embeddings, metadata design, vectorize the 21k notes into Pinecone | Chunking project (announced in class) |
 | 2 | **Retrieval & reranking** | `searchClinicalNotes`, `/api/search`, two-stage retrieval | [CHALLENGE-NOTE-INGEST.md](docs/CHALLENGE-NOTE-INGEST.md) |
 | 3 | **The agent pipeline** | selector → SQL ‖ RAG → aggregator, plus human-confirmed scheduling | [CHALLENGE-TOOL-CALLING.md](docs/CHALLENGE-TOOL-CALLING.md) |
-| 4 | **Tool-calling & LangGraph** | The model picks the tools instead of your `if` statements | [CHALLENGE-LANGGRAPH.md](docs/CHALLENGE-LANGGRAPH.md) |
+| 4 | **Tool calling** | The model picks the tools instead of your `if` statements | `lib/tool-agent.ts` |
 | 5 | **Evals, security & capstone build** | Your query log becomes a test suite; then break the system with a poisoned document and defend it | Announced in class |
 | 6 | **Demo day** | Present what you built — 5 minutes, one decision defended with a number | — |
 
@@ -112,7 +112,7 @@ medical-rag/
 │   ├── page.tsx                  # Chat UI (pre-built, intentionally plain)
 │   └── api/
 │       ├── chat/route.ts         # W3: THE ORCHESTRATOR — selector → sql ‖ rag → aggregator
-│       ├── chat-graph/route.ts   # W4: the tool-calling channel (LangGraph)
+│       ├── chat-tools/route.ts   # W4: the tool-calling channel
 │       ├── search/route.ts       # W2: raw vector search, for poking at retrieval
 │       └── schedule/route.ts     # W3: Cal.com booking (human-confirmed)
 ├── lib/
@@ -121,7 +121,7 @@ medical-rag/
 │   │   ├── sql.ts                # W3: text-to-SQL. The LLM writes the query.
 │   │   ├── rag.ts                # W3: semantic search → context block
 │   │   └── aggregator.ts         # W3: the ONLY streamer (provided)
-│   ├── graph.ts                  # W4: the tool-calling graph
+│   ├── tool-agent.ts             # W4: the tool-calling loop
 │   ├── vector-search.ts          # W2: Pinecone query + rerank
 │   ├── pinecone.ts               # W1: index + upsert (MedicalChunk lives here)
 │   ├── openai.ts                 # the ONE place we configure OpenAI (+ LangSmith)
@@ -192,7 +192,7 @@ normal readings, so they return one row and look broken.
 | Vector DB | Pinecone — index + hosted reranker (`bge-reranker-v2-m3`) |
 | Embeddings | OpenAI `text-embedding-3-small`, 1536 dims, cosine |
 | Agents | OpenAI Responses API + Zod structured outputs; Vercel AI SDK for streaming |
-| Tool calling | LangGraph (week 4) |
+| Tool calling | OpenAI Responses API, plain loop (week 4) |
 | Observability | LangSmith |
 | Scheduling | Cal.com |
 | ORM | Prisma |
@@ -221,7 +221,7 @@ npm run test:evals    # week 5's LLM-judge evals (hits the real API, costs money
 - [OpenAI Embeddings](https://platform.openai.com/docs/guides/embeddings)
 - [Pinecone Docs](https://docs.pinecone.io/) · [reranking](https://docs.pinecone.io/guides/search/rerank-results)
 - [Anthropic — Building Effective Agents](https://www.anthropic.com/research/building-effective-agents) — the workflow-vs-agent vocabulary we use from week 2 on
-- [LangGraph JS — tool calling](https://langchain-ai.github.io/langgraphjs/how-tos/tool-calling/)
+- [OpenAI — function calling](https://platform.openai.com/docs/guides/function-calling)
 - [Prisma Docs](https://www.prisma.io/docs)
 
 ---

@@ -96,8 +96,8 @@ interface Patient { id: string; firstName: string | null }
 - **Pinecone**: vector search over the clinical notes — a *derived* index, rebuildable from Postgres via `npm run vectorize`.
 - **Prisma ORM**: type-safe database access.
 - **The chat pipeline** (`/api/chat`) — one file per agent in `lib/agents/`, orchestrated by `app/api/chat/route.ts` (the route IS the orchestrator): **selector** (pure routing — `Plan { useSql, useRag, useScheduler, needsSearch, semanticQuery }`, no entity extraction) → **sql ‖ rag** (each returns TEXT) → **aggregator** (streams the grounded answer). A scheduling request **short-circuits** retrieval: the route streams its own response and rides the action out in the `X-Scheduling-Action` header, so the aggregator is the only streamer *on the retrieval path*, not in the file. `lib/agent.ts` holds only the shared `Message` type.
-- **The tool-calling channel** (`/api/chat-graph`) — `lib/graph.ts`: the same `runSql` / `runRag` functions exposed as LangGraph tools, where the **model** picks what to call instead of the selector. Deliberately a *second* route: `/api/chat` keeps working, and the two are meant to be compared on the same question. Student task — `buildGraph` throws until implemented.
-- There is no `/api/query`. The channels are chat, chat-graph, and the MCP server (bonus, not taught this cohort).
+- **The tool-calling channel** (`/api/chat-tools`) — `lib/tool-agent.ts`: the same `searchClinicalNotes` / `runSql` functions exposed as tools in a plain OpenAI Responses-API loop (no framework), where the **model** picks what to call instead of the selector. Same `{ message, schedulingAction }` response as `/api/chat`, so the page toggles between them for comparison. Scheduling is a `propose_appointment` tool that only proposes; booking still waits for a human click.
+- There is no `/api/query`. The channels are `/api/chat` and `/api/chat-tools`.
 
 ### The SQL side is text-to-SQL — do NOT hand-code query builders
 
@@ -109,26 +109,23 @@ Two guardrails are the point:
 
 `findPatientByName` (scheduling's one exact lookup) lives in `lib/patients.ts`, not a query-builder module.
 
-### Tool-calling lives in `lib/graph.ts` — LangGraph v1, not the AI SDK
+### Tool-calling lives in `lib/tool-agent.ts` — a plain loop, no framework
 
-The graph channel uses `@langchain/langgraph` v1 + `@langchain/openai` (`ChatOpenAI`), NOT the Vercel AI SDK's `tool()` / `maxSteps`. Both are installed — the AI SDK stays on the `/api/chat` streaming path. Don't mix them in one file.
+`runToolAgent` calls `openai.responses.create({ tools })`, runs any `function_call` items, appends `function_call_output` (matching `call_id`), and repeats until the model answers in text (`MAX_TURNS` caps it). Calls go through the wrapped `openai` client, so LangSmith traces every turn.
 
 ```typescript
-import { tool } from '@langchain/core/tools';
-import { StateGraph, MessagesAnnotation, START, END } from '@langchain/langgraph';
-import { ToolNode, toolsCondition } from '@langchain/langgraph/prebuilt';
-
-const myTool = tool(async ({ arg }) => runSomething(arg), {
+const myTool = defineTool({
   name: 'snake_case_name',
   description: 'When to use this, and when NOT to — the model sees only this.',
   schema: z.object({ arg: z.string().describe('…') }),
+  run: ({ arg }) => runSomething(arg),
 });
+// then add it to TOOLS
 ```
 
-- `schema:` (v1), **not** `parameters:` (that's the AI SDK's v4 shape).
-- Tools wrap the EXISTING agents (`runSql`, `runRag`). A tool body should be one line. If you're writing retrieval logic inside a tool, it belongs in `lib/agents/`.
-- `ChatOpenAI` takes `apiKey` plus `configuration: { baseURL }` — same proxy as `lib/openai.ts`.
-- `buildGraph()` currently throws (student exercise). Leave it throwing unless asked; the instructor solution belongs on the `instructor` branch, never here.
+- Tools wrap the EXISTING functions. A tool body should be one line; retrieval logic belongs in `lib/agents/` or `lib/vector-search.ts`.
+- Tools must not have side effects the user hasn't confirmed: propose, don't book.
+- `search_web` is the in-class exercise (a commented TODO in `lib/tool-agent.ts`).
 
 ## Data Source
 

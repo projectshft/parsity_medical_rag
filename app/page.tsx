@@ -45,6 +45,9 @@ export default function Home() {
 	const [messages, setMessages] = useState<Message[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [scheduling, setScheduling] = useState<SchedulingState | null>(null);
+	// Week 4: ask the same question through the workflow (/api/chat) or the
+	// tool-calling loop (/api/chat-tools). Both return { message, schedulingAction }.
+	const [mode, setMode] = useState<'workflow' | 'tools'>('workflow');
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
 	const scrollToBottom = () => {
@@ -67,7 +70,7 @@ export default function Home() {
 		setScheduling(null);
 
 		try {
-			const response = await fetch('/api/chat', {
+			const response = await fetch(mode === 'tools' ? '/api/chat-tools' : '/api/chat', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -200,6 +203,18 @@ export default function Home() {
 					<h1 className='text-lg font-semibold text-white'>
 						Medical Records Assistant
 					</h1>
+				</div>
+				<div className='flex rounded-lg border border-copilot-border overflow-hidden text-sm'>
+					{(['workflow', 'tools'] as const).map((m) => (
+						<button
+							key={m}
+							type='button'
+							onClick={() => setMode(m)}
+							className={`px-3 py-1.5 ${mode === m ? 'bg-copilot-accent text-white' : 'text-copilot-muted hover:text-copilot-text'}`}
+						>
+							{m === 'workflow' ? 'Workflow' : 'Tool calling'}
+						</button>
+					))}
 				</div>
 			</header>
 

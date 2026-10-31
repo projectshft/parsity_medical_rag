@@ -10,7 +10,6 @@ const none: Filters = {
 	gender: null,
 	minAge: null,
 	maxAge: null,
-	state: null,
 	city: null,
 	alive: null,
 };
