@@ -36,16 +36,17 @@ export async function POST(request: Request) {
 
 		const tools = {
 			query_patient_database: tool({
+				// when and where to use
 				description:
 					'Structured facts about the patient population: counts, lists, filters by age, gender, city, or diagnosis ("how many diabetic patients over 60"). Do NOT use for what a specific clinical note says.',
 				inputSchema: z.object({
-					question: z
+					elephants: z
 						.string()
 						.describe(
-							'The question, restated as a standalone one.',
+							'The question for the SQL agent to answer, which should be clear enough and ideally include things like age, gender, city, or diagnosis.',
 						),
 				}),
-				execute: ({ question }) => runSql(question),
+				execute: ({ elephants }) => runSql(elephants),
 			}),
 			search_clinical_notes: tool({
 				description:
@@ -53,7 +54,9 @@ export async function POST(request: Request) {
 				inputSchema: z.object({
 					query: z
 						.string()
-						.describe('What to look for in the notes.'),
+						.describe(
+							'What to look for in the notes. Rephrase the question to be more specific and well suited for the RAG agent which will query a vector database. The more specific, the better.',
+						),
 				}),
 				execute: ({ query }) => runRag(query),
 			}),
@@ -66,17 +69,55 @@ export async function POST(request: Request) {
 				execute: async () =>
 					'Confirmation card shown to the user. Not booked until they confirm.',
 			}),
+			web_search: tool({
+				description:
+					'Search the web for information about a specific condition or medical paper to augment thre response from the SQL or RAG agents IF it makes sense to do so. ALWAYS use this tool when running RAG queries.',
+				inputSchema: z.object({
+					query: z
+						.string()
+						.describe('The question to search the web for.'),
+					queryParams: z.object({
+						query: z
+							.string()
+							.describe('The query to search the web for.'),
+						maxResults: z
+							.number()
+							.describe(
+								'The maximum number of results to return.',
+							),
+					}),
+				}),
+				execute: async ({ query, queryParams }) => {
+					const argvixQuery = await fetch(
+						`https://export.arxiv.org/api/query?search_query=all:${queryParams.query}&max_results=${queryParams.maxResults}`,
+					);
+					const webResponse = await fetch(
+						'https://api.openai.com/v1/search',
+						{
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json',
+								Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+							},
+							body: JSON.stringify({ query }),
+						},
+					);
 
-			//TODO make your OWN TOOL
+					const argvixData = await argvixQuery.text();
+					const webData = await webResponse.json();
+
+					return `${argvixData}\n\n${webData}`;
+				},
+			}),
 		};
 
 		const result = await generateText({
 			model: openaiProvider('gpt-6-luna'),
 			system: `We are a medical facility helping staff look up patient info. Use the tools to answer; combine them when a question needs both. Never give medical advice, and decline non-medical questions. Today is ${new Date().toISOString().split('T')[0]}; resolve relative dates against it. Never invent scheduling details. Answer as a markdown list.`,
 			messages: [...messages, { role: 'user', content: query }],
-			stopWhen: stepCountIs(6),
+			stopWhen: stepCountIs(1),
 			tools,
-		});
+		}); //TEXT
 
 		const toolCalls = result.steps.flatMap((s) => s.toolCalls);
 		const scheduled = toolCalls.findLast(
@@ -85,22 +126,24 @@ export async function POST(request: Request) {
 
 		return NextResponse.json({
 			message: result.text,
-			schedulingAction: scheduled?.input ?? null,
-			toolsCalled: toolCalls.map((c) => c.toolName), // for the selector evals
-			// for the UI: what the model could see, and what it did with it
-			availableTools: Object.entries(tools).map(([name, t]) => ({
-				name,
-				description: t.description,
-			})),
-			trace: result.steps.flatMap((step) =>
-				step.toolCalls.map((c) => ({
-					tool: c.toolName,
-					input: c.input,
-					output: step.toolResults.find(
-						(r) => r.toolCallId === c.toolCallId,
-					)?.output,
-				})),
-			),
+			schedulingAction: scheduled?.input ?? null, //SchedulingActionSchema,
+			// // workaround to get the input from the schedule_appointment tool because
+			// // the API that we call EXPECTS the scheduling object (CAL API)
+			// toolsCalled: toolCalls.map((c) => c.toolName), // for the selector evals
+			// // for the UI: what the model could see, and what it did with it
+			// availableTools: Object.entries(tools).map(([name, t]) => ({
+			// 	name,
+			// 	description: t.description,
+			// })),
+			// trace: result.steps.flatMap((step) =>
+			// 	step.toolCalls.map((c) => ({
+			// 		tool: c.toolName,
+			// 		input: c.input,
+			// 		output: step.toolResults.find(
+			// 			(r) => r.toolCallId === c.toolCallId,
+			// 		)?.output,
+			// 	})),
+			// ),
 		});
 	} catch (error) {
 		if (error instanceof z.ZodError) {

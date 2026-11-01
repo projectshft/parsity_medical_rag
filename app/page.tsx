@@ -17,14 +17,27 @@ const ChatResponseSchema = z.object({
 	message: z.string(),
 	schedulingAction: SchedulingActionSchema.nullish(),
 	// only /api/chat-tools sends these
-	availableTools: z.array(z.object({ name: z.string(), description: z.string() })).optional(),
-	trace: z.array(z.object({ tool: z.string(), input: z.unknown(), output: z.unknown() })).optional(),
+	availableTools: z
+		.array(z.object({ name: z.string(), description: z.string() }))
+		.optional(),
+	trace: z
+		.array(
+			z.object({
+				tool: z.string(),
+				input: z.unknown().optional(),
+				output: z.unknown().optional(), // undefined when a tool returns nothing, and JSON drops it
+			}),
+		)
+		.optional(),
 });
 
 interface Message {
 	role: 'user' | 'assistant';
 	content: string;
-	toolTrace?: Pick<z.infer<typeof ChatResponseSchema>, 'availableTools' | 'trace'>;
+	toolTrace?: Pick<
+		z.infer<typeof ChatResponseSchema>,
+		'availableTools' | 'trace'
+	>;
 }
 
 interface SchedulingState {
@@ -72,23 +85,29 @@ export default function Home() {
 		setScheduling(null);
 
 		try {
-			const response = await fetch(useTools ? '/api/chat-tools' : '/api/chat', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					query: userMessage,
-					messages: messages,
-				}),
-			});
+			const response = await fetch(
+				useTools ? '/api/chat-tools' : '/api/chat',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						query: userMessage,
+						messages: messages,
+					}),
+				},
+			);
 
 			if (!response.ok) throw new Error('Failed to get response');
 
-			const { message, schedulingAction, availableTools, trace } = ChatResponseSchema.parse(
-				await response.json(),
-			);
+			const { message, schedulingAction, availableTools, trace } =
+				ChatResponseSchema.parse(await response.json());
 			setMessages((prev) => [
 				...prev,
-				{ role: 'assistant', content: message, toolTrace: { availableTools, trace } },
+				{
+					role: 'assistant',
+					content: message,
+					toolTrace: { availableTools, trace },
+				},
 			]);
 
 			if (schedulingAction) {
@@ -288,27 +307,45 @@ export default function Home() {
 									)}
 									{message.toolTrace?.availableTools && (
 										<div className='mt-3 space-y-2 border-t border-copilot-border pt-3 text-xs'>
-											<p className='uppercase tracking-wide opacity-60'>Tools the model could see</p>
-											{message.toolTrace.availableTools.map((t) => {
-												const calls = message.toolTrace?.trace?.filter((c) => c.tool === t.name) ?? [];
-												return (
-													<div
-														key={t.name}
-														className={`rounded border px-2 py-1.5 ${calls.length ? 'border-copilot-accent' : 'border-copilot-border opacity-60'}`}
-													>
-														<p className='font-mono'>
-															{calls.length ? '● called ' : '○ skipped '}
-															{t.name}
-														</p>
-														<p className='opacity-70'>{t.description}</p>
-														{calls.map((c, i) => (
-															<pre key={i} className='mt-1 overflow-x-auto whitespace-pre-wrap font-mono'>
-																{`in:  ${JSON.stringify(c.input)}\nout: ${String(typeof c.output === 'string' ? c.output : JSON.stringify(c.output)).slice(0, 200)}`}
-															</pre>
-														))}
-													</div>
-												);
-											})}
+											<p className='uppercase tracking-wide opacity-60'>
+												Tools the model could see
+											</p>
+											{message.toolTrace.availableTools.map(
+												(t) => {
+													const calls =
+														message.toolTrace?.trace?.filter(
+															(c) =>
+																c.tool ===
+																t.name,
+														) ?? [];
+													return (
+														<div
+															key={t.name}
+															className={`rounded border px-2 py-1.5 ${calls.length ? 'border-copilot-accent' : 'border-copilot-border opacity-60'}`}
+														>
+															<p className='font-mono'>
+																{calls.length
+																	? '● called '
+																	: '○ skipped '}
+																{t.name}
+															</p>
+															<p className='opacity-70'>
+																{t.description}
+															</p>
+															{calls.map(
+																(c, i) => (
+																	<pre
+																		key={i}
+																		className='mt-1 overflow-x-auto whitespace-pre-wrap font-mono'
+																	>
+																		{`in:  ${JSON.stringify(c.input)}\nout: ${String(typeof c.output === 'string' ? c.output : JSON.stringify(c.output)).slice(0, 200)}`}
+																	</pre>
+																),
+															)}
+														</div>
+													);
+												},
+											)}
 										</div>
 									)}
 								</div>

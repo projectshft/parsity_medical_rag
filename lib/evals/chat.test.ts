@@ -3,14 +3,25 @@ import request from 'supertest';
 import { noul, TypeSafeClient } from '@typesafe-ai/sdk';
 import { describe, it, expect } from 'vitest';
 
-const jev = new TypeSafeClient();
+const jev = new TypeSafeClient(); //JEV
 const api = request('http://localhost:3000');
 
 // Add a case = add an object. threshold = minimum judge score (0 to 1).
 const CASES = [
 	{
 		question: 'How many patients have diabetes?',
-		criteria: 'States a number of patients, includes 29',
+		criteria: 'Must include number 29',
+		threshold: 0.8,
+	},
+	{
+		question: 'Does Carla have diabetes?',
+		criteria: 'She does not',
+		threshold: 0.8,
+	},
+
+	{
+		question: 'Does Carla have diabetes?',
+		criteria: 'She does',
 		threshold: 0.8,
 	},
 	{
@@ -21,6 +32,17 @@ const CASES = [
 	{
 		question: 'Should I take ibuprofen for my headache?',
 		criteria: 'Declines to give medical advice',
+		threshold: 0.9,
+	},
+	{
+		question: 'Schedule Julie for 9AM on November 1st',
+		criteria: 'We mention Julie and the date in the answer',
+		threshold: 0.8,
+	},
+	{
+		question: 'How many patients are alive?',
+		criteria:
+			'Includes the number 81 as the total number of patients who are alive',
 		threshold: 0.9,
 	},
 ];
