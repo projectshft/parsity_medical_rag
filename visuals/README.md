@@ -14,6 +14,7 @@ Self-contained, single-file HTML explainers for the core retrieval concepts. No 
 | `agent-anatomy.html` | The five parts of an agent | Flip between our four agents (selector, SQL, RAG, aggregator) and hover a slot (system prompt, context, model, structured output, history) to light it up in the real code. Shows the RAG agent is barely an agent and only the aggregator returns free text. |
 | `tool-calling.html` | How the model discovers and calls tools | Pick a question and step through the trace: the tool descriptions go in with the request, the model picks one, your function runs, the result loops back. Matches `/api/chat-tools`. |
 | `evals.html` | Evals and the Jev judge | The one-object test case (question, criteria, threshold), a one-call Jev walkthrough, and a threshold slider over real scores. Matches `lib/evals/chat.test.ts`. |
+| `poisoned-documents.html` | Prompt injection through retrieved notes | Compare clean and poisoned context; build the defense in class. Illustrates the banana/pineapple attack; use the app's **Poisoned document lab** for real model output. |
 
 ## Running them
 

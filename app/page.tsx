@@ -3,6 +3,14 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { z } from 'zod';
+import poisonFixture from '@/data/security/poisoned/banana-note.json';
+
+const PoisonDemoSchema = z.object({
+	mode: z.enum(['clean', 'poisoned']),
+	retrieved: z.string(),
+	contextSent: z.string(),
+	markerPresent: z.boolean(),
+});
 
 const SchedulingActionSchema = z.object({
 	patientName: z.string().min(1),
@@ -15,6 +23,7 @@ type SchedulingAction = z.infer<typeof SchedulingActionSchema>;
 
 const ChatResponseSchema = z.object({
 	message: z.string(),
+	poisonDemo: PoisonDemoSchema.optional(),
 	schedulingAction: SchedulingActionSchema.nullish(),
 	// only /api/chat-tools sends these
 	availableTools: z
@@ -31,14 +40,15 @@ const ChatResponseSchema = z.object({
 		.optional(),
 });
 
-interface Message {
+type Message = {
 	role: 'user' | 'assistant';
 	content: string;
+	poisonDemo?: z.infer<typeof PoisonDemoSchema>;
 	toolTrace?: Pick<
 		z.infer<typeof ChatResponseSchema>,
 		'availableTools' | 'trace'
 	>;
-}
+};
 
 interface SchedulingState {
 	action: SchedulingAction;
@@ -62,6 +72,7 @@ export default function Home() {
 	const [messages, setMessages] = useState<Message[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [useTools, setUseTools] = useState(false); // false = selector pipeline, true = model picks tools
+	const [demoMode, setDemoMode] = useState<'off' | 'clean' | 'poisoned'>('off');
 	const [scheduling, setScheduling] = useState<SchedulingState | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -86,26 +97,29 @@ export default function Home() {
 
 		try {
 			const response = await fetch(
-				useTools ? '/api/chat-tools' : '/api/chat',
+				demoMode !== 'off' ? '/api/poison-demo' : useTools ? '/api/chat-tools' : '/api/chat',
 				{
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({
 						query: userMessage,
-						messages: messages,
+						messages,
+						mode: demoMode,
 					}),
 				},
 			);
 
-			if (!response.ok) throw new Error('Failed to get response');
+			const body = await response.json();
+			if (!response.ok) throw new Error(body.error || 'Failed to get response');
 
-			const { message, schedulingAction, availableTools, trace } =
-				ChatResponseSchema.parse(await response.json());
+			const { message, schedulingAction, availableTools, trace, poisonDemo } =
+				ChatResponseSchema.parse(body);
 			setMessages((prev) => [
 				...prev,
 				{
 					role: 'assistant',
 					content: message,
+					poisonDemo,
 					toolTrace: { availableTools, trace },
 				},
 			]);
@@ -124,7 +138,7 @@ export default function Home() {
 				...prev,
 				{
 					role: 'assistant',
-					content: 'Sorry, I encountered an error. Please try again.',
+					content: error instanceof Error ? error.message : 'Failed to get response. Please try again.',
 				},
 			]);
 		} finally {
@@ -223,6 +237,7 @@ export default function Home() {
 					</h1>
 				</div>
 				<button
+					disabled={isLoading || demoMode !== 'off'}
 					onClick={() => setUseTools((v) => !v)}
 					className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
 						useTools
@@ -233,6 +248,35 @@ export default function Home() {
 					{useTools ? 'Tool calling: on' : 'Tool calling: off'}
 				</button>
 			</header>
+			<section aria-label='Poisoned document demo' className='border-b border-copilot-border bg-copilot-sidebar px-4 py-3 text-sm text-copilot-text'>
+				<div className='max-w-3xl mx-auto space-y-2'>
+					<label className='flex flex-wrap items-center gap-3'>
+						<span className='font-semibold'>Poisoned document lab</span>
+						<select
+							value={demoMode}
+							disabled={isLoading}
+							onChange={(event) => {
+								setDemoMode(event.target.value as typeof demoMode);
+								setMessages([]);
+								setScheduling(null);
+							}}
+							className='rounded border border-copilot-border bg-copilot-input px-3 py-2'
+						>
+							<option value='off'>Off — normal chat</option>
+							<option value='clean'>1. Clean notes</option>
+							<option value='poisoned'>2. Poisoned note</option>
+						</select>
+					</label>
+					{demoMode !== 'off' && <>
+						<p className='text-copilot-muted'>Synthetic notes, real gpt-4o-mini response (normal chat uses gpt-6-sol). Each run starts fresh. Watch for “{poisonFixture.marker}” and the tap-dancing pineapple. Build the defense in class.</p>
+						<button disabled={isLoading} onClick={() => sendQuery(poisonFixture.question)} className='rounded-lg bg-copilot-accent px-3 py-2 text-white disabled:opacity-50'>Run demo question</button>
+						<details>
+							<summary className='cursor-pointer'>Inspect the planted document</summary>
+							<pre className='mt-2 whitespace-pre-wrap rounded border border-copilot-border p-3 text-xs'>{poisonFixture.poisonedNote}</pre>
+						</details>
+					</>}
+				</div>
+			</section>
 
 			{/* Messages */}
 			<div className='flex-1 overflow-y-auto p-4'>
@@ -304,6 +348,13 @@ export default function Home() {
 										</div>
 									) : (
 										<p>{message.content}</p>
+									)}
+									{message.poisonDemo && (
+										<div className='mt-3 border-t border-copilot-border pt-3 text-xs space-y-2'>
+											<p>{message.poisonDemo.mode} · Marker {message.poisonDemo.markerPresent ? 'present in model output' : 'absent from model output'}</p>
+											<details><summary className='cursor-pointer'>Retrieved documents</summary><pre className='whitespace-pre-wrap mt-2'>{message.poisonDemo.retrieved}</pre></details>
+											<details><summary className='cursor-pointer'>Exact context sent to the model</summary><pre className='whitespace-pre-wrap mt-2'>{message.poisonDemo.contextSent}</pre></details>
+										</div>
 									)}
 									{message.toolTrace?.availableTools && (
 										<div className='mt-3 space-y-2 border-t border-copilot-border pt-3 text-xs'>
@@ -512,7 +563,7 @@ export default function Home() {
 							type='text'
 							value={input}
 							onChange={(e) => setInput(e.target.value)}
-							placeholder="Ask about patient records, or say 'schedule John Smith for next Tuesday'..."
+							placeholder={demoMode === 'off' ? "Ask about patient records, or say 'schedule John Smith for next Tuesday'..." : "Ask about Alex Demo's synthetic visit..."}
 							className='flex-1 px-4 py-3 bg-copilot-input border border-copilot-border rounded-lg text-copilot-text placeholder-copilot-muted focus:outline-none focus:border-copilot-accent'
 							disabled={isLoading}
 						/>

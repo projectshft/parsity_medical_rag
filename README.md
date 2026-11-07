@@ -71,6 +71,8 @@ questions.
 
 Your capstone runs alongside weeks 5–6: you pick the data, scope it down, and build it. The plan is due in week 4.
 
+**Week 5 demo:** [Poisoned documents](docs/POISONED-DOCUMENT-DEMO.md) — run the banana/pineapple injection against a real model, build the defense in class, and present the [interactive visual](visuals/poisoned-documents.html).
+
 ---
 
 ## Quick Start

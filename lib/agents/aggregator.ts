@@ -16,9 +16,10 @@ export async function aggregate(
 	query: string,
 	history: Message[],
 	results: string,
+	model = 'gpt-6-sol',
 ): Promise<string> {
 	const response = await openai.responses.create({
-		model: 'gpt-6-sol',
+		model,
 		input: [
 			{
 				role: 'system',
